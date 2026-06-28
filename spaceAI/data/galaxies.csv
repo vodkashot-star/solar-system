@@ -1,0 +1,9 @@
+galaxy_type,mass,diameter,redshift,star_rate
+Spiral,1.2e12,100000,0.001,1.5
+Elliptical,2.5e13,200000,0.05,0.01
+Irregular,5e10,30000,0.002,3.2
+Spiral,8e11,80000,0.008,0.8
+Elliptical,4e12,150000,0.12,0.005
+Spiral,2e11,50000,0.003,2.1
+Irregular,1e10,15000,0.001,0.5
+Elliptical,1e14,500000,0.35,0.001

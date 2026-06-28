@@ -2,77 +2,85 @@
 Celestial Object Prediction Service
 Loads trained ML model and makes predictions on celestial objects
 """
-
+import argparse
 import joblib
 import sys
 from pathlib import Path
 
-# Add parent directory to path for imports
-sys.path.insert(0, str(Path(__file__).parent.parent))
+PROJECT_ROOT = Path(__file__).resolve().parent.parent
+DEFAULT_MODEL = PROJECT_ROOT / "models" / "celestial_classifier.pkl"
 
 
 class CelestialPredictor:
-    def __init__(self, model_path="../models/celestial_classifier.pkl"):
-        """Load trained model from disk"""
+    def __init__(self, model_path=None):
+        model_path = model_path or DEFAULT_MODEL
+        if not Path(model_path).exists():
+            alt = Path(model_path).parent / "celestial_classifier_dt.pkl"
+            if alt.exists():
+                model_path = alt
         try:
-            self.model = joblib.load(model_path)
-            print(f"✓ Model loaded from {model_path}")
+            self.model = joblib.load(str(model_path))
+            print(f"Model loaded from {model_path}", file=sys.stderr)
         except FileNotFoundError:
-            print(f"✗ Model not found at {model_path}")
-            print("  Train a model first using: poetry run jupyter notebook notebooks/train_celestial_classifier.ipynb")
+            print(f"Model not found at {model_path}", file=sys.stderr)
+            print("Train a model first: poetry run python src/train_model.py", file=sys.stderr)
             self.model = None
-    
+
     def predict(self, orbital_period, axial_tilt, mass):
-        """
-        Predict celestial object type
-        
-        Args:
-            orbital_period: Time to complete one orbit (years)
-            axial_tilt: Tilt angle relative to orbital plane (degrees)
-            mass: Object mass relative to Earth
-            
-        Returns:
-            str: Predicted object type (Planet, DwarfPlanet, Asteroid)
-        """
         if self.model is None:
             return None
-        
-        prediction = self.model.predict([[orbital_period, axial_tilt, mass]])
-        return prediction[0]
-    
+        return self.model.predict([[orbital_period, axial_tilt, mass]])[0]
+
     def predict_batch(self, data_list):
-        """
-        Predict multiple objects
-        
-        Args:
-            data_list: List of [orbital_period, axial_tilt, mass] tuples
-            
-        Returns:
-            list: Predicted object types
-        """
         if self.model is None:
             return None
-        
-        predictions = self.model.predict(data_list)
-        return predictions.tolist()
+        return self.model.predict(data_list).tolist()
+
+    def predict_proba(self, orbital_period, axial_tilt, mass):
+        if self.model is None or not hasattr(self.model, "predict_proba"):
+            return None
+        return self.model.predict_proba([[orbital_period, axial_tilt, mass]])[0]
+
+    def feature_importances(self):
+        if self.model is None or not hasattr(self.model, "feature_importances_"):
+            return None
+        return self.model.feature_importances_.tolist()
+
+    def classes_(self):
+        if self.model is None:
+            return []
+        return self.model.classes_.tolist()
+
+
+def main():
+    parser = argparse.ArgumentParser(description="Classify a celestial object")
+    parser.add_argument("--orbital-period", type=float, default=365, help="Orbital period in days")
+    parser.add_argument("--axial-tilt", type=float, default=23.5, help="Axial tilt in degrees")
+    parser.add_argument("--mass", type=float, default=5.97e24, help="Mass in kg")
+    parser.add_argument("--model", default=str(DEFAULT_MODEL), help="Path to .pkl model")
+    parser.add_argument("--debug", action="store_true", help="Show prediction details")
+    args = parser.parse_args()
+
+    predictor = CelestialPredictor(args.model)
+    if predictor.model is None:
+        sys.exit(1)
+
+    result = predictor.predict(args.orbital_period, args.axial_tilt, args.mass)
+    print(f"Prediction: {result}")
+
+    if args.debug:
+        probs = predictor.predict_proba(args.orbital_period, args.axial_tilt, args.mass)
+        if probs is not None:
+            print("\nClass probabilities:")
+            for cls, prob in zip(predictor.classes_(), probs):
+                print(f"  {cls}: {prob:.3f}")
+        fi = predictor.feature_importances()
+        if fi is not None:
+            features = ["orbital_period", "axial_tilt", "mass"]
+            print("\nFeature importances:")
+            for name, imp in zip(features, fi):
+                print(f"  {name}: {imp:.3f}")
 
 
 if __name__ == "__main__":
-    # Load the trained model
-    model = joblib.load('models/celestial_classifier.pkl')
-    
-    # Example input: orbital_period, axial_tilt, mass
-    sample_object = [[365, 23.5, 5.97e24]]  # Earth-like
-    
-    # Predict type
-    prediction = model.predict(sample_object)
-    print("Predicted type:", prediction[0])
-    
-    # Additional examples
-    print("\n--- Additional Predictions ---")
-    predictor = CelestialPredictor()
-    
-    if predictor.model:
-        # Single prediction
-        earth_type = predictor.predict(365, 23.5, 5.97e24)
-        print(f"Earth (365, 23.5, 5.97e24): {earth_type}")
+    main()

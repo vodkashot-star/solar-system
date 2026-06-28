@@ -1,0 +1,52 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Celestial Body Taxonomy",
+  "description": "Taxonomy schema for classifying celestial bodies in the Solar System. Defines a strict hierarchy with required metadata fields.",
+  "type": "array",
+  "items": {
+    "type": "object",
+    "title": "Celestial Body Entry",
+    "description": "A single celestial body entry with its taxonomic classification and physical metadata.",
+    "properties": {
+      "category": {
+        "type": "string",
+        "enum": ["Planet", "Dwarf Planet", "Small Body"],
+        "description": "Top-level classification of the celestial body."
+      },
+      "sub_category": {
+        "type": "string",
+        "minLength": 1,
+        "description": "Sub-classification within the top-level category (e.g., 'Terrestrial', 'Gas Giant', 'Ice Giant', 'Asteroid', 'Comet', 'Kuiper Belt Object', 'Moon')."
+      },
+      "name": {
+        "type": "string",
+        "minLength": 1,
+        "description": "Official IAU name of the celestial body."
+      },
+      "mass_kg": {
+        "type": "number",
+        "exclusiveMinimum": 0,
+        "description": "Mass of the celestial body in kilograms. Must be a positive number."
+      },
+      "orbital_period_days": {
+        "type": "number",
+        "exclusiveMinimum": 0,
+        "description": "Orbital period around the primary body in Earth days. Must be a positive number."
+      },
+      "composition_type": {
+        "type": "string",
+        "enum": ["silicate", "ice", "gas"],
+        "description": "Primary bulk composition type. 'silicate' for rocky/metallic bodies, 'ice' for icy bodies, 'gas' for gas-dominated bodies."
+      }
+    },
+    "required": [
+      "category",
+      "sub_category",
+      "name",
+      "mass_kg",
+      "orbital_period_days",
+      "composition_type"
+    ],
+    "additionalProperties": false
+  }
+}

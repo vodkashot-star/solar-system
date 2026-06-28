@@ -1,7 +1,50 @@
+# Dependencies
 node_modules
+
+# Build output
 dist
+stats.html
+
+# OS files
 .DS_Store
+Thumbs.db
+*.swp
+*.swo
+
+# Environment
 .env
 .env.local
+.env.*.local
+
+# Logs
+*.log
+
+# Archives
 *.tar.gz
-stats.html
+*.tgz
+*.zip
+
+# TypeScript
+*.tsbuildinfo
+
+# Python
+__pycache__/
+*.pyc
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.venv/
+venv/
+spaceAI/venv/
+
+# IDE
+.vscode/
+.idea/
+
+# Coverage
+coverage/
+htmlcov/
+.nyc_output/
+
+.opencode
+

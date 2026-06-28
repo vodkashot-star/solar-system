@@ -1,17 +1,20 @@
 import { DRACOLoader } from 'three/addons/loaders/DRACOLoader.js';
+import { useGLTF } from '@react-three/drei';
 
-let dracoLoader: DRACOLoader | null = null;
+let initialized = false;
 
 export function initDracoDecoder() {
-  if (dracoLoader) return dracoLoader;
+  if (initialized) return true;
 
   try {
-    dracoLoader = new DRACOLoader();
-    dracoLoader.setDecoderPath('/draco/');
-    console.log("[Draco] Decoder initialized successfully");
-    return dracoLoader;
+    const loader = new DRACOLoader();
+    loader.setDecoderPath('/draco/');
+    (useGLTF as unknown as { setDRACOLoader: (loader: DRACOLoader) => void }).setDRACOLoader(loader);
+    initialized = true;
+    console.log('[Draco] Decoder wired into useGLTF');
+    return true;
   } catch (error) {
-    console.warn("[Draco] Failed to initialize, falling back to uncompressed models", error);
-    return null;
+    console.warn('[Draco] Failed to initialize', error);
+    return false;
   }
 }

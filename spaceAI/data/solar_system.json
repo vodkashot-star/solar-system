@@ -1,0 +1,26 @@
+[
+  {
+    "category": "Planet",
+    "sub_category": "Terrestrial",
+    "name": "Earth",
+    "mass_kg": 5.972e24,
+    "orbital_period_days": 365.25,
+    "composition_type": "silicate"
+  },
+  {
+    "category": "Planet",
+    "sub_category": "Gas Giant",
+    "name": "Jupiter",
+    "mass_kg": 1.898e27,
+    "orbital_period_days": 4333,
+    "composition_type": "gas"
+  },
+  {
+    "category": "Dwarf Planet",
+    "sub_category": "Kuiper Belt Object",
+    "name": "Pluto",
+    "mass_kg": 1.303e22,
+    "orbital_period_days": 90560,
+    "composition_type": "ice"
+  }
+]
