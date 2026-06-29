@@ -1,9 +1,16 @@
+import { useEffect, useState } from "react";
 import { useProgress } from "@react-three/drei";
 
 export default function LoadingSpinner() {
   const { progress, active } = useProgress();
+  const [timedOut, setTimedOut] = useState(false);
 
-  if (!active || progress >= 100) return null;
+  useEffect(() => {
+    const id = setTimeout(() => setTimedOut(true), 15_000);
+    return () => clearTimeout(id);
+  }, []);
+
+  if (!active || progress >= 100 || timedOut) return null;
 
   return (
     <div className="pointer-events-none fixed inset-0 z-50 flex flex-col items-center justify-center bg-black/70 backdrop-blur-sm transition-opacity duration-700">

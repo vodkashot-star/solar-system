@@ -4,78 +4,80 @@ Building and evaluating machine learning models for celestial data.
 
 ## Types of Models
 
-### Classification
-Predict categorical labels (e.g., Planet, Moon, Asteroid, DwarfPlanet).
-
-**Use cases:**
-- Celestial object type identification
-- Comparing new objects against known categories
+### Classification (current)
+Predicts categorical labels (Planet, Moon, Asteroid, DwarfPlanet, Star, Comet, InterstellarObject) from 5 physical features.
 
 ### Regression (future)
 Predict continuous values (e.g., orbital period, mass).
 
-## Training Workflow
-
-### 1. Train Model
+## Quick Start
 
 ```bash
-# From the spaceAI/ directory:
-
-# Quick training (auto-creates dataset if missing)
-python src/setup_and_train.py
-
-# Full training with options
-python src/train_model.py --dataset data/celestial_objects.csv --output models/my_model.pkl
-
-# Adjust tree depth and test split
-python src/train_model.py --max-depth 3 --test-size 0.2 --debug
+python run.py train    # Train and save model
+python run.py test     # Evaluate on test split
 ```
+
+## Training Workflow
+
+### 1. Train the Model
+
+```bash
+# Trains RandomForest with StandardScaler pipeline
+python run.py train
+```
+
+This reads `data/celestial_objects.csv`, trains a RandomForestClassifier (100 estimators, balanced classes) with a StandardScaler, and saves to `models/celestial_classifier.pkl`.
 
 ### 2. Evaluate
 
 ```bash
-# Show classification report and feature importances
-python src/train_model.py --debug
+python run.py test
 ```
+
+Outputs accuracy score and a full precision/recall/F1 classification report on the held-out 20% test split.
 
 ### 3. Test Predictions
 
 ```bash
-# Single prediction
-python src/predict.py --orbital-period 687 --axial-tilt 25.2 --mass 6.42e23 --debug
+# Single prediction (5 features: orbital_period axial_tilt mass radius eccentricity)
+python run.py query --features 365.25 23.44 1.0 1.0 0.017
+
+# With class probabilities
+python run.py query --features 687 25.19 0.107 0.532 0.094 --proba
 
 # Batch classification from CSV
-python src/classify.py --dataset data/celestial_objects.csv --output predictions.csv
+python run.py classify --output predictions.csv
 ```
 
 ### 4. Discover Similar Objects
 
 ```bash
-# Recommend similar to first object in dataset
-python src/recommend.py --dataset data/celestial_objects.csv --object-idx 0 --top-k 3
+# Find 3 objects most similar to Earth (index 2)
+python run.py recommend --object-idx 2 --top-k 3
+
+# Custom query
+python run.py recommend --features 88 0.034 0.055 --top-k 3
 ```
-
-## Training Scripts
-
-| Script | Use Case | Command |
-|--------|----------|---------|
-| `setup_and_train.py` | Quick start, auto-creates dataset | `python src/setup_and_train.py` |
-| `train_model.py` | Full training with CLI options | `python src/train_model.py --dataset ...` |
-
-## Prediction Scripts
-
-| Script | Use Case | Command |
-|--------|----------|---------|
-| `predict.py` | Single/batch object classification | `python src/predict.py --orbital-period ...` |
-| `classify.py` | Batch classify from CSV dataset | `python src/classify.py --dataset ...` |
-| `recommend.py` | Find similar celestial objects | `python src/recommend.py --dataset ...` |
 
 ## Feature Columns
 
-All training and prediction use these features:
-- `orbital_period` - Days (float)
-- `axial_tilt` - Degrees (float)
-- `mass` - Earth masses (float)
+All training and prediction use these 5 features:
+
+| Feature | Unit | Description |
+|---------|------|-------------|
+| `orbital_period` | days | Time for one full orbit |
+| `axial_tilt` | degrees | Tilt of rotation axis |
+| `mass` | Earth masses | Body mass relative to Earth |
+| `radius` | Earth radii | Body radius relative to Earth |
+| `eccentricity` | 0–1 | Orbit shape (0 = circle) |
+
+## Model Details
+
+- **Algorithm**: RandomForestClassifier (100 estimators)
+- **Preprocessing**: StandardScaler (zero mean, unit variance)
+- **Class balancing**: `class_weight="balanced"`
+- **Train/test split**: 80/20, `random_state=42`
+- **Serialization**: joblib `.pkl`
 
 ## Model Persistence
 

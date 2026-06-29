@@ -5,9 +5,10 @@
 | Command | What it does |
 |---------|-------------|
 | `npm run dev` | Starts Vite dev server via Express middleware (HMR, port 5000) |
-| `npm run build` | `bash scripts/copy-draco.sh && vite build && esbuild server/index-prod.ts --bundle --outdir=dist` |
+| `npm run build` | `bash scripts/copy-draco.sh && vite build && esbuild server/index-prod.ts --platform=node --packages=external --bundle --format=esm --outdir=dist` |
 | `npm run check` | `tsc` — sole verification step (no linter, no tests) |
 | `npm start` | `NODE_ENV=production node dist/index-prod.js` (serves built static) |
+| `bash scripts/dev.sh` | Starts **both** Express (:5000) + FastAPI (:8000), auto-restarts FastAPI on crash, Ctrl+C kills both. Requires Python venv in `spaceAI/` — will train model if `.pkl` missing. |
 
 No linter, test framework, or CI exists. `npm run check` is the only way to validate code.
 
@@ -23,7 +24,11 @@ components/solar-system/
   OrbitRings.tsx       — Single merged LineSegments (1 draw call) for all 8 orbit paths
   InstancedStars.tsx   — Custom Points-based star field (replaces drei Stars)
   FocusCamera.tsx      — Camera lerp controller driven by zustand focus store, uses computed radii
-  bodies.ts            — Body config array (Sun + 8 planets)
+  ScaleControl.tsx     — 4-mode scale selector (visual / realSize / realDistance / hybrid)
+  EnhancedDataExplorer.tsx — Detailed body data panel with units formatting
+  AIClassificationPanel.tsx — ML classification display (calls FastAPI backend)
+  DebugPanel.tsx       — GLB load status overlay (uses load-debugger store)
+  bodies.ts            — Body config array (Sun + 28 celestial bodies: planets, dwarf planets, asteroids, comets, interstellar objects)
 stores/
   camera-focus.ts      — Zustand store: focus(bodyId, position) / clear()
 lib/
@@ -36,8 +41,8 @@ lib/
 - **Click-to-focus**: Planet `onClick` → zustand `focus(bodyId, position)` → `FocusCamera` lerps camera to body using `computedRadii` for distance. Tour pauses while focused.
 - **Camera distance**: Both `CinematicTour` and `FocusCamera` use a `computedRadii` ref (populated by `Planet` after GLB load) instead of hardcoded `visualRadius`. Fallback to `visualRadius` if not yet computed. Saturn rings are included in the bounding box.
 - **Context loss**: `SolarSystem.tsx` `onCreated` adds `webglcontextlost`/`webglcontextrestored` listeners. Shows a recovery overlay, auto-restores on `restored` event, provides a manual "Reload page" fallback.
-- **Scale toggle**: Button switches between `"cinematic"` (1×) and `"realistic"` (0.25×) scale multipliers for orbits and visual radii.
-- **GLB loading**: No module-level preload. GLBs load on-demand per `Suspense` boundary. Fallback colored spheres appear immediately; GLBs swap in asynchronously per planet. LoadingSpinner blocks until `useProgress >= 100`.
+- **Scale modes**: `ScaleControl.tsx` supports 4 modes: `"visual"` (balanced for exploration), `"realSize"` (accurate planet size ratios), `"realDistance"` (accurate AU distances), `"hybrid"` (compromise).
+- **GLB loading**: No module-level preload. GLBs load on-demand per `Suspense` boundary. Fallback colored spheres appear immediately; GLBs swap in asynchronously per planet. `LoadingSpinner` hides after all 29 models load (`useProgress >= 100`) **or after a 15s timeout** — prevents infinite blocking if a GLB stalls.
 - **Asset pointers**: `client/src/assets/solar/*.glb.asset.json` contain `{"url":"/models/<name>.glb"}`. Import JSON, use `.url` — swapping CDN paths requires no code changes.
 - **Path aliases**: `@/*` → `client/src/*`, `@shared/*` → `shared/*` (configured in tsconfig and vite.config).
 - **Server** (`server/`): Minimal Express with `/api/health`. Dev mode runs Vite middleware; prod serves `dist/` as SPA fallback.
@@ -59,7 +64,7 @@ The following installed packages are no longer imported by any source file — d
 ## Sub-projects (separate tooling)
 
 - `scripts/`: Blender Python scripts for procedural GLB generation. Run via `bash scripts/run_blender_generation.sh`. Blender 3.4+ required.
-- `spaceAI/`: Python ML sub-project (Poetry, DecisionTree classifier). See `spaceAI/spaceAI.md`.
+- `spaceAI/`: Python ML sub-project (pip, RandomForest classifier). See `spaceAI/spaceAI.md`.
 
 ## Gotchas
 

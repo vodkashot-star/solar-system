@@ -1,9 +1,9 @@
-import { useRef, useState, useMemo, useCallback } from "react";
+import { useRef, useState, useMemo, useCallback, useEffect } from "react";
 import { Canvas } from "@react-three/fiber";
 import { OrbitControls } from "@react-three/drei";
 import { EffectComposer, Bloom } from "@react-three/postprocessing";
 import * as THREE from "three";
-import { BODIES, type Body } from "./bodies";
+import { BODIES, type Body, type AIAnalysis } from "./bodies";
 import Planet from "./Planet";
 import OrbitRings from "./OrbitRings";
 import InstancedStars from "./InstancedStars";
@@ -11,6 +11,7 @@ import CinematicTour from "./CinematicTour";
 import FocusCamera from "./FocusCamera";
 import LoadingSpinner from "./LoadingSpinner";
 import DebugPanel from "./DebugPanel";
+import AIClassificationPanel from "./AIClassificationPanel";
 import { useCameraFocus } from "@/stores/camera-focus";
 
 export default function SolarSystem() {
@@ -18,9 +19,29 @@ export default function SolarSystem() {
   const [active, setActive] = useState<Body>(BODIES[0]);
   const [scaleMode, setScaleMode] = useState<"cinematic" | "realistic">("cinematic");
   const [contextLost, setContextLost] = useState(false);
+  const [aiCache, setAiCache] = useState<Record<string, AIAnalysis>>({});
   const positions = useRef<Record<string, THREE.Vector3>>({});
   const computedRadii = useRef<Record<string, number>>({});
   const clearFocus = useCameraFocus((s) => s.clear);
+  const focus = useCameraFocus((s) => s.focus);
+
+  useEffect(() => {
+    if (aiCache[active.id]) return;
+    const { orbitalPeriod, axialTilt, mass, radius, eccentricity } = active.properties;
+    const params = new URLSearchParams({
+      orbital_period: String(orbitalPeriod),
+      axial_tilt: String(axialTilt),
+      mass: String(mass),
+      radius: String(radius),
+      eccentricity: String(eccentricity),
+    });
+    fetch(`/api/ai/classify/${active.id}?${params}`)
+      .then((r) => r.ok ? r.json() : null)
+      .then((data: AIAnalysis | null) => {
+        if (data) setAiCache((c) => ({ ...c, [active.id]: data }));
+      })
+      .catch(() => {/* AI service offline — fail silently */});
+  }, [active.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const scaleMultiplier = scaleMode === "cinematic" ? 1 : 0.25;
 
@@ -141,6 +162,43 @@ export default function SolarSystem() {
           </div>
           <div className="mt-1 text-3xl font-light text-white">{active.name}</div>
           <p className="mt-2 text-sm leading-relaxed text-white/60">{active.fact}</p>
+
+          {aiCache[active.id] && (
+            <>
+              <div className="mt-4 border-t border-white/10 pt-4">
+                <AIClassificationPanel
+                  body={{ ...active, aiAnalysis: aiCache[active.id] }}
+                  className="!border-0 !bg-transparent !p-0 !backdrop-blur-none"
+                />
+              </div>
+
+              {aiCache[active.id].similarObjects.length > 0 && (
+                <div className="mt-3">
+                  <div className="text-[10px] font-semibold uppercase tracking-[0.2em] text-white/40">
+                    Similar bodies
+                  </div>
+                  <div className="pointer-events-auto mt-1.5 flex flex-wrap gap-1.5">
+                    {aiCache[active.id].similarObjects.map(({ bodyId }) => {
+                      const match = BODIES.find((b) => b.id === bodyId);
+                      if (!match) return null;
+                      return (
+                        <button
+                          key={bodyId}
+                          onClick={() => {
+                            const pos = positions.current[bodyId];
+                            if (pos) focus(bodyId, pos);
+                          }}
+                          className="rounded-full border border-white/10 bg-white/5 px-2.5 py-0.5 text-[11px] text-white/70 transition hover:bg-white/10 hover:text-white"
+                        >
+                          {match.name}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+            </>
+          )}
         </div>
       </div>
 

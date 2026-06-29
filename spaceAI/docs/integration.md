@@ -5,13 +5,13 @@ Connecting SpaceAI models to the Cosmic Voyage game.
 ## Integration Architecture
 
 ```
-Game ←→ Express API ←→ Python Inference ←→ Trained Model
+Game ←→ Express API ←→ FastAPI (/classify) ←→ Trained Model
 ```
 
 ## Prerequisites
 
-- Trained model saved in `models/` (run `python src/train_model.py`)
-- Python environment with `poetry install`
+- Trained model saved in `models/` (run `python run.py train`)
+- Python environment with dependencies installed
 
 ## Game Integration Steps
 
@@ -19,75 +19,89 @@ Game ←→ Express API ←→ Python Inference ←→ Trained Model
 
 ```bash
 cd spaceAI
-python src/train_model.py
+python run.py train
 ```
 
-### 2. Call Predictions from Node.js / Express
+### 2. Start the FastAPI Server
+
+```bash
+python run.py serve
+# Runs on http://localhost:8000
+```
+
+### 3. Call from Express / Node.js
 
 ```typescript
-// In your Express server route
-import { execSync } from "child_process";
-
-app.get("/api/classify/:bodyId", (req, res) => {
-  const features = getFeaturesForBody(req.params.bodyId);
-  const result = execSync(
-    `python spaceAI/src/predict.py --orbital-period ${features.orbitalPeriod} --axial-tilt ${features.axialTilt} --mass ${features.mass}`,
-  ).toString();
-  res.json({ prediction: result.trim(), features });
+app.get("/api/classify/:bodyId", async (req, res) => {
+  const { orbitalPeriod, axialTilt, mass, radius, eccentricity } = getFeatures(req.params.bodyId);
+  const url = `http://localhost:8000/classify/${req.params.bodyId}` +
+    `?orbital_period=${orbitalPeriod}&axial_tilt=${axialTilt}` +
+    `&mass=${mass}&radius=${radius}&eccentricity=${eccentricity}`;
+  const response = await fetch(url);
+  const analysis = await response.json();
+  res.json(analysis);
 });
 ```
 
-### 3. API Response Format (from predict.py)
+### 4. API Response Format
 
+```json
+{
+  "classification": "Planet",
+  "confidence": 0.92,
+  "alternatives": [
+    { "type": "DwarfPlanet", "score": 0.05 },
+    { "type": "Moon", "score": 0.02 }
+  ],
+  "features": [
+    { "name": "orbital_period", "value": 365.25, "importance": 0.28 },
+    { "name": "axial_tilt", "value": 23.44, "importance": 0.15 },
+    { "name": "mass", "value": 1.0, "importance": 0.32 },
+    { "name": "radius", "value": 1.0, "importance": 0.18 },
+    { "name": "eccentricity", "value": 0.017, "importance": 0.07 }
+  ],
+  "similarObjects": [
+    { "bodyId": "venus", "similarity": 0.87 },
+    { "bodyId": "mars", "similarity": 0.82 },
+    { "bodyId": "mercury", "similarity": 0.74 }
+  ]
+}
 ```
-Prediction: Planet
-```
 
-With `--debug` flag, returns probabilities and feature importances to stderr.
-
-### 4. Batch Classification
+### 5. Batch Classification (CLI)
 
 ```bash
-# Classify all objects in the dataset
-python src/classify.py --dataset data/celestial_objects.csv --output predictions.csv
+python run.py classify --output predictions.csv
 ```
 
-### 5. Discovery Recommendations
+### 6. Discovery Recommendations (CLI)
 
 ```bash
-# Find 3 most similar objects
-python src/recommend.py --dataset data/celestial_objects.csv --object-idx 2 --top-k 3
+python run.py recommend --object-idx 2 --top-k 3
 ```
 
-## Available Scripts
+## CLI Quick Reference
 
-| Script | Purpose | CLI Example |
-|--------|---------|-------------|
-| `src/predict.py` | Single object classification | `--orbital-period 365 --axial-tilt 23.5 --mass 5.97e24` |
-| `src/classify.py` | Batch CSV classification | `--dataset data/celestial_objects.csv` |
-| `src/recommend.py` | Discovery recommendations | `--dataset data/celestial_objects.csv --object-idx 0` |
+| Command | Purpose | Example |
+|---------|---------|---------|
+| `run.py train` | Train RandomForest classifier | `python run.py train` |
+| `run.py test` | Evaluate on test split | `python run.py test` |
+| `run.py query` | Single object classification | `--features 365 23 1 1 0.017` |
+| `run.py classify` | Batch CSV classification | `--output results.csv` |
+| `run.py recommend` | Find similar objects | `--object-idx 0 --top-k 5` |
+| `run.py serve` | Start FastAPI server | `--port 8080 --reload` |
 
 ## TypeScript Type Mapping
 
-The output of `predict.py` maps to the `AIAnalysis` type in the client:
+The FastAPI response maps to the `AIAnalysis` type in the client:
 
 ```typescript
 type AIAnalysis = {
-  classification: string;    // predict.py output
-  confidence: number;        // from predict_proba()
-  alternatives: Array<{      // from predict_proba() top-3
-    type: string;
-    score: number;
-  }>;
-  features: Array<{          // from feature_importances_
-    name: string;
-    value: number;
-    importance: number;
-  }>;
-  similarObjects: Array<{    // from recommend.py
-    bodyId: string;
-    similarity: number;
-  }>;
+  classification: string;
+  confidence: number;
+  alternatives: Array<{ type: string; score: number }>;
+  features: Array<{ name: string; value: number; importance: number }>;
+  similarObjects: Array<{ bodyId: string; similarity: number }>;
 };
 ```
 
@@ -95,12 +109,5 @@ type AIAnalysis = {
 
 - Pre-compute predictions for all bodies at build time
 - Cache frequent queries
-- Use async I/O for game integration
-- The DecisionTree classifier is fast (< 1ms per prediction)
-
-## Debug Mode
-
-```bash
-# Show class probabilities and feature importances
-python src/predict.py --orbital-period 687 --axial-tilt 25.2 --mass 6.42e23 --debug
-```
+- The RandomForest classifier is fast (< 5ms per prediction)
+- Model loads once at server startup

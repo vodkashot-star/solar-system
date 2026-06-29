@@ -6,55 +6,77 @@ Common issues and solutions when working with SpaceAI.
 
 ### "Module not found" errors
 ```bash
-# Reinstall dependencies
-poetry install --no-cache
+pip install -r requirements.txt
 ```
 
-### Jupyter not starting
+### FastAPI / uvicorn not installed
 ```bash
-# Reinstall Jupyter
-poetry add jupyter
+pip install fastapi uvicorn
+```
+
+## Model Issues
+
+### "Model not found" when running query/classify/serve
+```bash
+# Train the model first
+python run.py train
+```
+
+### Poor prediction accuracy
+1. Check data quality in `data/celestial_objects.csv`
+2. Verify features are properly scaled
+3. Collect more training data
+
+### Model loading fails
+```python
+import os
+print(os.path.exists('models/celestial_classifier.pkl'))
+
+import sklearn
+print(sklearn.__version__)
+```
+
+## API Issues
+
+### FastAPI server won't start
+```bash
+# Check if port is in use
+lsof -i :8000
+
+# Use a different port
+python run.py serve --port 8080
+```
+
+### CORS errors from browser
+The FastAPI server has CORS middleware configured for all origins. If issues persist, check `api.py` CORS settings.
+
+### 503 "Model not loaded"
+Train the model before starting the server:
+```bash
+python run.py train && python run.py serve
 ```
 
 ## Data Issues
 
 ### Missing values in datasets
 ```python
-# Handle NaN values
-df = df.dropna()  # or df.fillna(df.mean())
+# Handled automatically during training (fillna(0))
+# Or clean manually:
+df = df.dropna()
 ```
 
 ### File not found errors
 Verify paths from project root:
 ```bash
-ls data/stars.csv
-```
-
-## Model Issues
-
-### Poor prediction accuracy
-1. Check data quality (outliers, NaN values)
-2. Try different model types
-3. Tune hyperparameters
-4. Collect more training data
-
-### Model loading fails
-```python
-# Verify model file exists
-import os
-print(os.path.exists('models/model.pkl'))
-
-# Check Python version compatibility
-import sklearn
-print(sklearn.__version__)
+ls data/celestial_objects.csv
 ```
 
 ## Performance Issues
 
 ### Slow inference
-- Use smaller models for real-time
-- Cache predictions
-- Batch requests
+- RandomForest is fast (< 5ms per prediction)
+- Model loads once at server startup
+- Cache frequent queries if needed
 
 ### High memory usage
 ```python
@@ -62,22 +84,9 @@ print(sklearn.__version__)
 df = df.astype({'column': 'float32'})
 ```
 
-## Game Integration Issues
-
-### API returns empty results
-Check feature order matches training features:
-```bash
-python src/classify.py --debug --features '{"temp": 5800, "mass": 1.0}'
-```
-
-### Connection timeouts
-- Increase timeout values
-- Use async calls
-- Implement retry logic
-
 ## Getting Help
 
-1. Check logs: `export DEBUG=true`
+1. Run with verbose output where available
 2. Review error messages carefully
-3. Verify data format matches docs
-4. Test individual components first
+3. Verify data format matches [data-format.md](data-format.md)
+4. Test individual components: `run.py train` → `run.py test` → `run.py query`

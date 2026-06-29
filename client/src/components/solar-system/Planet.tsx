@@ -15,59 +15,71 @@ type PlanetProps = {
 
 const FALLBACK_GEOMETRY = new THREE.SphereGeometry(1, 48, 48);
 
-function GLBModel({ url, radius, body: _body, onReady }: {
+// Cache per-body fallback materials to avoid cloning on every render
+const materialCache = new Map<string, THREE.MeshStandardMaterial>();
+function getFallbackMaterial(color: string, emissive: boolean) {
+  const key = `${color}:${emissive}`;
+  if (!materialCache.has(key)) {
+    const m = new THREE.MeshStandardMaterial({
+      roughness: 0.85,
+      metalness: 0.05,
+      color,
+      emissive: emissive ? new THREE.Color(color) : new THREE.Color("#000000"),
+      emissiveIntensity: emissive ? 1.4 : 0,
+    });
+    materialCache.set(key, m);
+  }
+  return materialCache.get(key)!;
+}
+
+function GLBModel({ url, radius, body, onReady }: {
   url: string; radius: number; body: Body; onReady?: () => void;
 }) {
-  startLoad(_body.id, _body.name, url);
   const { scene } = useGLTF(url);
-  finishLoad(_body.id);
 
-  const normalized = useMemo(() => {
-    const clone = scene.clone(true);
-    const box = new THREE.Box3().setFromObject(clone);
+  // Bug fix: normalize the scene in-place rather than cloning — avoids
+  // duplicating geometry buffers and the old-clone-never-disposed memory leak.
+  // Bug fix: apply scale then update matrix AFTER position centering.
+  useMemo(() => {
+    startLoad(body.id, body.name, url);
+    const box = new THREE.Box3().setFromObject(scene);
     const size = new THREE.Vector3();
     box.getSize(size);
     const maxDim = Math.max(size.x, size.y, size.z) || 1;
     const scale = (radius * 2) / maxDim;
-    clone.scale.setScalar(scale);
+    scene.scale.setScalar(scale);
+
+    // Re-compute box after scale to get accurate center
+    box.setFromObject(scene);
     const center = new THREE.Vector3();
     box.getCenter(center);
-    clone.position.sub(center.multiplyScalar(scale));
+    scene.position.sub(center);
 
-    clone.traverse((obj: THREE.Object3D) => {
+    scene.traverse((obj: THREE.Object3D) => {
       const mesh = obj as THREE.Mesh;
       if (mesh.isMesh) {
         mesh.frustumCulled = true;
         mesh.geometry?.computeBoundingSphere();
+        // updateMatrix AFTER all position/scale changes are done
         mesh.matrixAutoUpdate = false;
         mesh.updateMatrix();
       }
     });
-
-    return clone;
-  }, [scene, radius]);
+    // Update root matrix too so centering offset is captured
+    scene.matrixAutoUpdate = false;
+    scene.updateMatrix();
+    finishLoad(body.id);
+  }, [scene, radius]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     onReady?.();
   }, [onReady]);
 
-  return <primitive object={normalized} />;
+  return <primitive object={scene} />;
 }
 
-const fallbackMaterial = new THREE.MeshStandardMaterial({
-  roughness: 0.85,
-  metalness: 0.05,
-});
-
 function FallbackSphere({ radius, color, emissive }: { radius: number; color: string; emissive?: boolean }) {
-  const mat = useMemo(() => {
-    const m = fallbackMaterial.clone();
-    m.color.set(color);
-    m.emissive = emissive ? new THREE.Color(color) : new THREE.Color("#000000");
-    m.emissiveIntensity = emissive ? 1.4 : 0;
-    return m;
-  }, [color, emissive]);
-
+  const mat = getFallbackMaterial(color, !!emissive);
   return (
     <mesh geometry={FALLBACK_GEOMETRY} scale={radius}>
       <primitive object={mat} attach="material" />
@@ -85,11 +97,10 @@ const ringMaterial = new THREE.MeshBasicMaterial({
 });
 
 function SaturnRings({ radius }: { radius: number }) {
-  const scale = radius * 1.2;
   return (
     <mesh
       rotation={[-Math.PI / 2.4, 0, 0]}
-      scale={scale}
+      scale={radius * 1.2}
       geometry={RING_GEOMETRY}
       material={ringMaterial}
       frustumCulled={false}
@@ -105,6 +116,8 @@ export default function Planet({ body, onPosition, scaleMultiplier = 1, onComput
 
   const effectiveOrbit = body.orbit * scaleMultiplier;
   const effectiveRadius = body.visualRadius * (0.3 + 0.7 * scaleMultiplier);
+  // Skip orbital math for stationary bodies (sun, interstellar objects)
+  const isStationary = body.orbitSpeed === 0;
 
   const handleClick = useCallback(
     (e: ThreeEvent<MouseEvent>) => {
@@ -118,10 +131,11 @@ export default function Planet({ body, onPosition, scaleMultiplier = 1, onComput
   useFrame((state, delta) => {
     const p = pivot.current;
     if (p) {
-      const t = state.clock.elapsedTime;
-      const angle = body.phase + t * body.orbitSpeed;
-      p.position.x = Math.cos(angle) * effectiveOrbit;
-      p.position.z = Math.sin(angle) * effectiveOrbit;
+      if (!isStationary) {
+        const angle = body.phase + state.clock.elapsedTime * body.orbitSpeed;
+        p.position.x = Math.cos(angle) * effectiveOrbit;
+        p.position.z = Math.sin(angle) * effectiveOrbit;
+      }
       if (onPosition) onPosition(p.position);
     }
     if (spin.current) {
@@ -136,16 +150,12 @@ export default function Planet({ body, onPosition, scaleMultiplier = 1, onComput
       const size = new THREE.Vector3();
       box.getSize(size);
       const r = Math.max(size.x, size.y, size.z) / 2;
-      if (r > 0.01) {
-        onComputedRadius?.(body.id, r);
-      }
+      if (r > 0.01) onComputedRadius?.(body.id, r);
     }
   }, [glbReady, body.id, onComputedRadius, scaleMultiplier]);
 
   useEffect(() => {
-    if (!body.glbUrl) {
-      onComputedRadius?.(body.id, effectiveRadius);
-    }
+    if (!body.glbUrl) onComputedRadius?.(body.id, effectiveRadius);
   }, [body.glbUrl, body.id, onComputedRadius, effectiveRadius]);
 
   const isSun = body.id === "sun";

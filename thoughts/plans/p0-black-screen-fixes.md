@@ -1,3 +1,5 @@
+**IMPLEMENTED** — All fixes applied. Uranus GLB: 83 MB → 277 KB (Draco), preload removed, `invalidate()` added, context-loss recovery added, loading spinner timeout added (15s).
+
 # P0 Black-Screen Fixes — Implementation Plan
 
 ## Overview

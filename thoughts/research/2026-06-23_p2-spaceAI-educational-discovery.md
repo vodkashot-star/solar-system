@@ -18,7 +18,7 @@ Research the codebase to understand the current state of three P2 features on th
 
 ## Summary
 
-The codebase has **significant pre-built infrastructure** for all three P2 features — more than the roadmap suggests. The `AIAnalysis` type and `AstronomicalProperties` are fully defined in `bodies.ts`, and two client-side UI components (`AIClassificationPanel`, `EnhancedDataExplorer`) already render AI analysis data. The `spaceAI/` Python sub-project has a working `DecisionTreeClassifier` pipeline with training scripts, a Jupyter notebook, and a `CelestialPredictor` class. What's missing: (1) no server-side API endpoints bridge the Python model to the React frontend, (2) no trained model `.pkl` files are committed, (3) the AI components aren't wired into `SolarSystem.tsx`'s HUD, and (4) the `ScaleControl.tsx` exists alongside a simpler scale toggle in `SolarSystem.tsx` — suggesting two competing implementations.
+The codebase has **significant pre-built infrastructure** for all three P2 features — more than the roadmap suggests. The `AIAnalysis` type and `AstronomicalProperties` are fully defined in `bodies.ts`, and two client-side UI components (`AIClassificationPanel`, `EnhancedDataExplorer`) already render AI analysis data. The `spaceAI/` Python sub-project has a working `RandomForestClassifier` pipeline with training scripts, a Jupyter notebook, and a `CelestialPredictor` class. What's missing: (1) no server-side API endpoints bridge the Python model to the React frontend, (2) no trained model `.pkl` files are committed, (3) the AI components aren't wired into `SolarSystem.tsx`'s HUD, and (4) the `ScaleControl.tsx` exists alongside a simpler scale toggle in `SolarSystem.tsx` — suggesting two competing implementations.
 
 For educational overlays, the app has a consistent dark-space HUD aesthetic using Tailwind with `backdrop-blur-md`, `border-white/10`, and `bg-black/60` patterns. Six discrete overlay sections exist (context-loss recovery, top bar, bottom info card, loading spinner, debug panel, scale control), but no modals, tooltips, toasts, or drawer components exist. Educational content is limited to one-line `fact` strings per body and the `ScaleControl`'s descriptions.
 
@@ -33,8 +33,8 @@ For discovery recommendations, the `AIAnalysis.alternatives` and `AIAnalysis.sim
 **17 files** across 5 directories:
 
 - **Source scripts** (`spaceAI/src/`):
-  - `train_model.py:92` — Main training script: creates/loads `celestial_objects.csv`, trains a `DecisionTreeClassifier` on `orbital_period`, `axial_tilt`, `mass` features, evaluates accuracy, saves model, runs test predictions. Key differences from `setup_and_train.py`: uses `max_depth=5`, has more sample data (10 rows vs 6), prints richer evaluation.
-  - `setup_and_train.py:50` — Simplified version: creates dataset, trains DecisionTree, saves to `celestial_classifier_dt.pkl`.
+  - `train_model.py:92` — Main training script: creates/loads `celestial_objects.csv`, trains a `RandomForestClassifier` on `orbital_period`, `axial_tilt`, `mass` features, evaluates accuracy, saves model, runs test predictions. Key differences from `setup_and_train.py`: uses `max_depth=5`, has more sample data (10 rows vs 6), prints richer evaluation.
+  - `setup_and_train.py:50` — Simplified version: creates dataset, trains RandomForest, saves to `celestial_classifier_dt.pkl`.
   - `predict.py:78` — `CelestialPredictor` class: loads a `.pkl` model, provides `predict(orbital_period, axial_tilt, mass)` and `predict_batch(data_list)` methods. Has both `__main__` example usage and class-based API.
 
 - **Data** (`spaceAI/data/`):
@@ -85,7 +85,7 @@ For discovery recommendations, the `AIAnalysis.alternatives` and `AIAnalysis.sim
 
 | Component | Status | Gap |
 |-----------|--------|-----|
-| Python ML model | Trained DecisionTree exists in code | No `.pkl` committed; tiny 6-row dataset |
+| Python ML model | Trained RandomForest exists in code | No `.pkl` committed; tiny 6-row dataset |
 | Server API endpoint | Not implemented | No bridge between Python model and Express |
 | Client AI types | Fully defined in `bodies.ts` | No data flowing (all `aiAnalysis` are undefined) |
 | Client AI UI | `AIClassificationPanel` + `EnhancedDataExplorer` built | Not imported/referenced in `SolarSystem.tsx` |
@@ -198,8 +198,8 @@ Python scripts                    Express API                     React componen
 
 ## Code References
 
-- `spaceAI/src/train_model.py:92` — DecisionTreeClassifier training pipeline with 10-row dataset
-- `spaceAI/src/predict.py:78` — CelestialPredictor class with predict/predict_batch methods
+- `spaceAI/src/train_model.py:37` — RandomForestClassifier training pipeline
+- `spaceAI/src/predict.py:14` — CelestialPredictor class with predict/predict_batch methods
 - `spaceAI/docs/integration.md:85` — Integration architecture diagram and API response format
 - `client/src/components/solar-system/bodies.ts:17-23` — AIAnalysis type definition
 - `client/src/components/solar-system/bodies.ts:64-182` — ASTRONOMICAL_DATA record (full NASA data)

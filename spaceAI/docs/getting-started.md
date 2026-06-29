@@ -1,91 +1,83 @@
 # Getting Started with SpaceAI
 
-Quick setup to run your first ML pipeline for celestial classification.
+Quick setup to run the ML pipeline for celestial classification.
 
 ## Prerequisites
 
 - Python 3.10+
-- Poetry (dependency management)
-- Jupyter Notebook (optional, for interactive development)
+- pip
 
 ## Installation
 
 ```bash
-# Install dependencies
-poetry install
-
-# Activate the virtual environment
-poetry shell
+cd spaceAI
+pip install -r requirements.txt
 ```
 
 ## Quick Start
 
-### 1. Explore the Data
+### 1. Train the Model
 
 ```bash
-ls -la data/
+python run.py train
 ```
 
-Datasets include:
-- `celestial_objects.csv` - Celestial body features with classification labels
-- `stars.csv` - Stellar parameters for reference
-- `planets.csv` - Planetary orbital data for reference
-- `galaxies.csv` - Galactic features for reference
+Trains a RandomForest classifier on `data/celestial_objects.csv` and saves to `models/celestial_classifier.pkl`.
 
-### 2. Train a Model (Command Line)
+### 2. Evaluate the Model
 
 ```bash
-# From the spaceAI/ directory
-python src/train_model.py
-
-# Train with custom dataset and output
-python src/train_model.py --dataset data/celestial_objects.csv --output models/my_model.pkl
-
-# Show training details
-python src/train_model.py --debug
+python run.py test
 ```
 
-### 3. Test Predictions
+Prints accuracy and a full classification report on the held-out 20% test split.
+
+### 3. Classify a Single Object
 
 ```bash
-# Classify a single object
-python src/predict.py --orbital-period 365 --axial-tilt 23.5 --mass 5.97e24
+# Format: orbital_period axial_tilt mass radius eccentricity
+python run.py query --features 365.25 23.44 1.0 1.0 0.017
 
-# Show class probabilities and feature importances
-python src/predict.py --orbital-period 687 --axial-tilt 25.2 --mass 6.42e23 --debug
-
-# Classify a batch from CSV
-python src/classify.py --dataset data/celestial_objects.csv
+# Show class probabilities
+python run.py query --features 687 25.19 0.107 0.532 0.094 --proba
 ```
 
-### 4. Find Similar Objects
+### 4. Classify All Objects in Dataset
 
 ```bash
-# Recommend similar objects from dataset
-python src/recommend.py --dataset data/celestial_objects.csv --object-idx 0
-
-# Recommend using custom features
-python src/recommend.py --features 365 23.5 5.97e24 --top-k 3 --debug
+python run.py classify
+python run.py classify --output predictions.csv
 ```
 
-### 5. Train a Model (Jupyter)
+### 5. Find Similar Objects
 
 ```bash
-# Launch Jupyter notebook server
-jupyter notebook notebooks/
+# Find 3 objects most similar to Earth (index 2)
+python run.py recommend --object-idx 2
+
+# Custom query features
+python run.py recommend --features 365.25 23.44 1.0 --top-k 5
 ```
 
-Open `train_celestial_classifier.ipynb` to explore data and train interactively.
+### 6. Start the API Server
+
+```bash
+python run.py serve              # Default port 8000
+python run.py serve --port 8080  # Custom port
+python run.py serve --reload     # Auto-reload on changes
+```
 
 ## Directory Structure
 
 ```
 spaceAI/
-├── data/         # CSV datasets
-├── models/       # Saved .pkl models
-├── notebooks/    # Jupyter experiments
-├── src/          # Training and prediction scripts
-└── docs/         # This documentation
+├── run.py              # Unified CLI
+├── api.py              # FastAPI server
+├── data/               # CSV datasets
+├── models/             # Saved .pkl models
+├── notebooks/          # Jupyter experiments
+├── src/                # Training and prediction modules
+└── docs/               # This documentation
 ```
 
 ## Next Steps

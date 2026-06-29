@@ -1,68 +1,58 @@
 """
-Train celestial object classifier
-Trains a DecisionTreeClassifier on celestial data with CLI options
+Train RandomForest classifier on enriched celestial dataset and save model.
+Features: orbital_period, axial_tilt, mass, radius, eccentricity
 """
-import argparse
 import sys
-import pandas as pd
 import numpy as np
-from sklearn.tree import DecisionTreeClassifier
-from sklearn.model_selection import train_test_split
-from sklearn.metrics import accuracy_score, classification_report
+import pandas as pd
 import joblib
 from pathlib import Path
+from sklearn.ensemble import RandomForestClassifier
+from sklearn.model_selection import train_test_split
+from sklearn.preprocessing import StandardScaler
+from sklearn.pipeline import Pipeline
+from sklearn.metrics import classification_report
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
+DATA_PATH = PROJECT_ROOT / "data" / "celestial_objects.csv"
+MODEL_PATH = PROJECT_ROOT / "models" / "celestial_classifier.pkl"
+
+FEATURES = ["orbital_period", "axial_tilt", "mass", "radius", "eccentricity"]
+TARGET = "body_type"
 
 
-def main():
-    parser = argparse.ArgumentParser(description="Train a celestial object classifier")
-    parser.add_argument("--dataset", default=str(PROJECT_ROOT / "data" / "celestial_objects.csv"),
-                        help="Path to training CSV")
-    parser.add_argument("--output", default=str(PROJECT_ROOT / "models" / "celestial_classifier.pkl"),
-                        help="Path to save trained model")
-    parser.add_argument("--test-size", type=float, default=0.3, help="Test split ratio")
-    parser.add_argument("--max-depth", type=int, default=5, help="Decision tree max depth")
-    parser.add_argument("--debug", action="store_true", help="Verbose output")
-    args = parser.parse_args()
+def train():
+    df = pd.read_csv(DATA_PATH)
+    print(f"Loaded {len(df)} rows, classes: {df[TARGET].unique().tolist()}")
 
-    csv_path = Path(args.dataset)
-    if not csv_path.exists():
-        print(f"Dataset not found: {csv_path}", file=sys.stderr)
-        sys.exit(1)
-
-    output_path = Path(args.output)
-    output_path.parent.mkdir(parents=True, exist_ok=True)
-
-    print(f"Loading dataset from {csv_path}")
-    df = pd.read_csv(csv_path)
-    print(f"Samples: {len(df)}, Classes: {df['type'].nunique()}")
-    print(f"Class distribution: {df['type'].value_counts().to_dict()}")
-
-    X = df[["orbital_period", "axial_tilt", "mass"]]
-    y = df["type"]
+    X = df[FEATURES].fillna(0)
+    y = df[TARGET]
 
     X_train, X_test, y_train, y_test = train_test_split(
-        X, y, test_size=args.test_size, random_state=42
+        X, y, test_size=0.2, random_state=42
     )
 
-    model = DecisionTreeClassifier(random_state=42, max_depth=args.max_depth)
-    model.fit(X_train, y_train)
+    pipeline = Pipeline([
+        ("scaler", StandardScaler()),
+        ("clf", RandomForestClassifier(
+            n_estimators=100,
+            max_depth=None,
+            random_state=42,
+            class_weight="balanced",
+        )),
+    ])
 
-    preds = model.predict(X_test)
-    accuracy = accuracy_score(y_test, preds)
+    pipeline.fit(X_train, y_train)
+    y_pred = pipeline.predict(X_test)
 
-    print(f"Accuracy: {accuracy:.2%}")
-    if args.debug:
-        print("\nClassification report:")
-        print(classification_report(y_test, preds, zero_division=0))
-        print("\nFeature importances:")
-        for name, imp in zip(["orbital_period", "axial_tilt", "mass"], model.feature_importances_):
-            print(f"  {name}: {imp:.3f}")
+    print("\nClassification Report:")
+    print(classification_report(y_test, y_pred))
 
-    joblib.dump(model, str(output_path))
-    print(f"Model saved to {output_path}")
+    MODEL_PATH.parent.mkdir(parents=True, exist_ok=True)
+    joblib.dump(pipeline, MODEL_PATH)
+    print(f"\nModel saved to {MODEL_PATH}")
+    return pipeline
 
 
 if __name__ == "__main__":
-    main()
+    train()
