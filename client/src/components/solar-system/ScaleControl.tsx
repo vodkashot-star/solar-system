@@ -28,11 +28,12 @@ const SCALE_MODES: { id: ScaleMode; label: string; description: string }[] = [
 type ScaleControlProps = {
   currentMode: ScaleMode;
   onModeChange: (mode: ScaleMode) => void;
+  className?: string;
 };
 
-export default function ScaleControl({ currentMode, onModeChange }: ScaleControlProps) {
+export default function ScaleControl({ currentMode, onModeChange, className = "" }: ScaleControlProps) {
   return (
-    <div className="pointer-events-auto absolute bottom-6 left-4 right-4 sm:left-8 sm:right-auto sm:max-w-md">
+    <div className={`pointer-events-auto absolute bottom-6 left-4 right-4 sm:left-8 sm:right-auto sm:max-w-md ${className}`}>
       <div className="rounded-xl border border-white/10 bg-black/60 backdrop-blur-md p-4">
         {/* Scale mode selector */}
         <div className="mb-3">

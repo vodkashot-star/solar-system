@@ -11,6 +11,7 @@ type PlanetProps = {
   onPosition?: (pos: THREE.Vector3) => void;
   scaleMultiplier?: number;
   onComputedRadius?: (bodyId: string, radius: number) => void;
+  onHover?: (bodyId: string | null) => void;
 };
 
 const FALLBACK_GEOMETRY = new THREE.SphereGeometry(1, 48, 48);
@@ -108,7 +109,7 @@ function SaturnRings({ radius }: { radius: number }) {
   );
 }
 
-export default function Planet({ body, onPosition, scaleMultiplier = 1, onComputedRadius }: PlanetProps) {
+export default function Planet({ body, onPosition, scaleMultiplier = 1, onComputedRadius, onHover }: PlanetProps) {
   const pivot = useRef<THREE.Group>(null);
   const spin = useRef<THREE.Group>(null);
   const focus = useCameraFocus((s) => s.focus);
@@ -126,6 +127,22 @@ export default function Planet({ body, onPosition, scaleMultiplier = 1, onComput
       if (p) focus(body.id, p);
     },
     [body.id, focus],
+  );
+
+  const handlePointerOver = useCallback(
+    (e: ThreeEvent<PointerEvent>) => {
+      e.stopPropagation();
+      onHover?.(body.id);
+    },
+    [body.id, onHover],
+  );
+
+  const handlePointerOut = useCallback(
+    (e: ThreeEvent<PointerEvent>) => {
+      e.stopPropagation();
+      onHover?.(null);
+    },
+    [onHover],
   );
 
   useFrame((state, delta) => {
@@ -165,11 +182,11 @@ export default function Planet({ body, onPosition, scaleMultiplier = 1, onComput
       <group ref={spin} rotation={[0, 0, body.tilt]}>
         <Suspense fallback={<FallbackSphere radius={effectiveRadius} color={body.color} emissive={isSun} />}>
           {body.glbUrl ? (
-            <group onClick={handleClick}>
+            <group onClick={handleClick} onPointerOver={handlePointerOver} onPointerOut={handlePointerOut}>
               <GLBModel url={body.glbUrl} radius={effectiveRadius} body={body} onReady={() => setGlbReady(true)} />
             </group>
           ) : (
-            <group onClick={handleClick}>
+            <group onClick={handleClick} onPointerOver={handlePointerOver} onPointerOut={handlePointerOut}>
               <FallbackSphere radius={effectiveRadius} color={body.color} emissive={isSun} />
             </group>
           )}

@@ -12,14 +12,18 @@ import FocusCamera from "./FocusCamera";
 import LoadingSpinner from "./LoadingSpinner";
 import DebugPanel from "./DebugPanel";
 import AIClassificationPanel from "./AIClassificationPanel";
+import BodyDetailModal from "./BodyDetailModal";
+import ScaleControl, { type ScaleMode } from "./ScaleControl";
 import { useCameraFocus } from "@/stores/camera-focus";
 
 export default function SolarSystem() {
   const [tourOn, setTourOn] = useState(true);
   const [active, setActive] = useState<Body>(BODIES[0]);
-  const [scaleMode, setScaleMode] = useState<"cinematic" | "realistic">("cinematic");
+  const [scaleMode, setScaleMode] = useState<ScaleMode>("visual");
   const [contextLost, setContextLost] = useState(false);
   const [aiCache, setAiCache] = useState<Record<string, AIAnalysis>>({});
+  const [hoveredBodyId, setHoveredBodyId] = useState<string | null>(null);
+  const [detailBodyId, setDetailBodyId] = useState<string | null>(null);
   const positions = useRef<Record<string, THREE.Vector3>>({});
   const computedRadii = useRef<Record<string, number>>({});
   const clearFocus = useCameraFocus((s) => s.clear);
@@ -43,7 +47,11 @@ export default function SolarSystem() {
       .catch(() => {/* AI service offline — fail silently */});
   }, [active.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const scaleMultiplier = scaleMode === "cinematic" ? 1 : 0.25;
+  const scaleMultiplier =
+    scaleMode === "visual" ? 1 :
+    scaleMode === "hybrid" ? 0.6 :
+    scaleMode === "realSize" ? 0.35 :
+    0.25; // realDistance
 
   const reportPosCallbacks = useMemo(() => {
     const map: Record<string, (p: THREE.Vector3) => void> = {};
@@ -60,8 +68,8 @@ export default function SolarSystem() {
     computedRadii.current[bodyId] = radius;
   }, []);
 
-  const toggleScale = useCallback(() => {
-    setScaleMode((m) => (m === "cinematic" ? "realistic" : "cinematic"));
+  const handleHover = useCallback((bodyId: string | null) => {
+    setHoveredBodyId(bodyId);
   }, []);
 
   return (
@@ -93,7 +101,7 @@ export default function SolarSystem() {
         <OrbitRings scaleMultiplier={scaleMultiplier} />
 
         {BODIES.map((b) => (
-          <Planet key={b.id} body={b} onPosition={reportPosCallbacks[b.id]} scaleMultiplier={scaleMultiplier} onComputedRadius={reportComputedRadius} />
+          <Planet key={b.id} body={b} onPosition={reportPosCallbacks[b.id]} scaleMultiplier={scaleMultiplier} onComputedRadius={reportComputedRadius} onHover={handleHover} />
         ))}
 
         <FocusCamera computedRadii={computedRadii} />
@@ -104,7 +112,7 @@ export default function SolarSystem() {
         )}
 
         <EffectComposer>
-          <Bloom intensity={0.9} luminanceThreshold={0.6} luminanceSmoothing={0.2} mipmapBlur />
+          <Bloom intensity={tourOn ? 0.9 : 0} luminanceThreshold={0.6} luminanceSmoothing={0.2} mipmapBlur />
         </EffectComposer>
       </Canvas>
 
@@ -127,17 +135,9 @@ export default function SolarSystem() {
           <h1 className="text-sm font-semibold tracking-[0.25em] text-white/80 uppercase">
             Solar System
           </h1>
-          <span className="rounded border border-white/10 bg-white/5 px-2 py-0.5 font-mono text-[10px] uppercase tracking-wider text-cyan-400/80">
-            {scaleMode}
-          </span>
         </div>
         <div className="pointer-events-auto flex items-center gap-2">
-          <button
-            onClick={toggleScale}
-            className="rounded border border-white/10 bg-white/5 px-2.5 py-1.5 font-mono text-[11px] text-white/60 backdrop-blur transition hover:bg-white/10"
-          >
-            {scaleMode === "cinematic" ? "REALISTIC" : "CINEMATIC"}
-          </button>
+          <ScaleControl currentMode={scaleMode} onModeChange={setScaleMode} className="!static !bottom-auto !left-auto !right-auto" />
           <button
             onClick={() => {
               setTourOn((v) => {
@@ -157,10 +157,20 @@ export default function SolarSystem() {
         className="pointer-events-none absolute bottom-6 left-4 right-4 animate-fade-in sm:left-8 sm:right-auto sm:max-w-md"
       >
         <div className="rounded-2xl border border-white/10 bg-white/[0.04] p-5 backdrop-blur-md">
-          <div className="font-mono text-[10px] font-semibold uppercase tracking-[0.3em] text-white/40">
-            Now viewing
+          <div className="flex items-start justify-between">
+            <div className="flex-1">
+              <div className="font-mono text-[10px] font-semibold uppercase tracking-[0.3em] text-white/40">
+                Now viewing
+              </div>
+              <div className="mt-1 text-3xl font-light text-white">{active.name}</div>
+            </div>
+            <button
+              onClick={() => setDetailBodyId(active.id)}
+              className="pointer-events-auto ml-3 mt-1 rounded-full border border-white/15 bg-white/5 px-3 py-1.5 text-[10px] font-medium text-white/70 backdrop-blur transition hover:bg-white/10 hover:text-white"
+            >
+              Details
+            </button>
           </div>
-          <div className="mt-1 text-3xl font-light text-white">{active.name}</div>
           <p className="mt-2 text-sm leading-relaxed text-white/60">{active.fact}</p>
 
           {aiCache[active.id] && (
@@ -204,6 +214,23 @@ export default function SolarSystem() {
 
       <LoadingSpinner />
       <DebugPanel />
+
+      {hoveredBodyId && (() => {
+        const body = BODIES.find((b) => b.id === hoveredBodyId);
+        if (!body) return null;
+        return (
+          <div className="pointer-events-none fixed top-4 left-1/2 z-40 -translate-x-1/2 animate-fade-in rounded-lg border border-white/10 bg-black/80 px-3 py-2 backdrop-blur-md">
+            <div className="text-xs font-medium text-white">{body.name}</div>
+            <div className="text-[10px] text-white/50">{body.type.replace(/([A-Z])/g, " $1").trim()}</div>
+          </div>
+        );
+      })()}
+
+      <BodyDetailModal
+        body={detailBodyId ? BODIES.find((b) => b.id === detailBodyId) ?? null : null}
+        onClose={() => setDetailBodyId(null)}
+        positions={positions}
+      />
     </div>
   );
 }

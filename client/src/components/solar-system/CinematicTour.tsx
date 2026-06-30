@@ -53,8 +53,8 @@ export default function CinematicTour({ enabled, onActiveChange, positions, comp
 
     lookAt.current.copy(bodyPos);
 
-    damp3(camera.position, targetPos.current, 0.9, delta);
-    damp3(currentLook.current, lookAt.current, 0.9, delta);
+    damp3(camera.position, targetPos.current, 0.87, delta);
+    damp3(currentLook.current, lookAt.current, 0.85, delta);
     camera.lookAt(currentLook.current);
 
     invalidate();

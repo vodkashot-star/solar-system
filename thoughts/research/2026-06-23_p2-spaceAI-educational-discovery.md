@@ -169,9 +169,9 @@ These could drive similarity computations:
 
 #### 3.4 SpaceAI Model as Recommendation Engine
 
-The existing DecisionTree classifier could power recommendations:
+The existing RandomForest classifier could power recommendations:
 - **Feature extraction**: Use `predict.py`'s `CelestialPredictor.predict(orbital_period, axial_tilt, mass)` to classify bodies
-- **Decision path analysis**: DecisionTree's `feature_importances_` maps to `features[].importance` in the type
+- **Decision path analysis**: RandomForest's `feature_importances_` maps to `features[].importance` in the type
 - **Leaf-node similarity**: Bodies that follow the same decision path in the tree are structurally similar — maps to `similarObjects[]`
 - **Probability distribution**: `predict_proba()` provides class probabilities → maps to `alternatives[]`
 
