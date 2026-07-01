@@ -6,7 +6,7 @@ A full-screen 3D solar system with a cinematic camera tour through the Sun, 8 pl
 
 ## Features
 
-- **Cinematic tour** — camera automatically flies between bodies with smooth easing (7s per body, loops continuously)
+- **Cinematic tour** — camera automatically flies between bodies with smooth easing (5s per body, loops continuously)
 - **29 GLB models** — sun + 8 planets + 20 dwarf planets, asteroids, comets, and interstellar objects, loaded via `useGLTF` and auto-normalized to correct scale. Per-body loading grid shows individual progress; overlay dismisses when all models load or after a 15s timeout.
 - **Bloom + Stars** — emissive sun glow via `@react-three/postprocessing`, custom instanced star field. Bloom auto-disables when tour is paused to save GPU.
 - **Pause / Free Look** — toggle pauses the tour and enables OrbitControls for manual exploration
@@ -114,4 +114,6 @@ npm run downscale # Downscale Earth/Mercury/Mars GLBs for mobile (run after rege
 | Scale toggle | Click "REALISTIC" / "CINEMATIC" button (top-right) |
 | Free look (paused) | Click + drag to rotate, scroll to zoom |
 
-The tour state machine cycles: **Sun → Mercury → Venus → Earth → Mars → Jupiter → Saturn → Uranus → Neptune → loop**. Each body gets 7 seconds: ~2s fly-in, ~4s arc around, ~1s pull-back.
+The tour state machine cycles through all 29 celestial bodies. Each body gets 5 seconds: ~1.5s fly-in, ~3s arc around (216°), ~0.5s pull-back.
+
+> **Note:** The Canvas uses `frameloop="demand"` — every `useFrame`/animation callback must call `state.invalidate()` or the scene freezes. `Planet`, `CinematicTour`, and `FocusCamera` all do this.
