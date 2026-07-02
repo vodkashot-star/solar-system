@@ -85,7 +85,7 @@ function GLBModel({ url, radius, body, onReady }: {
     scene.matrixAutoUpdate = false;
     scene.updateMatrix();
     finishLoad(body.id);
-  }, [scene, radius]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [scene, radius, body.id, body.type]);
 
   useEffect(() => {
     onReady?.();

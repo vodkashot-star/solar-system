@@ -11,6 +11,10 @@ from fastapi.testclient import TestClient
 
 client = TestClient(app)
 
+# Seed DB cache with precomputed classifications (needed by test_precomputed)
+from src.precompute import precompute_all
+precompute_all()
+
 EARTH_PARAMS = (
     "?orbital_period=365.25&axial_tilt=23.44&mass=1.0&radius=1.0"
     "&eccentricity=0.017&density=5.51&gravity=9.81&temperature=288"

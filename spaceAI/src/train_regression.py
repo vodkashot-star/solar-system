@@ -19,14 +19,10 @@ from sklearn.model_selection import train_test_split
 from sklearn.pipeline import Pipeline
 from sklearn.preprocessing import StandardScaler
 
-PROJECT_ROOT = Path(__file__).resolve().parent.parent
-DATA_PATH = PROJECT_ROOT / "data" / "celestial_objects.csv"
-MODEL_DIR = PROJECT_ROOT / "models"
+from predict import DATA_PATH, FEATURES
 
-FEATURES = [
-    "orbital_period", "axial_tilt", "mass", "radius", "eccentricity",
-    "density", "gravity", "temperature", "semi_major_axis", "inclination", "rotation_period",
-]
+PROJECT_ROOT = Path(__file__).resolve().parent.parent
+MODEL_DIR = PROJECT_ROOT / "models"
 
 TARGETS = {
     "mass": {"unit": "Earth masses"},

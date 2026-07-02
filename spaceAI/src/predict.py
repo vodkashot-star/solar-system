@@ -9,6 +9,7 @@ import joblib
 from pathlib import Path
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
+DATA_PATH = PROJECT_ROOT / "data" / "celestial_objects.csv"
 DEFAULT_MODEL = PROJECT_ROOT / "models" / "celestial_classifier.pkl"
 DEFAULT_META = DEFAULT_MODEL.with_suffix(".meta.json")
 FEATURES = [

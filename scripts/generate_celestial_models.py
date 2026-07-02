@@ -1,6 +1,6 @@
 
 """
-Generate all 24 remaining celestial body .glb models using Blender Python API.
+Generate all 29 celestial body .glb models using Blender Python API.
 Downloads real surface textures from Solar System Scope (CC BY 4.0) where available,
 falls back to procedural materials for bodies without public texture maps.
 
@@ -9,16 +9,26 @@ NASA PDS: https://pds.nasa.gov/
 
 Requires: Blender 3.0+ with Python API enabled
 Run: blender --background --python scripts/generate_celestial_models.py
+
+Note: Draco mesh compression is NOT applied during Blender export because the
+Draco shared library is not bundled with most Blender distributions. Instead,
+Draco is applied post-export via gltf-transform. Run:
+    npm run models:draco
+after generating models. The "ERROR: Draco mesh compression is not available"
+message during export is cosmetic and harmless.
 """
 
 import bpy
+import ctypes
 import math
 import os
+import urllib.error
 import urllib.request
-import shutil
+from pathlib import Path
 
-TEXTURE_DIR = os.path.join(os.getcwd(), "client", "public", "textures")
-os.makedirs(TEXTURE_DIR, exist_ok=True)
+SCRIPT_DIR = Path(__file__).resolve().parent.parent
+TEXTURE_DIR = SCRIPT_DIR / "client" / "public" / "textures"
+TEXTURE_DIR.mkdir(parents=True, exist_ok=True)
 
 # ── Texture references: Solar System Scope (CC BY 4.0) ─────────────────────
 # https://www.solarsystemscope.com/textures/
@@ -33,7 +43,7 @@ TEXTURE_SOURCES = {
     "saturn":  "https://www.solarsystemscope.com/textures/download/2k_saturn.jpg",
     "uranus":  "https://www.solarsystemscope.com/textures/download/2k_uranus.jpg",
     "neptune": "https://www.solarsystemscope.com/textures/download/2k_neptune.jpg",
-    "pluto":   "https://www.solarsystemscope.com/textures/download/2k_pluto.jpg",
+    # Pluto: texture removed from Solar System Scope — uses procedural fallback
     # Moon: https://www.solarsystemscope.com/textures/download/2k_moon.jpg
     # Ceres: no 2K diffuse map publicly available — uses procedural fallback
 }
@@ -42,24 +52,20 @@ def download_texture(name):
     """Download 2K texture from Solar System Scope if available."""
     if name not in TEXTURE_SOURCES:
         return None
-    dest = os.path.join(TEXTURE_DIR, f"{name}.jpg")
-    if os.path.exists(dest):
+    dest = TEXTURE_DIR / f"{name}.jpg"
+    if dest.exists():
         print(f"  Texture already exists: {dest}")
-        return dest
+        return str(dest)
     url = TEXTURE_SOURCES[name]
     print(f"  Downloading {url} ...")
     try:
-        urllib.request.urlretrieve(url, dest)
+        urllib.request.urlretrieve(url, str(dest))
         print(f"  Saved: {dest}")
-        return dest
-    except Exception as e:
+        return str(dest)
+    except (urllib.error.URLError, urllib.error.HTTPError, OSError) as e:
         print(f"  WARNING: failed to download {name}: {e}")
         return None
 
-
-# Clear default scene
-bpy.ops.object.select_all(action='SELECT')
-bpy.ops.object.delete()
 
 
 def create_textured_material(name, tex_path, roughness=0.7, metallic=0.0, emission_strength=0.0):
@@ -184,28 +190,46 @@ def create_saturn_rings(planet_radius):
     return rings
 
 
+def is_draco_available():
+    try:
+        ctypes.CDLL("libextern_draco.so")
+        return True
+    except OSError:
+        return False
+
+
+draco_available = is_draco_available()
+
+
 def export_glb(obj, filename):
-    """Export object as GLB with Draco compression."""
+    """Export object as GLB. Draco applied at Blender level if available, otherwise via gltf-transform."""
     bpy.ops.object.select_all(action='DESELECT')
     obj.select_set(True)
     bpy.context.view_layer.objects.active = obj
 
-    output_path = os.path.join(os.getcwd(), 'client', 'public', 'models', filename)
+    output_path = str(SCRIPT_DIR / "client" / "public" / "models" / filename)
 
     bpy.ops.export_scene.gltf(
         filepath=output_path,
         export_format='GLB',
         use_selection=True,
-        export_draco_mesh_compression_enable=True,
-        export_draco_mesh_compression_level=10,
+        export_draco_mesh_compression_enable=draco_available,
+        export_draco_mesh_compression_level=10 if draco_available else 0,
         export_materials='EXPORT',
         export_colors=True,
         export_normals=True,
         export_apply=True
     )
 
-    print(f"  Exported: {filename}")
+    draco_note = " (Draco: inline)" if draco_available else ""
+    print(f"  Exported: {filename}{draco_note}")
 
+
+# ── Guidance for post-hoc Draco ────────────────────────────────────────────
+if draco_available:
+    DRACO_GUIDANCE = ""
+else:
+    DRACO_GUIDANCE = "\n⚠️  Draco not available in this Blender build. Run:\n     npm run models:draco\n   to apply Draco compression post-export."
 
 # ── Main generation routines ───────────────────────────────────────────────
 
@@ -299,18 +323,23 @@ def generate_asteroids():
 
 
 # ── Entry point ─────────────────────────────────────────────────────────────
-print("🚀 Starting celestial body model generation...")
-print(f"   Textures directory: {TEXTURE_DIR}")
+if __name__ == "__main__":
+    bpy.ops.object.select_all(action='SELECT')
+    bpy.ops.object.delete()
 
-print("\n📍 Generating planets (Mercury through Neptune)...")
-generate_planets()
+    print("🚀 Starting celestial body model generation...")
+    print(f"   Textures directory: {TEXTURE_DIR}")
 
-print("\n🪐 Generating dwarf planets...")
-generate_dwarf_planets()
+    print("\n📍 Generating planets (Mercury through Neptune)...")
+    generate_planets()
 
-print("\n☄️ Generating asteroids...")
-generate_asteroids()
+    print("\n🪐 Generating dwarf planets...")
+    generate_dwarf_planets()
 
-print("\n✅ All models generated!")
-print("📁 Models saved to: client/public/models/")
-print("📁 Textures cached at: client/public/textures/")
+    print("\n☄️ Generating asteroids...")
+    generate_asteroids()
+
+    print("\n✅ All models generated!")
+    print("📁 Models saved to: client/public/models/")
+    print("📁 Textures cached at: client/public/textures/")
+    print(DRACO_GUIDANCE)

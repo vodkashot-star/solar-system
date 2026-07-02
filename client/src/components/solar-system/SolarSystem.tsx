@@ -39,7 +39,7 @@ export default function SolarSystem() {
         if (data) setAiCache(data);
       })
       .catch(() => {/* AI service offline — fail silently */});
-  }, []);
+  }, []); // Empty deps intended - runs once on mount
 
   useEffect(() => {
     if (aiCache[active.id]) return;
@@ -66,7 +66,7 @@ export default function SolarSystem() {
         if (data) setAiCache((c) => ({ ...c, [active.id]: data }));
       })
       .catch(() => {/* AI service offline — fail silently */});
-  }, [active.id]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [active.id, aiCache, active.properties]);
 
   const scaleMultiplier =
     scaleMode === "visual" ? 1 :
@@ -103,14 +103,24 @@ export default function SolarSystem() {
         onCreated={(state) => {
           state.invalidate();
           const canvas = state.gl.domElement;
-          canvas.addEventListener('webglcontextlost', (e: Event) => {
+          
+          const handleContextLost = (e: Event) => {
             e.preventDefault();
             setContextLost(true);
-          });
-          canvas.addEventListener('webglcontextrestored', () => {
+          };
+          
+          const handleContextRestored = () => {
             setContextLost(false);
             state.invalidate();
-          });
+          };
+          
+          canvas.addEventListener('webglcontextlost', handleContextLost);
+          canvas.addEventListener('webglcontextrestored', handleContextRestored);
+          
+          return () => {
+            canvas.removeEventListener('webglcontextlost', handleContextLost);
+            canvas.removeEventListener('webglcontextrestored', handleContextRestored);
+          };
         }}
       >
         <color attach="background" args={["#02030a"]} />

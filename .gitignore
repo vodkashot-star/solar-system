@@ -24,12 +24,17 @@ Thumbs.db
 *.tgz
 *.zip
 
+# Stale artifacts
+*.bak
+predictions.csv
+
 # TypeScript
 *.tsbuildinfo
 
 # Python
 __pycache__/
 *.pyc
+*.db
 .pytest_cache/
 .mypy_cache/
 .ruff_cache/

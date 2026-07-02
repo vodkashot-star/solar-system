@@ -6,12 +6,12 @@ against the trained classifier and reports mismatches.
 Run: python3 scripts/validate_models.py
 """
 import sys
-import json
 import csv
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "spaceAI" / "src"))
 from predict import CelestialPredictor, FEATURES
+from precompute import parse_astronomical_data
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 MODELS_DIR = PROJECT_ROOT / "client" / "public" / "models"
@@ -25,36 +25,10 @@ with open(CSV_PATH, newline="") as f:
         expected[row["name"].strip().lower()] = row["body_type"]
 
 # Load body features from bodies.ts ASTRONOMICAL_DATA
-import re
-
-ts_text = BODIES_TS.read_text()
-block_match = re.search(r"const ASTRONOMICAL_DATA.*?= \{(.*?)\};", ts_text, re.DOTALL)
-if not block_match:
+body_features = parse_astronomical_data(BODIES_TS)
+if not body_features:
     print("ERROR: could not parse ASTRONOMICAL_DATA from bodies.ts")
     sys.exit(1)
-
-FIELD_MAP = {
-    "orbital_period": "orbitalPeriod",
-    "axial_tilt": "axialTilt",
-    "mass": "mass",
-    "radius": "radius",
-    "eccentricity": "eccentricity",
-    "density": "density",
-    "gravity": "gravity",
-    "temperature": "temperature",
-    "semi_major_axis": "semiMajorAxis",
-    "inclination": "inclination",
-    "rotation_period": "rotationPeriod",
-}
-
-body_blocks = re.findall(r"(\w+):\s*\{(.*?)\}", block_match.group(1), re.DOTALL)
-body_features: dict[str, list[float]] = {}
-for name, body_text in body_blocks:
-    props = {}
-    for csv_key, ts_key in FIELD_MAP.items():
-        m = re.search(rf"{ts_key}:\s*(-?[\d.]+(?:e[+-]?\d+)?)", body_text)
-        props[csv_key] = float(m.group(1)) if m else 0
-    body_features[name] = [props[k] for k in FEATURES]
 
 # Load ML model
 predictor = CelestialPredictor()

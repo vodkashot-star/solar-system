@@ -69,6 +69,8 @@ def _load_regressor(target: str):
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    from src.database import init_db
+    init_db()
     from src.precompute import precompute_all
     precompute_all()
     yield
@@ -92,14 +94,6 @@ def _predict_regression(target: str, values: list[float]) -> dict:
     return {"prediction": round(pred, 4), "confidence_interval": list(ci)}
 
 
-def _get_reg_target_features(vals: list[float], target: str) -> tuple[list[float], list[str]]:
-    from train_regression import FEATURES as REG_FEATURES
-    exclude = [target] if target in REG_FEATURES else []
-    feature_cols = [c for c in REG_FEATURES if c not in exclude]
-    feature_vals = [v for i, v in enumerate(vals) if REG_FEATURES[i] not in exclude]
-    return feature_vals, feature_cols
-
-
 app = FastAPI(title="SpaceAI", lifespan=lifespan)
 app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["*"], allow_headers=["*"])
 
@@ -111,7 +105,7 @@ def health():
 
 @app.get("/precomputed")
 def get_precomputed():
-    from src.cache import get_all
+    from cache import get_all
     return get_all()
 
 
@@ -193,7 +187,7 @@ def classify(
         similarObjects=similar_objects,
     )
 
-    from src.cache import set as cache_set
+    from cache import set as cache_set
     cache_set(body_id, result.model_dump())
 
     return result

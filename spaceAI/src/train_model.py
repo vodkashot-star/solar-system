@@ -29,15 +29,11 @@ from sklearn.pipeline import Pipeline
 from sklearn.preprocessing import StandardScaler
 from sklearn.svm import SVC
 
+from predict import DATA_PATH, FEATURES
+
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
-DATA_PATH = PROJECT_ROOT / "data" / "celestial_objects.csv"
 MODEL_PATH = PROJECT_ROOT / "models" / "celestial_classifier.pkl"
 META_PATH = MODEL_PATH.with_suffix(".meta.json")
-
-FEATURES = [
-    "orbital_period", "axial_tilt", "mass", "radius", "eccentricity",
-    "density", "gravity", "temperature", "semi_major_axis", "inclination", "rotation_period",
-]
 TARGET = "body_type"
 
 CLASSIFIERS = {

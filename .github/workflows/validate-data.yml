@@ -34,5 +34,11 @@ jobs:
       - name: Validate taxonomy schema
         run: python validate_taxonomy.py
 
+      - name: Train classification model
+        run: python run.py train
+
+      - name: Train regression models
+        run: python run.py train-regression
+
       - name: Run Python test suite
         run: python -m pytest tests/ -v --tb=short

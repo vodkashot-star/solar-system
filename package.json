@@ -13,6 +13,7 @@
     "test:watch": "vitest",
     "downscale": "bash scripts/downscale-textures.sh",
     "models:generate": "blender --background --python scripts/generate_celestial_models.py",
+    "models:draco": "for f in client/public/models/*.glb; do npx gltf-transform draco \"$f\" \"/tmp/$(basename $f)\" --overwrite 2>&1 | tail -1 && cp \"/tmp/$(basename $f)\" \"$f\"; done",
     "models:validate": "python3 scripts/validate_models.py",
     "db:generate": "drizzle-kit generate",
     "db:push": "drizzle-kit push",
@@ -89,7 +90,7 @@
     "zustand": "^5.0.3"
   },
   "devDependencies": {
-    "@gltf-transform/cli": "^4.4.0",
+    "@gltf-transform/cli": "^4.4.1",
     "@tailwindcss/typography": "^0.5.15",
     "@testing-library/jest-dom": "^6.9.1",
     "@testing-library/react": "^16.3.2",

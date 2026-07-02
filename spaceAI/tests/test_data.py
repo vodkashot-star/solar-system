@@ -3,13 +3,9 @@ import pytest
 import pandas as pd
 from pathlib import Path
 
-PROJECT_ROOT = Path(__file__).resolve().parent.parent
-DATA_PATH = PROJECT_ROOT / "data" / "celestial_objects.csv"
+from predict import DATA_PATH, FEATURES
 
-FEATURES = [
-    "orbital_period", "axial_tilt", "mass", "radius", "eccentricity",
-    "density", "gravity", "temperature", "semi_major_axis", "inclination", "rotation_period",
-]
+PROJECT_ROOT = Path(__file__).resolve().parent.parent
 
 EXPECTED_TYPES = {"Planet", "Moon", "Star", "DwarfPlanet", "Asteroid", "Comet", "Interstellar"}
 

@@ -4,12 +4,9 @@ import pandas as pd
 import joblib
 from pathlib import Path
 
-PROJECT_ROOT = Path(__file__).resolve().parent.parent
+from predict import FEATURES
 
-FEATURES = [
-    "orbital_period", "axial_tilt", "mass", "radius", "eccentricity",
-    "density", "gravity", "temperature", "semi_major_axis", "inclination", "rotation_period",
-]
+PROJECT_ROOT = Path(__file__).resolve().parent.parent
 
 
 def _load_pipeline():
