@@ -1,7 +1,7 @@
 import type { Express } from "express";
 import { createServer, type Server } from "http";
 
-const SPACEAI_URL = process.env.SPACEAI_URL ?? "http://localhost:8000";
+const SPACEAI_URL = process.env.SPACEAI_URL ?? "http://127.0.0.1:8000";
 const PROXY_TIMEOUT_MS = 10_000;
 const cache = new Map<string, unknown>();
 
@@ -10,6 +10,26 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.get("/api/health", (_req, res) => {
     res.json({ status: "ok" });
+  });
+
+  app.get("/api/ai/precomputed", async (_req, res) => {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), PROXY_TIMEOUT_MS);
+    try {
+      const upstream = await fetch(`${SPACEAI_URL}/precomputed`, {
+        signal: controller.signal,
+      });
+      const data = await upstream.json();
+      res.status(upstream.status).json(data);
+    } catch (err: unknown) {
+      if (err instanceof Error && err.name === "AbortError") {
+        res.status(504).json({ error: "AI service timed out" });
+      } else {
+        res.status(503).json({ error: "AI service unavailable" });
+      }
+    } finally {
+      clearTimeout(timer);
+    }
   });
 
   app.get("/api/ai/classify/:bodyId", async (req, res) => {

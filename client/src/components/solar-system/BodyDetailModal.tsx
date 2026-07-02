@@ -72,7 +72,7 @@ export default function BodyDetailModal({ body, onClose, positions }: Props) {
                       onClick={() => {
                         const pos = positions.current[bodyId];
                         if (pos) {
-                          focus(bodyId, pos);
+                          focus(bodyId);
                           onClose();
                         }
                       }}

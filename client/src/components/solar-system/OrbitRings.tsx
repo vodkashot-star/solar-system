@@ -14,17 +14,25 @@ export default function OrbitRings({ scaleMultiplier = 1 }: Props) {
 
     for (const body of BODIES) {
       if (body.orbit <= 0) continue;
-      const radius = body.orbit * scaleMultiplier;
+      const a = body.orbit * scaleMultiplier;
+      const e = body.properties.eccentricity;
+      const inclRad = body.properties.inclination * Math.PI / 180;
+      const b = a * Math.sqrt(Math.max(0, 1 - e * e));
       const hex = BODY_TYPE_COLORS[body.type] ?? "#ffffff";
       color.set(hex);
 
       for (let i = 0; i < SEGMENTS; i++) {
-        const a = (i / SEGMENTS) * Math.PI * 2;
-        const b = ((i + 1) / SEGMENTS) * Math.PI * 2;
-        positions.push(Math.cos(a) * radius, 0, Math.sin(a) * radius);
-        positions.push(Math.cos(b) * radius, 0, Math.sin(b) * radius);
-        colors.push(color.r, color.g, color.b);
-        colors.push(color.r, color.g, color.b);
+        const t1 = (i / SEGMENTS) * Math.PI * 2;
+        const t2 = ((i + 1) / SEGMENTS) * Math.PI * 2;
+        for (const t of [t1, t2]) {
+          const xOrb = a * Math.cos(t);
+          const zOrb = b * Math.sin(t);
+          const x = xOrb;
+          const y = zOrb * Math.sin(inclRad);
+          const z = zOrb * Math.cos(inclRad);
+          positions.push(x, y, z);
+          colors.push(color.r, color.g, color.b);
+        }
       }
     }
 
@@ -36,7 +44,7 @@ export default function OrbitRings({ scaleMultiplier = 1 }: Props) {
 
   return (
     <lineSegments geometry={geometry} frustumCulled={false}>
-      <lineBasicMaterial vertexColors transparent opacity={0.12} linewidth={1} />
+      <lineBasicMaterial vertexColors transparent opacity={0.2} linewidth={1} />
     </lineSegments>
   );
 }

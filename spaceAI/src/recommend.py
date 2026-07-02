@@ -35,8 +35,8 @@ def main():
     parser = argparse.ArgumentParser(description="Recommend similar celestial objects")
     parser.add_argument("--dataset", default=None, help="Path to CSV with features")
     parser.add_argument("--object-idx", type=int, default=0, help="Index of object to match")
-    parser.add_argument("--features", nargs=3, type=float, metavar=("ORBITAL", "TILT", "MASS"),
-                        help="Query features: orbital_period axial_tilt mass")
+    parser.add_argument("--features", nargs=11, type=float, metavar=("F1", "F2", "F3"),
+                        help="Query features: all 11 features (see FEATURES in predict.py)")
     parser.add_argument("--top-k", type=int, default=3, help="Number of recommendations")
     parser.add_argument("--model", default=None, help="Path to .pkl model (for classification)")
     parser.add_argument("--debug", action="store_true", help="Verbose output")
@@ -48,8 +48,9 @@ def main():
         objects = [query]
         labels = {0: "query"}
     elif args.dataset:
+        from predict import FEATURES
         df = pd.read_csv(args.dataset)
-        features = ["orbital_period", "axial_tilt", "mass"]
+        features = FEATURES
         missing = [c for c in features if c not in df.columns]
         if missing:
             print(f"Missing columns: {missing}", file=sys.stderr)

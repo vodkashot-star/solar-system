@@ -1,5 +1,4 @@
-import { useEffect, useState } from "react";
-import { useSyncExternalStore } from "react";
+import { useEffect, useState, useSyncExternalStore } from "react";
 import { subscribe, getSnapshot } from "@/lib/load-debugger";
 import { BODIES } from "./bodies";
 

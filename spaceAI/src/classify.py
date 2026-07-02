@@ -25,17 +25,17 @@ def main():
 
     if args.dataset:
         df = pd.read_csv(args.dataset)
-        features = ["orbital_period", "axial_tilt", "mass"]
-        missing = [c for c in features if c not in df.columns]
+        from predict import FEATURES
+        missing = [c for c in FEATURES if c not in df.columns]
         if missing:
             print(f"Missing columns: {missing}", file=sys.stderr)
             print(f"Available: {list(df.columns)}", file=sys.stderr)
             sys.exit(1)
 
-        X = df[features]
+        X = df[FEATURES]
         preds = predictor.predict_batch(X.values.tolist())
         df["prediction"] = preds
-        print(df[["orbital_period", "axial_tilt", "mass", "prediction"]].to_string(index=False))
+        print(df[FEATURES + ["prediction"]].to_string(index=False))
 
         if args.output:
             df.to_csv(args.output, index=False)

@@ -1,62 +1,61 @@
 # SpaceAI
 
-**Educational AI system for celestial classification and orbital prediction**
+**Educational AI system for celestial classification**
 
-SpaceAI is a machine learning bridge between astronomy education and interactive game integration. It provides tools to classify celestial objects and predict orbital behavior using real astronomical data.
-
-## Structure
-
-```
-spaceAI/
-├── run.py              # Unified CLI (train, test, classify, query, recommend, serve)
-├── api.py              # FastAPI server
-├── data/               # CSV datasets
-├── models/             # Trained .pkl models
-├── notebooks/          # Jupyter experiments
-├── src/                # Training and prediction modules
-│   ├── train_model.py  # RandomForest classifier training
-│   ├── predict.py      # CelestialPredictor class
-│   ├── classify.py     # Batch CSV classification
-│   └── recommend.py    # Cosine-similarity recommendations
-└── docs/               # Documentation
-```
+SpaceAI is a machine learning bridge between astronomy education and interactive
+game integration. It classifies celestial objects from 11 physical/orbital features.
 
 ## Quick Start
 
 ```bash
-# Install dependencies
+# From repo root (recommended)
+npm run ai:train
+npm run ai:serve
+
+# Or from spaceAI/ directory
+cd spaceAI
 pip install -r requirements.txt
-
-# Train the classifier
 python run.py train
-
-# Test on held-out data
-python run.py test
-
-# Classify a single object
-python run.py query --features 365.25 23.44 1.0 1.0 0.017 --proba
-
-# Find similar objects
-python run.py recommend --object-idx 2
-
-# Start FastAPI server
 python run.py serve
 ```
 
 ## Features
 
-- **Classification**: Predicts body type (Planet, Moon, DwarfPlanet, Star, etc.) from 5 orbital/physical features
-- **Similarity**: Finds most similar celestial objects via cosine distance
-- **API**: FastAPI endpoint at `GET /classify/{body_id}` returning confidence, alternatives, feature importances, and similar objects
-- **5 features**: `orbital_period`, `axial_tilt`, `mass`, `radius`, `eccentricity`
+- **Classification**: Predicts body type (Planet, Moon, Star, DwarfPlanet, Asteroid, Comet, Interstellar)
+  from 11 features; supports RF, SVC, LogisticRegression
+- **Hyperparameter tuning**: `--tune` flag runs GridSearchCV with StratifiedKFold(3)
+- **Cross-validation**: `python run.py cv` runs 3-fold CV on saved model
+- **Regression**: Predicts mass and temperature via RandomForestRegressor with confidence intervals
+- **Precomputed cache**: All 29 bodies classified at server startup, served via `GET /precomputed`
+- **Similarity**: Finds similar objects via cosine distance across all features
+- **API**: FastAPI at `GET /classify/{body_id}` returning class, confidence,
+  alternatives, feature importances, and similar objects
+- **Model**: Pipeline(StandardScaler, classifier) trained on 46 celestial objects
+  — saves `celestial_classifier.pkl` + `celestial_classifier.meta.json`
 
-## Model
+## CLI
 
-RandomForest classifier (100 estimators, balanced classes) with StandardScaler pipeline, trained on 47 celestial objects. Saved as `models/celestial_classifier.pkl` via joblib.
+| Command | Action |
+|---------|--------|
+| `python run.py train` | Train classifier (add `--model-type svc`, `--tune`) |
+| `python run.py cv` | Run 3-fold cross-validation on saved model |
+| `python run.py test` | Evaluate on held-out split |
+| `python run.py query --features <11 floats>` | Classify one object |
+| `python run.py classify` | Batch classify all dataset rows |
+| `python run.py recommend --object-idx <n>` | Find similar objects |
+| `python run.py train-regression` | Train mass + temperature regressors |
+| `python run.py predict-mass --features <11 floats>` | Predict mass with CI |
+| `python run.py predict-temperature --features <11 floats>` | Predict temperature with CI |
+| `python run.py serve` | Start FastAPI on :8000 |
+
+## 11 Features
+
+`orbital_period`, `axial_tilt`, `mass`, `radius`, `eccentricity`, `density`,
+`gravity`, `temperature`, `semi_major_axis`, `inclination`, `rotation_period`
 
 ## Integration
 
-Models trained here power educational features in the main Cosmic Voyage game:
-- Celestial object classification
-- Discovery recommendations via cosine similarity
-- Feature importance explanations
+- Frontend fetches `GET /api/ai/precomputed` once on mount; falls back to per-body `/classify/:bodyId`
+- Express proxy at `GET /api/ai/classify/:bodyId` and `GET /api/ai/precomputed` → FastAPI
+- `scripts/validate_models.py` checks generated GLBs against classifier
+- Precomputed cache persists to `data/ai_cache.json`

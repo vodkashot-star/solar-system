@@ -1,10 +1,12 @@
-import { useRef, useMemo, Suspense, useCallback, useState, useEffect, useLayoutEffect } from "react";
+import { useRef, useMemo, Suspense, useCallback, useState, useEffect, useLayoutEffect, Component } from "react";
 import { useFrame, type ThreeEvent } from "@react-three/fiber";
 import { useGLTF } from "@react-three/drei";
 import * as THREE from "three";
 import type { Body } from "./bodies";
-import { startLoad, finishLoad } from "@/lib/load-debugger";
+import { startLoad, finishLoad, failLoad } from "@/lib/load-debugger";
 import { useCameraFocus } from "@/stores/camera-focus";
+import AtmosphereGlow from "./AtmosphereGlow";
+import { applyProceduralMaterials, getCachedDiffuse, getCachedNormal, getCachedRoughness } from "@/lib/procedural-textures";
 
 type PlanetProps = {
   body: Body;
@@ -12,7 +14,21 @@ type PlanetProps = {
   scaleMultiplier?: number;
   onComputedRadius?: (bodyId: string, radius: number) => void;
   onHover?: (bodyId: string | null) => void;
+  speedMultiplier?: number;
 };
+
+function solveKepler(M: number, e: number): number {
+  if (e < 1e-6) return M;
+  let E = M;
+  for (let i = 0; i < 12; i++) {
+    const dE = (M - E + e * Math.sin(E)) / (1 - e * Math.cos(E));
+    E += dE;
+    if (Math.abs(dE) < 1e-8) break;
+  }
+  return E;
+}
+
+const ATMOSPHERE_BODIES = new Set(["earth", "venus", "mars", "jupiter", "saturn", "neptune"]);
 
 const FALLBACK_GEOMETRY = new THREE.SphereGeometry(1, 48, 48);
 
@@ -38,11 +54,11 @@ function GLBModel({ url, radius, body, onReady }: {
 }) {
   const { scene } = useGLTF(url);
 
-  // Bug fix: normalize the scene in-place rather than cloning — avoids
-  // duplicating geometry buffers and the old-clone-never-disposed memory leak.
-  // Bug fix: apply scale then update matrix AFTER position centering.
-  useMemo(() => {
+  useEffect(() => {
     startLoad(body.id, body.name, url);
+  }, [body.id, body.name, url]);
+
+  useMemo(() => {
     const box = new THREE.Box3().setFromObject(scene);
     const size = new THREE.Vector3();
     box.getSize(size);
@@ -50,23 +66,22 @@ function GLBModel({ url, radius, body, onReady }: {
     const scale = (radius * 2) / maxDim;
     scene.scale.setScalar(scale);
 
-    // Re-compute box after scale to get accurate center
     box.setFromObject(scene);
     const center = new THREE.Vector3();
     box.getCenter(center);
     scene.position.sub(center);
+
+    applyProceduralMaterials(scene, body.id, body.type);
 
     scene.traverse((obj: THREE.Object3D) => {
       const mesh = obj as THREE.Mesh;
       if (mesh.isMesh) {
         mesh.frustumCulled = true;
         mesh.geometry?.computeBoundingSphere();
-        // updateMatrix AFTER all position/scale changes are done
         mesh.matrixAutoUpdate = false;
         mesh.updateMatrix();
       }
     });
-    // Update root matrix too so centering offset is captured
     scene.matrixAutoUpdate = false;
     scene.updateMatrix();
     finishLoad(body.id);
@@ -79,8 +94,43 @@ function GLBModel({ url, radius, body, onReady }: {
   return <primitive object={scene} />;
 }
 
-function FallbackSphere({ radius, color, emissive }: { radius: number; color: string; emissive?: boolean }) {
-  const mat = getFallbackMaterial(color, !!emissive);
+class GLBLoadErrorBoundary extends Component<
+  { bodyId: string; bodyName: string; fallback: React.ReactNode; children: React.ReactNode },
+  { hasError: boolean }
+> {
+  state = { hasError: false };
+  static getDerivedStateFromError() { return { hasError: true }; }
+  componentDidCatch(error: Error) {
+    failLoad(this.props.bodyId, error.message);
+  }
+  render() {
+    if (this.state.hasError) return this.props.fallback;
+    return this.props.children;
+  }
+}
+
+function FallbackSphere({ radius, color, emissive, bodyId, bodyType }: {
+  radius: number; color: string; emissive?: boolean; bodyId: string; bodyType: string;
+}) {
+  const mat = useMemo(() => {
+    if (emissive) return getFallbackMaterial(color, true);
+    // Use the shared cache for non-emissive too — key by bodyId+bodyType so
+    // per-body procedural textures are still unique but materials aren't leaked
+    const key = `fallback:${bodyId}:${bodyType}:${color}`;
+    if (!materialCache.has(key)) {
+      const m = new THREE.MeshStandardMaterial({
+        roughness: 0.7,
+        metalness: 0.1,
+        map: getCachedDiffuse(bodyId, bodyType),
+        normalMap: getCachedNormal(bodyId, bodyType),
+        normalScale: new THREE.Vector2(1.5, 1.5),
+        roughnessMap: getCachedRoughness(bodyId, bodyType),
+        color: new THREE.Color(color),
+      });
+      materialCache.set(key, m);
+    }
+    return materialCache.get(key)!;
+  }, [color, emissive, bodyId, bodyType]);
   return (
     <mesh geometry={FALLBACK_GEOMETRY} scale={radius}>
       <primitive object={mat} attach="material" />
@@ -109,7 +159,7 @@ function SaturnRings({ radius }: { radius: number }) {
   );
 }
 
-export default function Planet({ body, onPosition, scaleMultiplier = 1, onComputedRadius, onHover }: PlanetProps) {
+export default function Planet({ body, onPosition, scaleMultiplier = 1, onComputedRadius, onHover, speedMultiplier = 1 }: PlanetProps) {
   const pivot = useRef<THREE.Group>(null);
   const spin = useRef<THREE.Group>(null);
   const focus = useCameraFocus((s) => s.focus);
@@ -117,14 +167,16 @@ export default function Planet({ body, onPosition, scaleMultiplier = 1, onComput
 
   const effectiveOrbit = body.orbit * scaleMultiplier;
   const effectiveRadius = body.visualRadius * (0.3 + 0.7 * scaleMultiplier);
-  // Skip orbital math for stationary bodies (sun, interstellar objects)
   const isStationary = body.orbitSpeed === 0;
+  const e = body.properties.eccentricity;
+  const inclRad = body.properties.inclination * Math.PI / 180;
+  const sqrt1me2 = Math.sqrt(Math.max(0, 1 - e * e));
 
   const handleClick = useCallback(
     (e: ThreeEvent<MouseEvent>) => {
       e.stopPropagation();
       const p = pivot.current?.position;
-      if (p) focus(body.id, p);
+      if (p) focus(body.id);
     },
     [body.id, focus],
   );
@@ -149,9 +201,13 @@ export default function Planet({ body, onPosition, scaleMultiplier = 1, onComput
     const p = pivot.current;
     if (p) {
       if (!isStationary) {
-        const angle = body.phase + state.clock.elapsedTime * body.orbitSpeed;
-        p.position.x = Math.cos(angle) * effectiveOrbit;
-        p.position.z = Math.sin(angle) * effectiveOrbit;
+        const M = body.phase + state.clock.elapsedTime * body.orbitSpeed * speedMultiplier;
+        const E = solveKepler(M, e);
+        const xOrb = effectiveOrbit * (Math.cos(E) - e);
+        const zOrb = effectiveOrbit * sqrt1me2 * Math.sin(E);
+        p.position.x = xOrb;
+        p.position.y = zOrb * Math.sin(inclRad);
+        p.position.z = zOrb * Math.cos(inclRad);
       }
       if (onPosition) onPosition(p.position);
     }
@@ -176,21 +232,29 @@ export default function Planet({ body, onPosition, scaleMultiplier = 1, onComput
   }, [body.glbUrl, body.id, onComputedRadius, effectiveRadius]);
 
   const isSun = body.id === "sun";
+  const hasAtmosphere = ATMOSPHERE_BODIES.has(body.id) && !isSun;
 
   return (
     <group ref={pivot}>
       <group ref={spin} rotation={[0, 0, body.tilt]}>
-        <Suspense fallback={<FallbackSphere radius={effectiveRadius} color={body.color} emissive={isSun} />}>
+        <Suspense fallback={<FallbackSphere radius={effectiveRadius} color={body.color} emissive={isSun} bodyId={body.id} bodyType={body.type} />}>
           {body.glbUrl ? (
-            <group onClick={handleClick} onPointerOver={handlePointerOver} onPointerOut={handlePointerOut}>
-              <GLBModel url={body.glbUrl} radius={effectiveRadius} body={body} onReady={() => setGlbReady(true)} />
-            </group>
+            <GLBLoadErrorBoundary bodyId={body.id} bodyName={body.name} fallback={
+              <group onClick={handleClick} onPointerOver={handlePointerOver} onPointerOut={handlePointerOut}>
+                <FallbackSphere radius={effectiveRadius} color={body.color} emissive={isSun} bodyId={body.id} bodyType={body.type} />
+              </group>
+            }>
+              <group onClick={handleClick} onPointerOver={handlePointerOver} onPointerOut={handlePointerOut}>
+                <GLBModel url={body.glbUrl} radius={effectiveRadius} body={body} onReady={() => setGlbReady(true)} />
+              </group>
+            </GLBLoadErrorBoundary>
           ) : (
             <group onClick={handleClick} onPointerOver={handlePointerOver} onPointerOut={handlePointerOut}>
-              <FallbackSphere radius={effectiveRadius} color={body.color} emissive={isSun} />
+              <FallbackSphere radius={effectiveRadius} color={body.color} emissive={isSun} bodyId={body.id} bodyType={body.type} />
             </group>
           )}
         </Suspense>
+        {hasAtmosphere && <AtmosphereGlow radius={effectiveRadius} bodyId={body.id} />}
         {body.hasRings && <SaturnRings radius={effectiveRadius} />}
       </group>
     </group>

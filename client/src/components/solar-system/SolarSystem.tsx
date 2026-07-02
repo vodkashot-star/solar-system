@@ -7,8 +7,10 @@ import { BODIES, type Body, type AIAnalysis } from "./bodies";
 import Planet from "./Planet";
 import OrbitRings from "./OrbitRings";
 import InstancedStars from "./InstancedStars";
+import NebulaBackground from "./NebulaBackground";
 import CinematicTour from "./CinematicTour";
 import FocusCamera from "./FocusCamera";
+import SunGlow from "./SunGlow";
 import LoadingSpinner from "./LoadingSpinner";
 import DebugPanel from "./DebugPanel";
 import AIClassificationPanel from "./AIClassificationPanel";
@@ -24,20 +26,39 @@ export default function SolarSystem() {
   const [aiCache, setAiCache] = useState<Record<string, AIAnalysis>>({});
   const [hoveredBodyId, setHoveredBodyId] = useState<string | null>(null);
   const [detailBodyId, setDetailBodyId] = useState<string | null>(null);
+  const [speedMultiplier, setSpeedMultiplier] = useState(1);
   const positions = useRef<Record<string, THREE.Vector3>>({});
   const computedRadii = useRef<Record<string, number>>({});
   const clearFocus = useCameraFocus((s) => s.clear);
   const focus = useCameraFocus((s) => s.focus);
 
   useEffect(() => {
+    fetch("/api/ai/precomputed")
+      .then((r) => r.ok ? r.json() : null)
+      .then((data: Record<string, AIAnalysis> | null) => {
+        if (data) setAiCache(data);
+      })
+      .catch(() => {/* AI service offline — fail silently */});
+  }, []);
+
+  useEffect(() => {
     if (aiCache[active.id]) return;
-    const { orbitalPeriod, axialTilt, mass, radius, eccentricity } = active.properties;
+    const {
+      orbitalPeriod, axialTilt, mass, radius, eccentricity,
+      density, gravity, temperature, semiMajorAxis, inclination, rotationPeriod,
+    } = active.properties;
     const params = new URLSearchParams({
       orbital_period: String(orbitalPeriod),
       axial_tilt: String(axialTilt),
       mass: String(mass),
       radius: String(radius),
       eccentricity: String(eccentricity),
+      density: String(density),
+      gravity: String(gravity),
+      temperature: String(temperature),
+      semi_major_axis: String(semiMajorAxis),
+      inclination: String(inclination),
+      rotation_period: String(rotationPeriod),
     });
     fetch(`/api/ai/classify/${active.id}?${params}`)
       .then((r) => r.ok ? r.json() : null)
@@ -96,15 +117,18 @@ export default function SolarSystem() {
         <ambientLight intensity={0.08} />
         <pointLight position={[0, 0, 0]} intensity={3.5} distance={200} decay={1.2} color="#ffd9a0" />
 
-        <InstancedStars radius={200} depth={80} count={6000} factor={4} saturation={0} fade />
+        <NebulaBackground />
+        <InstancedStars radius={200} depth={80} count={6000} factor={4} fade />
+
+        <SunGlow />
 
         <OrbitRings scaleMultiplier={scaleMultiplier} />
 
         {BODIES.map((b) => (
-          <Planet key={b.id} body={b} onPosition={reportPosCallbacks[b.id]} scaleMultiplier={scaleMultiplier} onComputedRadius={reportComputedRadius} onHover={handleHover} />
+          <Planet key={b.id} body={b} onPosition={reportPosCallbacks[b.id]} scaleMultiplier={scaleMultiplier} onComputedRadius={reportComputedRadius} onHover={handleHover} speedMultiplier={speedMultiplier} />
         ))}
 
-        <FocusCamera computedRadii={computedRadii} />
+        <FocusCamera positions={positions} computedRadii={computedRadii} />
         <CinematicTour enabled={tourOn} onActiveChange={setActive} positions={positions} computedRadii={computedRadii} />
 
         {!tourOn && (
@@ -138,6 +162,19 @@ export default function SolarSystem() {
         </div>
         <div className="pointer-events-auto flex items-center gap-2">
           <ScaleControl currentMode={scaleMode} onModeChange={setScaleMode} className="!static !bottom-auto !left-auto !right-auto" />
+          <div className="flex items-center gap-2 rounded-full border border-white/15 bg-white/5 px-3 py-1.5 backdrop-blur-md">
+            <span className="text-[10px] text-white/50">Speed</span>
+            <input
+              type="range"
+              min="0"
+              max="5"
+              step="0.1"
+              value={speedMultiplier}
+              onChange={(e) => setSpeedMultiplier(parseFloat(e.target.value))}
+              className="h-1 w-16 cursor-pointer appearance-none rounded-full bg-white/20 accent-white"
+            />
+            <span className="w-5 text-right text-[10px] font-medium text-white/70">{speedMultiplier.toFixed(1)}x</span>
+          </div>
           <button
             onClick={() => {
               setTourOn((v) => {
@@ -196,7 +233,7 @@ export default function SolarSystem() {
                           key={bodyId}
                           onClick={() => {
                             const pos = positions.current[bodyId];
-                            if (pos) focus(bodyId, pos);
+                            if (pos) focus(bodyId);
                           }}
                           className="rounded-full border border-white/10 bg-white/5 px-2.5 py-0.5 text-[11px] text-white/70 transition hover:bg-white/10 hover:text-white"
                         >
