@@ -10,7 +10,7 @@
 // If the API and client are served from the same domain, using '/api' is safest.
 // For explicit control, we set the production URL fully.
 
-const PRODUCTION_API_BASE = "https://solar-system.xyz/api";
+const PRODUCTION_API_BASE = "https://solar-system-o8oi.onrender.com";
 const DEVELOPMENT_API_BASE = "/api"; // Relies on dev server (like Vite) proxying /api to localhost:5000
 
 export const API_BASE =

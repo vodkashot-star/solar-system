@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { Body } from "./bodies";
+import { API_BASE } from "@/lib/config";
 
 type AIClassificationPanelProps = {
   body: Body;
@@ -36,7 +37,7 @@ export default function AIClassificationPanel({ body, className = "" }: AIClassi
 
   const handleSubmitCorrection = async () => {
     try {
-      await fetch("/api/ai/correct", {
+      await fetch(`${API_BASE}/classify/${body.id}/correct`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
