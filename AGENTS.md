@@ -106,11 +106,11 @@ Then add the body entry to `bodies.ts` and run `npm run check`.
 
 ## CI / Deploy
 
-- **`deploy.yml`**: On push to `main` — `npm ci && npm run build:cf && wrangler pages deploy` to CF Pages
-  - `with.apiToken` does **not** propagate to wrangler CLI subprocess — `env.CLOUDFLARE_API_TOKEN` is required
+- **`deploy.yml`**: On push to `Master` — `npm ci && npm run build:cf && wrangler pages deploy` to CF Pages
+  - `with.apiToken` does **not** propagate to wrangler CLI subprocess — `env.CLOUDFLARE_API_TOKEN` is required (set in env block)
   - Requires `CLOUDFLARE_API_TOKEN` and `CLOUDFLARE_ACCOUNT_ID` as repo secrets
   - Node 22
-- **`validate-data.yml`**: On push/PR to `main` — taxonomy validation + AI training (classifier + regression) + pytest + TypeScript check + vitest client tests
+- **`validate-data.yml`**: On push/PR to `Master` — taxonomy validation + AI training (classifier + regression) + pytest + TypeScript check + vitest client tests
 - **Cloudflare Pages serves only the static client** — the Express API server has no production host (see CLOUD-02 in `thoughts/AUDIT.md`)
 - **No `wrangler.toml`** — configured via dashboard + `wrangler-action@v3`
 
