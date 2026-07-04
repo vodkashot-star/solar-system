@@ -7,7 +7,7 @@
     "dev": "NODE_ENV=development tsx server/index-dev.ts",
     "dev:full": "bash scripts/dev.sh",
     "build": "bash scripts/copy-draco.sh && vite build && esbuild server/index-prod.ts --platform=node --packages=external --bundle --format=esm --outdir=dist",
-    "build:cf": "bash scripts/copy-draco.sh && vite build",
+    "build:cf": "bash scripts/build-ai-cache.sh && bash scripts/copy-draco.sh && vite build",
     "start": "NODE_ENV=production node dist/index-prod.js",
     "validate": "tsc && vitest run",
     "check": "tsc",

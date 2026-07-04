@@ -107,12 +107,12 @@ Then add the body entry to `bodies.ts` and run `npm run check`.
 ## CI / Deploy
 
 - **`deploy.yml`**: On push to `Master` — `npm ci && npm run build:cf && wrangler pages deploy` to CF Pages
+  - `build:cf` = `build-ai-cache.sh` (regenerates `functions/api/ai/data.js` from `ai_cache.json`) → `copy-draco.sh` → `vite build`
   - Requires `CLOUDFLARE_API_TOKEN` (needs `Cloudflare Pages > Edit` + `Account Settings > Read` perms) as repo secret
-  - `accountId` passed via `with.accountId` + both token/ID as `env` vars (wrangler-action needs them in subprocess)
   - Project name and `pages_build_output_dir` come from `wrangler.toml`
   - Node 22
 - **`validate-data.yml`**: On push/PR to `Master` — taxonomy validation + AI training (classifier + regression) + pytest + TypeScript check + vitest client tests
-- **Cloudflare Pages serves only the static client** — the Express API server has no production host (see CLOUD-02 in `thoughts/AUDIT.md`)
+- **Cloudflare Pages Functions** replace the Python SpaceAI backend entirely — `functions/api/ai/` serves cached classifications, corrections, and health from inline precomputed data (`aiCache` in `data.js`). No separate `SPACEAI_URL` needed.
 - **`wrangler.toml`** at repo root: sets `name` and `pages_build_output_dir` — deploy command is just `pages deploy dist`
 
 ## Known Issues
