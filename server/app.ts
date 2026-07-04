@@ -23,7 +23,7 @@ export function log(message: string, source = "express") {
 
 export const app = express();
 
-const allowedOrigin = process.env.ALLOWED_ORIGIN ?? false;
+const allowedOrigin = process.env.ALLOWED_ORIGIN ?? "*";
 app.use(cors({
   origin: allowedOrigin,
   methods: ["GET"],
@@ -72,7 +72,7 @@ export default async function runApp(
     const message = err.message || "Internal Server Error";
 
     res.status(status).json({ message });
-    throw err;
+    console.error(err);
   });
 
   await setup(app, server);

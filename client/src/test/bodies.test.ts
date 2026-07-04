@@ -2,11 +2,11 @@ import { describe, it, expect } from "vitest";
 import { BODIES, BODY_TYPE_COLORS } from "@/components/solar-system/bodies";
 import type { BodyType } from "@/components/solar-system/bodies";
 
-const VALID_TYPES: BodyType[] = ["star", "planet", "dwarfPlanet", "asteroid", "comet", "interstellar"];
+const VALID_TYPES: BodyType[] = ["star", "planet", "dwarfPlanet", "asteroid", "comet", "interstellar", "spacecraft"];
 
 describe("BODIES data integrity", () => {
-  it("exports 29 celestial bodies", () => {
-    expect(BODIES).toHaveLength(29);
+  it("exports 34 bodies (29 celestial + 5 spacecraft)", () => {
+    expect(BODIES).toHaveLength(34);
   });
 
   it.each(BODIES)("$name has valid type", (body) => {

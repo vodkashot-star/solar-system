@@ -42,8 +42,8 @@ export default function CinematicTour({ enabled, onActiveChange, positions, comp
     const frameR = computedRadii.current[body.id] ?? body.visualRadius;
 
     const arcAngle = localT * Math.PI * 1.2;
-    const dist = frameR * 4 + 3;
-    const height = frameR * 1.2 + 1.5;
+    const dist = frameR * 6 + 5;
+    const height = frameR * 0.9 + 2.0;
 
     targetPos.current.set(
       bodyPos.x + Math.cos(arcAngle) * dist,

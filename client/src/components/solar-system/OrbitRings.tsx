@@ -14,7 +14,7 @@ export default function OrbitRings({ scaleMultiplier = 1 }: Props) {
 
     for (const body of BODIES) {
       if (body.orbit <= 0) continue;
-      const a = body.orbit * scaleMultiplier;
+      const a = body.orbit;
       const e = body.properties.eccentricity;
       const inclRad = body.properties.inclination * Math.PI / 180;
       const b = a * Math.sqrt(Math.max(0, 1 - e * e));
@@ -40,11 +40,13 @@ export default function OrbitRings({ scaleMultiplier = 1 }: Props) {
     geo.setAttribute("position", new THREE.Float32BufferAttribute(positions, 3));
     geo.setAttribute("color", new THREE.Float32BufferAttribute(colors, 3));
     return geo;
-  }, [scaleMultiplier]);
+  }, []);
 
   return (
-    <lineSegments geometry={geometry} frustumCulled={false}>
-      <lineBasicMaterial vertexColors transparent opacity={0.2} linewidth={1} />
-    </lineSegments>
+    <group scale={scaleMultiplier}>
+      <lineSegments geometry={geometry} frustumCulled={false}>
+        <lineBasicMaterial vertexColors transparent opacity={0.2} linewidth={1} />
+      </lineSegments>
+    </group>
   );
 }

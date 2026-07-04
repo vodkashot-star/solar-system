@@ -96,16 +96,23 @@ function GLBModel({ url, radius, body, onReady }: {
 
 class GLBLoadErrorBoundary extends Component<
   { bodyId: string; bodyName: string; fallback: React.ReactNode; children: React.ReactNode },
-  { hasError: boolean }
+  { hasError: boolean; retryKey: number }
 > {
-  state = { hasError: false };
+  state = { hasError: false, retryKey: 0 };
+  retryTimer: ReturnType<typeof setTimeout> | null = null;
   static getDerivedStateFromError() { return { hasError: true }; }
   componentDidCatch(error: Error) {
     failLoad(this.props.bodyId, error.message);
+    this.retryTimer = setTimeout(() => {
+      this.setState({ hasError: false, retryKey: this.state.retryKey + 1 });
+    }, 3000);
+  }
+  componentWillUnmount() {
+    if (this.retryTimer) clearTimeout(this.retryTimer);
   }
   render() {
     if (this.state.hasError) return this.props.fallback;
-    return this.props.children;
+    return <div key={this.state.retryKey}>{this.props.children}</div>;
   }
 }
 

@@ -42,3 +42,21 @@ jobs:
 
       - name: Run Python test suite
         run: python -m pytest tests/ -v --tb=short
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+        working-directory: .
+
+      - name: Install npm dependencies
+        run: npm ci
+        working-directory: .
+
+      - name: TypeScript check
+        run: npm run check
+        working-directory: .
+
+      - name: Client test suite
+        run: npm test
+        working-directory: .

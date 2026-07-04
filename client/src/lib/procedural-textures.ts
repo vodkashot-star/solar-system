@@ -294,7 +294,7 @@ export function generateDiffuseMap(bodyId: string, type: string): THREE.CanvasTe
 }
 
 export function generateNormalMap(bodyId: string, type: string): THREE.CanvasTexture {
-  const diffuse = generateDiffuseMap(bodyId, type);
+  const diffuse = getCachedDiffuse(bodyId, type);
   const canvas = document.createElement("canvas");
   canvas.width = TEX_SIZE;
   canvas.height = TEX_SIZE / 2;
@@ -340,7 +340,7 @@ export function generateNormalMap(bodyId: string, type: string): THREE.CanvasTex
 }
 
 export function generateRoughnessMap(bodyId: string, type: string): THREE.CanvasTexture {
-  const diffuse = generateDiffuseMap(bodyId, type);
+  const diffuse = getCachedDiffuse(bodyId, type);
   const canvas = document.createElement("canvas");
   canvas.width = TEX_SIZE;
   canvas.height = TEX_SIZE / 2;

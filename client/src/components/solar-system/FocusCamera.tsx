@@ -28,8 +28,8 @@ export default function FocusCamera({ positions, computedRadii }: Props) {
 
     const body = BODIES.find((b) => b.id === targetBodyId);
     const frameR = computedRadii.current[targetBodyId] ?? body?.visualRadius ?? 1;
-    const dist = frameR * 5 + 5;
-    const height = frameR * 0.8 + 2;
+    const dist = frameR * 7 + 7;
+    const height = frameR * 0.6 + 2.5;
 
     flyTarget.current.set(livePos.x + dist, livePos.y + height, livePos.z + dist);
     lookTarget.current.copy(livePos);

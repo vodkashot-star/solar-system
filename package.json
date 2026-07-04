@@ -1,6 +1,6 @@
 {
   "name": "solar-system",
-  "version": "1.1.0",
+  "version": "1.2.0",
   "type": "module",
   "license": "MIT",
   "scripts": {
@@ -11,9 +11,7 @@
     "check": "tsc",
     "test": "vitest run",
     "test:watch": "vitest",
-    "downscale": "bash scripts/downscale-textures.sh",
-    "models:generate": "blender --background --python scripts/generate_celestial_models.py",
-    "models:draco": "for f in client/public/models/*.glb; do npx gltf-transform draco \"$f\" \"/tmp/$(basename $f)\" --overwrite 2>&1 | tail -1 && cp \"/tmp/$(basename $f)\" \"$f\"; done",
+    "models:convert": "bash scripts/convert_nasa_model.sh",
     "models:validate": "python3 scripts/validate_models.py",
     "db:generate": "drizzle-kit generate",
     "db:push": "drizzle-kit push",
@@ -21,6 +19,7 @@
     "ai:serve": "cd spaceAI && python run.py serve",
     "ai:train": "cd spaceAI && python run.py train",
     "ai:train-regression": "cd spaceAI && python run.py train-regression",
+    "ai:train-all": "cd spaceAI && python run.py train && python run.py train-regression",
     "ai:test": "cd spaceAI && python -m pytest tests/ -v"
   },
   "dependencies": {
@@ -84,7 +83,6 @@
     "tailwindcss-animate": "^1.0.7",
     "three": "^0.170.0",
     "vaul": "^1.1.0",
-    "vite-plugin-glsl": "^1.3.1",
     "wouter": "^3.3.5",
     "zod": "^3.23.8",
     "zustand": "^5.0.3"
@@ -106,6 +104,7 @@
     "esbuild": "^0.25.0",
     "happy-dom": "^20.10.6",
     "jsdom": "^29.1.1",
+    "obj2gltf": "^3.2.0",
     "postcss": "^8.4.47",
     "rollup-plugin-visualizer": "^6.0.5",
     "tailwindcss": "^3.4.14",

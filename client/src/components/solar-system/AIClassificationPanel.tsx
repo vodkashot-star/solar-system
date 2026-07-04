@@ -7,10 +7,21 @@ type AIClassificationPanelProps = {
 
 export default function AIClassificationPanel({ body, className = "" }: AIClassificationPanelProps) {
   if (!body.aiAnalysis) {
+    // Spacecraft get a static fallback when the AI service is offline.
+    const isSpacecraft = body.type === "spacecraft";
     return (
       <div className={`rounded-xl border border-white/10 bg-white/[0.04] p-4 backdrop-blur-md ${className}`}>
         <div className="text-xs font-semibold uppercase tracking-[0.3em] text-white/40">AI Analysis</div>
-        <p className="mt-2 text-sm text-white/60">Waiting for prediction...</p>
+        {isSpacecraft ? (
+          <div className="mt-2">
+            <div className="text-2xl font-light text-white">Human-made spacecraft</div>
+            <p className="mt-1 text-xs text-white/40">
+              Live classification unavailable — AI service offline.
+            </p>
+          </div>
+        ) : (
+          <p className="mt-2 text-sm text-white/60">Waiting for prediction...</p>
+        )}
       </div>
     );
   }

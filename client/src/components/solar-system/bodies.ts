@@ -22,7 +22,7 @@ export type AIAnalysis = {
   similarObjects: Array<{ bodyId: string; similarity: number }>;
 };
 
-export type BodyType = "star" | "planet" | "dwarfPlanet" | "asteroid" | "comet" | "interstellar";
+export type BodyType = "star" | "planet" | "dwarfPlanet" | "asteroid" | "comet" | "interstellar" | "spacecraft";
 
 export const BODY_TYPE_COLORS: Record<BodyType, string> = {
   star: "#ffd700",
@@ -31,6 +31,7 @@ export const BODY_TYPE_COLORS: Record<BodyType, string> = {
   asteroid: "#9e9e9e",
   comet: "#66bb6a",
   interstellar: "#ce93d8",
+  spacecraft: "#26c6da",
 };
 
 export type Body = {
@@ -61,6 +62,23 @@ export type Body = {
   properties: AstronomicalProperties;
   /** AI classification results */
   aiAnalysis?: AIAnalysis;
+  /** For spacecraft: ID of the parent body they orbit (e.g. "mars") */
+  parentBody?: string;
+  /** For spacecraft: mission metadata rendered in the detail modal */
+  missionInfo?: MissionInfo;
+};
+
+export type MissionInfo = {
+  /** Mission operator, e.g. "NASA JPL" */
+  agency: string;
+  /** Launch year */
+  launched: number;
+  /** Mission target description, e.g. "Mars surface — Gale Crater" */
+  target: string;
+  /** Current operational status */
+  status: "Active" | "Historical" | "Lost";
+  /** Short mission description (1–2 sentences) */
+  description: string;
 };
 
 import sunGlb from "@/assets/solar/sun.glb.asset.json";
@@ -92,6 +110,11 @@ import psycheGlb from "@/assets/solar/psyche.glb.asset.json";
 import vardaGlb from "@/assets/solar/varda.glb.asset.json";
 import oumuamuaGlb from "@/assets/solar/oumuamua.glb.asset.json";
 import halleyGlb from "@/assets/solar/halley.glb.asset.json";
+import curiosityGlb from "@/assets/solar/curiosity.glb.asset.json";
+import cassiniGlb from "@/assets/solar/cassini.glb.asset.json";
+import hubbleGlb from "@/assets/solar/hubble.glb.asset.json";
+import voyagerGlb from "@/assets/solar/voyager.glb.asset.json";
+import apolloLmGlb from "@/assets/solar/apollo-lm.glb.asset.json";
 
 // Real astronomical data from NASA planetary fact sheets
 // Mass: Earth = 1, Radius: Earth = 1, Density: g/cm³, Gravity: m/s², Temperature: Kelvin
@@ -472,6 +495,72 @@ const ASTRONOMICAL_DATA: Record<string, AstronomicalProperties> = {
     inclination: 162.26,
     rotationPeriod: 52.8,
     axialTilt: 0
+  },
+  // ── Spacecraft ────────────────────────────────────────────────────────────
+  curiosity: {
+    mass: 1.5e-22,        // 899 kg dry mass in Earth masses
+    radius: 0.0000028,   // ~1.8 m wide in Earth radii
+    density: 0.9,
+    gravity: 3.71,       // ambient at Mars surface
+    temperature: 210,    // Mars average
+    orbitalPeriod: 1.03, // Mars sol (surface, not orbiting)
+    semiMajorAxis: 1.52,
+    eccentricity: 0.094,
+    inclination: 1.85,
+    rotationPeriod: 24.6,
+    axialTilt: 25.19
+  },
+  cassini: {
+    mass: 9.7e-22,        // 2523 kg dry mass
+    radius: 0.0000033,   // ~2 m wide
+    density: 1.1,
+    gravity: 10.44,      // ambient at Saturn
+    temperature: 134,    // Saturn average
+    orbitalPeriod: 0.44, // final Saturn orbit ~16 days — use fraction
+    semiMajorAxis: 9.58,
+    eccentricity: 0.057,
+    inclination: 2.49,
+    rotationPeriod: 10.7,
+    axialTilt: 26.73
+  },
+  hubble: {
+    mass: 2.0e-22,        // ~11110 kg
+    radius: 0.0000021,   // ~4 m wide
+    density: 1.0,
+    gravity: 9.81,       // ambient at Earth orbit
+    temperature: 288,    // Earth ambient
+    orbitalPeriod: 0.0264, // ~95 min LEO orbit in days
+    semiMajorAxis: 1.0,
+    eccentricity: 0.0003,
+    inclination: 28.5,
+    rotationPeriod: 0.0264,
+    axialTilt: 0
+  },
+  voyager: {
+    mass: 2.6e-23,        // ~721 kg
+    radius: 0.0000019,   // ~3.7 m wide
+    density: 0.8,
+    gravity: 0.00001,    // essentially weightless in deep space
+    temperature: 40,     // outer solar system
+    orbitalPeriod: 0,    // escaped solar system
+    semiMajorAxis: 156,  // ~156 AU in 2024
+    eccentricity: 3.8,   // hyperbolic escape trajectory
+    inclination: 35.68,
+    rotationPeriod: 0,
+    axialTilt: 0
+  },
+  "apollo-lm": {
+    mass: 6.8e-23,        // ~15100 kg descent stage
+    radius: 0.0000024,   // ~9 m wide
+    density: 0.9,
+    gravity: 9.81,       // ambient at Earth/Moon
+    temperature: 288,
+    orbitalPeriod: 0.0748, // ~27.3 day lunar orbit — use LEO approx
+    semiMajorAxis: 1.0,
+    eccentricity: 0.0549,
+    inclination: 5.14,
+    rotationPeriod: 655.7,
+    axialTilt: 6.68
   }
 };
 
@@ -914,5 +1003,120 @@ export const BODIES: Body[] = [
     glbUrl: oumuamuaGlb.url, 
     fact: "First known interstellar object to pass through our solar system.",
     properties: ASTRONOMICAL_DATA.oumuamua
+  },
+  // ── Spacecraft ────────────────────────────────────────────────────────────
+  {
+    id: "curiosity",
+    type: "spacecraft",
+    name: "Curiosity Rover",
+    visualRadius: 0.07,
+    orbit: 12.5,        // near Mars orbit radius
+    orbitSpeed: 0.062,  // matches Mars roughly; SpacecraftOrbit overrides position
+    spinSpeed: 0.0,
+    tilt: 0,
+    phase: 1.9,
+    color: "#26c6da",
+    glbUrl: curiosityGlb.url,
+    parentBody: "mars",
+    fact: "NASA's Curiosity rover has been exploring Gale Crater since August 2012.",
+    properties: ASTRONOMICAL_DATA.curiosity,
+    missionInfo: {
+      agency: "NASA JPL",
+      launched: 2011,
+      target: "Mars surface — Gale Crater",
+      status: "Active",
+      description: "Curiosity is a car-sized rover exploring the habitability of Mars. It landed in Gale Crater in August 2012 and has been studying the planet's geology, climate, and potential for past microbial life ever since."
+    }
+  },
+  {
+    id: "cassini",
+    type: "spacecraft",
+    name: "Cassini",
+    visualRadius: 0.09,
+    orbit: 38.0,        // near Saturn orbit radius
+    orbitSpeed: 0.034,
+    spinSpeed: 0.05,
+    tilt: 0,
+    phase: 0.4,
+    color: "#26c6da",
+    glbUrl: cassiniGlb.url,
+    parentBody: "saturn",
+    fact: "Cassini orbited Saturn for 13 years before its Grand Finale dive in 2017.",
+    properties: ASTRONOMICAL_DATA.cassini,
+    missionInfo: {
+      agency: "NASA / ESA / ASI",
+      launched: 1997,
+      target: "Saturn system",
+      status: "Historical",
+      description: "Cassini-Huygens was a joint NASA/ESA/ASI mission that orbited Saturn from 2004 to 2017. It discovered geysers on Enceladus, explored Titan's lakes of liquid methane, and ended with a dramatic plunge into Saturn's atmosphere."
+    }
+  },
+  {
+    id: "hubble",
+    type: "spacecraft",
+    name: "Hubble Space Telescope",
+    visualRadius: 0.08,
+    orbit: 8.5,         // near Earth orbit radius in scene
+    orbitSpeed: 0.074,
+    spinSpeed: 0.02,
+    tilt: 0,
+    phase: 3.5,
+    color: "#26c6da",
+    glbUrl: hubbleGlb.url,
+    parentBody: "earth",
+    fact: "Hubble has made over 1.5 million observations since launching in 1990.",
+    properties: ASTRONOMICAL_DATA.hubble,
+    missionInfo: {
+      agency: "NASA / ESA",
+      launched: 1990,
+      target: "Low Earth orbit — deep space observation",
+      status: "Active",
+      description: "The Hubble Space Telescope revolutionised astronomy by providing ultra-sharp images free from Earth's atmospheric distortion. Operating since 1990, it has contributed to discoveries including the accelerating expansion of the universe and the age of the cosmos."
+    }
+  },
+  {
+    id: "voyager",
+    type: "spacecraft",
+    name: "Voyager 1",
+    visualRadius: 0.07,
+    orbit: 52.0,        // beyond Neptune — outer system
+    orbitSpeed: 0.004,
+    spinSpeed: 0.01,
+    tilt: 0,
+    phase: 2.7,
+    color: "#26c6da",
+    glbUrl: voyagerGlb.url,
+    fact: "Voyager 1 crossed into interstellar space in 2012 — the most distant human-made object.",
+    properties: ASTRONOMICAL_DATA.voyager,
+    missionInfo: {
+      agency: "NASA JPL",
+      launched: 1977,
+      target: "Jupiter, Saturn, then interstellar space",
+      status: "Active",
+      description: "Launched in 1977, Voyager 1 flew past Jupiter and Saturn before heading out of the solar system. In 2012 it crossed the heliopause into interstellar space, becoming the first human-made object to leave the solar system. It is still transmitting data today."
+    }
+  },
+  {
+    id: "apollo-lm",
+    type: "spacecraft",
+    name: "Apollo Lunar Module",
+    visualRadius: 0.07,
+    orbit: 8.5,         // near Earth orbit radius in scene
+    orbitSpeed: 0.074,
+    spinSpeed: 0.0,
+    tilt: 0,
+    phase: 5.2,
+    color: "#26c6da",
+    glbUrl: apolloLmGlb.url,
+    parentBody: "earth",
+    fact: "The Lunar Module carried the first humans to land on the Moon on July 20, 1969.",
+    properties: ASTRONOMICAL_DATA["apollo-lm"],
+    missionInfo: {
+      agency: "NASA",
+      launched: 1969,
+      target: "Lunar surface — Sea of Tranquility",
+      status: "Historical",
+      description: "The Apollo Lunar Module was the spacecraft that carried Neil Armstrong and Buzz Aldrin to the Moon's surface on July 20, 1969. It was the first crewed vehicle to land on another world, fulfilling President Kennedy's challenge to reach the Moon before the end of the decade."
+    }
   },
 ];

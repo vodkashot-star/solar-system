@@ -16,7 +16,9 @@ import DebugPanel from "./DebugPanel";
 import AIClassificationPanel from "./AIClassificationPanel";
 import BodyDetailModal from "./BodyDetailModal";
 import ScaleControl, { type ScaleMode } from "./ScaleControl";
+import BodySearch from "./BodySearch";
 import { useCameraFocus } from "@/stores/camera-focus";
+import SpacecraftOrbit from "./SpacecraftOrbit";
 
 export default function SolarSystem() {
   const [tourOn, setTourOn] = useState(true);
@@ -26,6 +28,7 @@ export default function SolarSystem() {
   const [aiCache, setAiCache] = useState<Record<string, AIAnalysis>>({});
   const [hoveredBodyId, setHoveredBodyId] = useState<string | null>(null);
   const [detailBodyId, setDetailBodyId] = useState<string | null>(null);
+  const [searchOpen, setSearchOpen] = useState(false);
   const [speedMultiplier, setSpeedMultiplier] = useState(1);
   const positions = useRef<Record<string, THREE.Vector3>>({});
   const computedRadii = useRef<Record<string, number>>({});
@@ -68,6 +71,38 @@ export default function SolarSystem() {
       .catch(() => {/* AI service offline — fail silently */});
   }, [active.id, aiCache, active.properties]);
 
+  const currentIndex = BODIES.findIndex((b) => b.id === active.id);
+
+  useEffect(() => {
+    function handleKey(e: KeyboardEvent) {
+      if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
+      if (e.key === " ") {
+        e.preventDefault();
+        setTourOn((v) => {
+          if (!v) clearFocus();
+          return !v;
+        });
+      } else if (e.key === "ArrowLeft") {
+        const prev = BODIES[(currentIndex - 1 + BODIES.length) % BODIES.length];
+        setTourOn(false);
+        focus(prev.id);
+      } else if (e.key === "ArrowRight") {
+        const next = BODIES[(currentIndex + 1) % BODIES.length];
+        setTourOn(false);
+        focus(next.id);
+      } else if (e.key === "Escape") {
+        setDetailBodyId(null);
+        setSearchOpen(false);
+        clearFocus();
+      } else if (e.key === "/") {
+        e.preventDefault();
+        setSearchOpen(true);
+      }
+    }
+    window.addEventListener("keydown", handleKey);
+    return () => window.removeEventListener("keydown", handleKey);
+  }, [currentIndex, focus, clearFocus]);
+
   const scaleMultiplier =
     scaleMode === "visual" ? 1 :
     scaleMode === "hybrid" ? 0.6 :
@@ -96,7 +131,7 @@ export default function SolarSystem() {
   return (
     <div className="relative h-screen w-screen overflow-hidden bg-black">
       <Canvas
-        camera={{ position: [0, 18, 60], fov: 50, near: 0.1, far: 1500 }}
+        camera={{ position: [0, 18, 60], fov: 55, near: 0.1, far: 1500 }}
         dpr={[1, 1.75]}
         gl={{ powerPreference: "high-performance" }}
         frameloop="demand"
@@ -134,15 +169,29 @@ export default function SolarSystem() {
 
         <OrbitRings scaleMultiplier={scaleMultiplier} />
 
-        {BODIES.map((b) => (
+        {BODIES.filter((b) => b.type !== "spacecraft").map((b) => (
           <Planet key={b.id} body={b} onPosition={reportPosCallbacks[b.id]} scaleMultiplier={scaleMultiplier} onComputedRadius={reportComputedRadius} onHover={handleHover} speedMultiplier={speedMultiplier} />
+        ))}
+
+        {BODIES.filter((b) => b.type === "spacecraft").map((b) => (
+          <SpacecraftOrbit
+            key={b.id}
+            body={b}
+            parentPosition={b.parentBody ? positions.current[b.parentBody] : undefined}
+            orbitRadius={(b.parentBody ? (computedRadii.current[b.parentBody] ?? 1.5) * 2.2 : b.orbit)}
+            onPosition={reportPosCallbacks[b.id]}
+            scaleMultiplier={scaleMultiplier}
+            onComputedRadius={reportComputedRadius}
+            onHover={handleHover}
+            speedMultiplier={speedMultiplier}
+          />
         ))}
 
         <FocusCamera positions={positions} computedRadii={computedRadii} />
         <CinematicTour enabled={tourOn} onActiveChange={setActive} positions={positions} computedRadii={computedRadii} />
 
         {!tourOn && (
-          <OrbitControls enableDamping />
+          <OrbitControls enableDamping {...({ dampingFactor: 0.15, minDistance: 2, maxDistance: 200, zoomSpeed: 0.8, rotateSpeed: 0.6 } as any)} />
         )}
 
         <EffectComposer>
@@ -169,6 +218,13 @@ export default function SolarSystem() {
           <h1 className="text-sm font-semibold tracking-[0.25em] text-white/80 uppercase">
             Solar System
           </h1>
+          <button
+            onClick={() => setSearchOpen(true)}
+            className="ml-2 rounded-full border border-white/15 bg-white/5 px-2.5 py-1 text-[10px] font-medium text-white/60 backdrop-blur transition hover:bg-white/10 hover:text-white"
+            title="Search bodies (/)"
+          >
+            Search
+          </button>
         </div>
         <div className="pointer-events-auto flex items-center gap-2">
           <ScaleControl currentMode={scaleMode} onModeChange={setScaleMode} className="!static !bottom-auto !left-auto !right-auto" />
@@ -272,6 +328,15 @@ export default function SolarSystem() {
           </div>
         );
       })()}
+
+      <BodySearch
+        open={searchOpen}
+        onClose={() => setSearchOpen(false)}
+        onSelect={(bodyId) => {
+          setTourOn(false);
+          focus(bodyId);
+        }}
+      />
 
       <BodyDetailModal
         body={detailBodyId ? BODIES.find((b) => b.id === detailBodyId) ?? null : null}
