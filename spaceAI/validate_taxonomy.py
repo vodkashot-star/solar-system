@@ -68,6 +68,9 @@ def main():
 
     print(f"Found {len(json_files)} JSON file(s) to validate\n")
 
+    # Skip ai_cache.json — stored as object, not taxonomy array
+    json_files = [f for f in json_files if f.name != "ai_cache.json"]
+
     all_passed = True
     for json_file in sorted(json_files):
         print(f"Validating: {json_file.name}")
