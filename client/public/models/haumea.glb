@@ -39,13 +39,13 @@
     {
       "buffer": 0,
       "byteOffset": 0,
-      "byteLength": 2328579
+      "byteLength": 2328199
     }
   ],
   "buffers": [
     {
       "uri": "haumea.glb.bin",
-      "byteLength": 2328579
+      "byteLength": 2328199
     }
   ],
   "materials": [

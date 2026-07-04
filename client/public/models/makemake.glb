@@ -39,13 +39,13 @@
     {
       "buffer": 0,
       "byteOffset": 0,
-      "byteLength": 2328608
+      "byteLength": 2328359
     }
   ],
   "buffers": [
     {
       "uri": "makemake.glb.bin",
-      "byteLength": 2328608
+      "byteLength": 2328359
     }
   ],
   "materials": [

@@ -39,13 +39,13 @@
     {
       "buffer": 0,
       "byteOffset": 0,
-      "byteLength": 2328908
+      "byteLength": 2328339
     }
   ],
   "buffers": [
     {
       "uri": "eris.glb.bin",
-      "byteLength": 2328908
+      "byteLength": 2328339
     }
   ],
   "materials": [
