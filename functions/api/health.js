@@ -1,4 +1,4 @@
-import { aiCache } from "../ai/data.js";
+import { aiCache } from "./ai/data.js";
 
 export async function onRequest(context) {
   const bodyCount = Object.keys(aiCache).length;
