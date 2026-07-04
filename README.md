@@ -33,9 +33,9 @@ Fiber, Drei, and Three.js.
   with physical/orbital/rotation data, AI classification, similar-body
   navigation, and (for spacecraft) a Mission Info card showing agency, launch
   year, target, and status
-- **AI classification** — FastAPI microservice classifies bodies by type
-  (planet/dwarf planet/asteroid/comet/spacecraft/etc.) with confidence scores
-  and feature importance, displayed in the HUD and detail modal
+- **AI classification** — precomputed ML classifications served via Cloudflare Pages Functions
+  (planet/dwarf planet/asteroid/comet/spacecraft/etc.) with confidence scores,
+  feature importance, and similar-body navigation, displayed in the HUD and detail modal
 - **Scale toggle** — switch between Cinematic (1×) and Realistic (0.25×)
   orbit/body scales
 - **4K textures** — planets and the Sun use 4K Solar System Scope textures embedded in GLBs; dwarf planets, asteroids, comets, and interstellar bodies use procedural Canvas noise textures as fallback
@@ -145,11 +145,12 @@ All GLB files use Draco compression.
 npm install
 npm run dev               # Vite dev server (:5000)
 npm run build             # Production build → dist/
+npm run build:cf          # CF Pages build (regenerates AI cache → Draco → Vite)
 npm test                  # Run tests (vitest)
 npm run models:convert    # Convert a NASA OBJ model to GLB (see above)
 npm run models:validate   # Validate GLBs against ML classification
 npm run ai:train          # Train spaceAI RandomForest classifier (11 features)
-npm run ai:serve          # Start AI classification microservice
+npm run ai:serve          # Start local AI classification microservice for dev
 ```
 
 ---
@@ -163,7 +164,8 @@ npm run ai:serve          # Start AI classification microservice
 - **Vite** (build tool)
 - **Tailwind CSS** (HUD styling)
 - **Zustand** (state management)
-- **FastAPI** (AI classification microservice, Python)
+- **Cloudflare Pages Functions** (AI classification via precomputed cache)
+- **FastAPI** (dev) — local AI training microservice (Python)
 - **obj2gltf** (dev) — OBJ → GLB conversion for NASA models
 - **@gltf-transform/cli** (dev) — Draco compression + optimisation
 
