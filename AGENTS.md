@@ -4,15 +4,18 @@
 
 | Command | Action |
 |---------|--------|
-| `npm run dev` | Dev server (:5000) via Express + Vite HMR |
+| `npm run dev` | Frontend + Express dev server (:5000) — **no AI service** |
+| `npm run dev:full` | Full stack: Express (:5000) + FastAPI (:8000) via `scripts/dev.sh` |
 | `npm run check` | `tsc` — 0 expected errors |
-| `npm test` | `vitest run` — 131 tests (2 files, parameterized) |
+| `npm test` | `vitest run` — 152 tests (2 files, parameterized) |
 | `npm run test:watch` | `vitest` in watch mode |
 | `npm run build` | `copy-draco.sh && vite build && esbuild server` → `dist/` |
 | `npm run build:cf` | CF Pages static build (Draco → vite build → `dist/`) |
 | `npm start` | Production: `node dist/index-prod.js` (build first) |
 | `npm run models:convert` | Convert a NASA OBJ model → Draco GLB (see NASA Model Pipeline below) |
 | `npm run models:validate` | Cross-reference GLBs against ML classification |
+| `npm run models:generate` | Regenerate procedural GLB models via Blender (requires Blender 3.4+) |
+| `npm run models:downscale` | Downscale heavy GLBs for mobile |
 | `npm run ai:train` | Train classifier (`--tune` for GridSearchCV) |
 | `npm run ai:train-regression` | Train mass + temp regressors |
 | `npm run ai:train-all` | Both train commands sequentially |
@@ -21,9 +24,6 @@
 | `npm run db:push` | Push Drizzle schema to PostgreSQL (Neon) |
 | `npm run db:generate` | Generate Drizzle migration |
 | `npm run db:studio` | Drizzle Studio UI |
-| `bash scripts/dev.sh` | Full-stack: Express (:5000) + FastAPI (:8000) |
-| `bash scripts/downscale-textures.sh` | Downscale heavy GLBs for mobile |
-| `python3 scripts/generate_celestial_models.py` | Regenerate GLB models via Blender |
 
 ## Architecture — SPA, no SSR
 

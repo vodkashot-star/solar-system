@@ -5,6 +5,7 @@
   "license": "MIT",
   "scripts": {
     "dev": "NODE_ENV=development tsx server/index-dev.ts",
+    "dev:full": "bash scripts/dev.sh",
     "build": "bash scripts/copy-draco.sh && vite build && esbuild server/index-prod.ts --platform=node --packages=external --bundle --format=esm --outdir=dist",
     "build:cf": "bash scripts/copy-draco.sh && vite build",
     "start": "NODE_ENV=production node dist/index-prod.js",
@@ -13,6 +14,8 @@
     "test:watch": "vitest",
     "models:convert": "bash scripts/convert_nasa_model.sh",
     "models:validate": "python3 scripts/validate_models.py",
+    "models:generate": "python3 scripts/generate_celestial_models.py",
+    "models:downscale": "bash scripts/downscale-textures.sh",
     "db:generate": "drizzle-kit generate",
     "db:push": "drizzle-kit push",
     "db:studio": "drizzle-kit studio",
