@@ -38,6 +38,7 @@ Fiber, Drei, and Three.js.
   and feature importance, displayed in the HUD and detail modal
 - **Scale toggle** — switch between Cinematic (1×) and Realistic (0.25×)
   orbit/body scales
+- **4K textures** — planets and the Sun use 4K Solar System Scope textures embedded in GLBs; dwarf planets, asteroids, comets, and interstellar bodies use procedural Canvas noise textures as fallback
 - **Saturn rings** — procedurally generated ring geometry on Saturn
 - **HUD overlay** — current body name and a short fact, fades in on each
   transition
