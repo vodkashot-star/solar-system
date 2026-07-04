@@ -32,24 +32,24 @@ TEXTURE_DIR.mkdir(parents=True, exist_ok=True)
 
 # ── Texture references: Solar System Scope (CC BY 4.0) ─────────────────────
 # https://www.solarsystemscope.com/textures/
-# Maps are 2K resolution; Blender embeds them into the exported GLB.
+# Maps are 4K resolution; Blender embeds them into the exported GLB.
 TEXTURE_SOURCES = {
-    "sun":     "https://www.solarsystemscope.com/textures/download/2k_sun.jpg",
-    "mercury": "https://www.solarsystemscope.com/textures/download/2k_mercury.jpg",
-    "venus":   "https://www.solarsystemscope.com/textures/download/2k_venus_surface.jpg",
-    "earth":   "https://www.solarsystemscope.com/textures/download/2k_earth_daymap.jpg",
-    "mars":    "https://www.solarsystemscope.com/textures/download/2k_mars.jpg",
-    "jupiter": "https://www.solarsystemscope.com/textures/download/2k_jupiter.jpg",
-    "saturn":  "https://www.solarsystemscope.com/textures/download/2k_saturn.jpg",
-    "uranus":  "https://www.solarsystemscope.com/textures/download/2k_uranus.jpg",
-    "neptune": "https://www.solarsystemscope.com/textures/download/2k_neptune.jpg",
+    "sun":     "https://www.solarsystemscope.com/textures/download/4k_sun.jpg",
+    "mercury": "https://www.solarsystemscope.com/textures/download/4k_mercury.jpg",
+    "venus":   "https://www.solarsystemscope.com/textures/download/4k_venus_surface.jpg",
+    "earth":   "https://www.solarsystemscope.com/textures/download/4k_earth_daymap.jpg",
+    "mars":    "https://www.solarsystemscope.com/textures/download/4k_mars.jpg",
+    "jupiter": "https://www.solarsystemscope.com/textures/download/4k_jupiter.jpg",
+    "saturn":  "https://www.solarsystemscope.com/textures/download/4k_saturn.jpg",
+    "uranus":  "https://www.solarsystemscope.com/textures/download/4k_uranus.jpg",
+    "neptune": "https://www.solarsystemscope.com/textures/download/4k_neptune.jpg",
     # Pluto: texture removed from Solar System Scope — uses procedural fallback
-    # Moon: https://www.solarsystemscope.com/textures/download/2k_moon.jpg
+    # Moon: https://www.solarsystemscope.com/textures/download/4k_moon.jpg
     # Ceres: no 2K diffuse map publicly available — uses procedural fallback
 }
 
 def download_texture(name):
-    """Download 2K texture from Solar System Scope if available."""
+    """Download 4K texture from Solar System Scope if available."""
     if name not in TEXTURE_SOURCES:
         return None
     dest = TEXTURE_DIR / f"{name}.jpg"

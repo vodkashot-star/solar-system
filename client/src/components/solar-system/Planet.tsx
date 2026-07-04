@@ -71,7 +71,9 @@ function GLBModel({ url, radius, body, onReady }: {
     box.getCenter(center);
     scene.position.sub(center);
 
-    applyProceduralMaterials(scene, body.id, body.type);
+    if (body.type === "dwarfPlanet" || body.type === "asteroid" || body.type === "comet" || body.type === "interstellar") {
+      applyProceduralMaterials(scene, body.id, body.type);
+    }
 
     scene.traverse((obj: THREE.Object3D) => {
       const mesh = obj as THREE.Mesh;

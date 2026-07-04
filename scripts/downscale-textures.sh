@@ -5,7 +5,7 @@
 
 set -e
 
-echo "Downscaling Earth, Mercury, Mars GLB models..."
+echo "Downscaling Earth, Mercury, Mars GLB models from 4K to 2K..."
 echo ""
 
 MODELS_DIR="client/public/models"
@@ -20,16 +20,16 @@ done
 
 echo ""
 
-# Earth: 8192x4096 texture -> 2048x1024
-echo "--- Earth (22 MB) ---"
+# Earth: 4096x2048 texture -> 2048x1024
+echo "--- Earth ---"
 npx gltf-transform resize "$MODELS_DIR/earth.glb" /tmp/earth-resized.glb --width 2048 --height 1024
 cp /tmp/earth-resized.glb "$MODELS_DIR/earth.glb"
 ls -lh "$MODELS_DIR/earth.glb"
 
 echo ""
 
-# Mercury: 8192x4096 texture -> 2048x1024
-echo "--- Mercury (20 MB) ---"
+# Mercury: 4096x2048 texture -> 2048x1024
+echo "--- Mercury ---"
 npx gltf-transform resize "$MODELS_DIR/mercury.glb" /tmp/mercury-resized.glb --width 2048 --height 1024
 cp /tmp/mercury-resized.glb "$MODELS_DIR/mercury.glb"
 ls -lh "$MODELS_DIR/mercury.glb"
