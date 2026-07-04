@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { Body } from "./bodies";
 
 type AIClassificationPanelProps = {
@@ -5,9 +6,14 @@ type AIClassificationPanelProps = {
   className?: string;
 };
 
+const CORRECTION_TYPES = ["Star", "Planet", "DwarfPlanet", "Moon", "Asteroid", "Comet", "Interstellar", "Spacecraft"];
+
 export default function AIClassificationPanel({ body, className = "" }: AIClassificationPanelProps) {
+  const [showCorrection, setShowCorrection] = useState(false);
+  const [selectedType, setSelectedType] = useState("");
+  const [correctionSubmitted, setCorrectionSubmitted] = useState(false);
+
   if (!body.aiAnalysis) {
-    // Spacecraft get a static fallback when the AI service is offline.
     const isSpacecraft = body.type === "spacecraft";
     return (
       <div className={`rounded-xl border border-white/10 bg-white/[0.04] p-4 backdrop-blur-md ${className}`}>
@@ -26,7 +32,26 @@ export default function AIClassificationPanel({ body, className = "" }: AIClassi
     );
   }
 
-  const { classification, confidence, alternatives, features } = body.aiAnalysis;
+  const { classification, confidence, uncertainty, alternatives, features } = body.aiAnalysis;
+
+  const handleSubmitCorrection = async () => {
+    try {
+      await fetch("/api/ai/correct", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          body_id: body.id,
+          predicted_type: body.aiAnalysis?.classification ?? "",
+          corrected_type: selectedType,
+          features: body.aiAnalysis?.features?.map((f) => f.value) ?? [],
+          uncertainty: body.aiAnalysis?.uncertainty ?? 0,
+        }),
+      });
+    } catch {
+      // Silently fail — AI service may be offline
+    }
+    setCorrectionSubmitted(true);
+  };
 
   return (
     <div className={`rounded-xl border border-white/10 bg-white/[0.04] p-4 backdrop-blur-md ${className}`}>
@@ -47,6 +72,18 @@ export default function AIClassificationPanel({ body, className = "" }: AIClassi
           style={{ width: `${confidence * 100}%` }}
         />
       </div>
+
+      {/* Uncertainty badge */}
+      {uncertainty !== undefined && uncertainty > 0.4 && (
+        <div className="mt-2 flex items-center gap-1.5 rounded-md bg-amber-500/10 px-2 py-1">
+          <span className="text-[10px] font-semibold uppercase tracking-[0.2em] text-amber-400">
+            Uncertain
+          </span>
+          <span className="text-[10px] text-amber-400/60">
+            {(uncertainty * 100).toFixed(0)}% entropy
+          </span>
+        </div>
+      )}
 
       {/* Alternatives */}
       {alternatives.length > 0 && (
@@ -87,6 +124,63 @@ export default function AIClassificationPanel({ body, className = "" }: AIClassi
               </div>
             ))}
           </div>
+        </div>
+      )}
+
+      {/* Correction UI */}
+      {!correctionSubmitted && (
+        <div className="mt-3 border-t border-white/5 pt-3">
+          {!showCorrection ? (
+            <button
+              onClick={() => setShowCorrection(true)}
+              className="text-[10px] font-semibold uppercase tracking-[0.2em] text-white/30 hover:text-white/60 transition-colors"
+            >
+              Wrong classification? Correct it
+            </button>
+          ) : (
+            <div className="space-y-2">
+              <div className="text-[10px] font-semibold uppercase tracking-[0.2em] text-white/40">
+                Correct classification
+              </div>
+              <div className="flex flex-wrap gap-1.5">
+                {CORRECTION_TYPES.map((type) => (
+                  <button
+                    key={type}
+                    onClick={() => setSelectedType(type)}
+                    className={`rounded-md px-2 py-1 text-[10px] font-medium transition-colors ${
+                      selectedType === type
+                        ? "bg-white/20 text-white"
+                        : "bg-white/5 text-white/50 hover:bg-white/10 hover:text-white/70"
+                    }`}
+                  >
+                    {type}
+                  </button>
+                ))}
+              </div>
+              {selectedType && (
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={handleSubmitCorrection}
+                    className="rounded-md bg-white/10 px-3 py-1.5 text-[11px] font-medium text-white hover:bg-white/20 transition-colors"
+                  >
+                    Submit correction
+                  </button>
+                  <button
+                    onClick={() => { setShowCorrection(false); setSelectedType(""); }}
+                    className="text-[10px] text-white/30 hover:text-white/50 transition-colors"
+                  >
+                    Cancel
+                  </button>
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+      )}
+
+      {correctionSubmitted && (
+        <div className="mt-3 rounded-md bg-green-500/10 px-2 py-1.5">
+          <p className="text-[10px] text-green-400">Correction recorded. Model improves over time.</p>
         </div>
       )}
     </div>

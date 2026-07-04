@@ -76,6 +76,7 @@ def precompute_all():
         sorted_idx = np.argsort(proba)[::-1]
         classification = classes[sorted_idx[0]]
         confidence = float(proba[sorted_idx[0]])
+        uncertainty = predictor.predict_uncertainty(*features) or 0.0
 
         alternatives = [
             {"type": classes[i], "score": float(proba[i])}
@@ -90,6 +91,7 @@ def precompute_all():
         result = {
             "classification": classification,
             "confidence": confidence,
+            "uncertainty": uncertainty,
             "alternatives": alternatives,
             "features": feat_list,
             "similarObjects": [],

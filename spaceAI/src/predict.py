@@ -6,6 +6,7 @@ Features: orbital_period, axial_tilt, mass, radius, eccentricity,
 import json
 import sys
 import joblib
+import numpy as np
 from pathlib import Path
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
@@ -69,6 +70,20 @@ class CelestialPredictor:
             rows_fixed.append(r[:11])
         X = pd.DataFrame(rows_fixed, columns=FEATURES)
         return self.model.predict(X).tolist()
+
+    def predict_uncertainty(self, orbital_period, axial_tilt, mass, radius, eccentricity,
+                            density=0, gravity=0, temperature=0, semi_major_axis=0, inclination=0, rotation_period=0):
+        proba = self.predict_proba(
+            orbital_period, axial_tilt, mass, radius, eccentricity,
+            density, gravity, temperature, semi_major_axis, inclination, rotation_period,
+        )
+        if proba is None:
+            return None
+        proba_arr = np.clip(np.array(proba), 1e-12, 1.0)
+        entropy = -np.sum(proba_arr * np.log(proba_arr))
+        n = len(proba_arr)
+        max_entropy = np.log(n)
+        return float(entropy / max_entropy) if max_entropy > 0 else 0.0
 
     def feature_importances(self):
         if self.model is None:

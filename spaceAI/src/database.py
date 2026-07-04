@@ -32,6 +32,19 @@ class AICache(Base):
     )
 
 
+class Correction(Base):
+    __tablename__ = "corrections"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    body_id = Column(String(100), nullable=False)
+    predicted_type = Column(String(50), nullable=False)
+    corrected_type = Column(String(50), nullable=False)
+    features = Column(JSON, nullable=False)
+    uncertainty = Column(Float, nullable=True)
+    source = Column(String(50), default="user")
+    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
+
+
 class PredictionLog(Base):
     __tablename__ = "prediction_logs"
 

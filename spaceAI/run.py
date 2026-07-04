@@ -31,6 +31,11 @@ def cmd_train(args):
     train(model_type=args.model_type, tune=args.tune)
 
 
+def cmd_retrain(args):
+    from train_model import train_with_corrections
+    train_with_corrections(model_type=args.model_type, tune=args.tune)
+
+
 def cmd_cv(args):
     from train_model import cross_validate
     cross_validate()
@@ -208,7 +213,7 @@ def main():
 
     # train
     p_train = sub.add_parser("train", help="Train classifier")
-    p_train.add_argument("--model-type", choices=["rf", "svc", "logreg"], default="rf",
+    p_train.add_argument("--model-type", choices=["rf", "svc", "logreg", "ensemble"], default="rf",
                          help="Classifier type (default: rf)")
     p_train.add_argument("--tune", action="store_true",
                          help="Run GridSearchCV with StratifiedKFold(3)")
@@ -253,6 +258,12 @@ def main():
     p_pt.add_argument("--features", nargs="+", type=float, metavar="VAL", required=True,
                       help="11 feature values")
 
+    # retrain
+    p_retrain = sub.add_parser("retrain", help="Retrain classifier with user corrections")
+    p_retrain.add_argument("--model-type", choices=["rf", "svc", "logreg", "ensemble"], default="rf",
+                           help="Classifier type (default: rf)")
+    p_retrain.add_argument("--tune", action="store_true", help="Run GridSearchCV")
+
     # serve
     p_serve = sub.add_parser("serve", help="Start FastAPI server")
     p_serve.add_argument("--port", type=int, default=8000)
@@ -262,6 +273,7 @@ def main():
 
     {
         "train": cmd_train,
+        "retrain": cmd_retrain,
         "cv": cmd_cv,
         "test": cmd_test,
         "classify": cmd_classify,

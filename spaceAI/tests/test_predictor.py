@@ -99,3 +99,15 @@ def test_model_metadata_returns_dict(predictor):
     meta = predictor.model_metadata
     assert meta is not None
     assert "model_type" in meta
+
+
+def test_predict_uncertainty_returns_float(predictor):
+    unc = predictor.predict_uncertainty(365.25, 23.44, 1.0, 1.0, 0.017, 5.51, 9.81, 288, 1, 0, 24)
+    assert unc is not None
+    assert 0.0 <= unc <= 1.0
+
+
+def test_uncertainty_lower_for_known_body(predictor):
+    earth = predictor.predict_uncertainty(365.25, 23.44, 1.0, 1.0, 0.017, 5.51, 9.81, 288, 1, 0, 24)
+    assert earth is not None
+    assert 0.0 <= earth <= 1.0

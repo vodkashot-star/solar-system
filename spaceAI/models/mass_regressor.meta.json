@@ -1,9 +1,9 @@
 {
   "target": "mass",
   "unit": "Earth masses",
-  "n_samples": 44,
+  "n_samples": 49,
   "n_features": 10,
-  "test_mae": 1482.4468,
-  "test_r2": -427284.9639,
-  "training_date": "2026-07-03T12:22:50.458161"
+  "test_mae": 4330.3677,
+  "test_r2": -727750496957.5208,
+  "training_date": "2026-07-04T12:08:25.839501"
 }

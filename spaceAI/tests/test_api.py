@@ -122,7 +122,28 @@ def test_predict_mass_empty_features():
     assert r.status_code in (200, 503)
 
 
+def test_submit_correction():
+    r = client.post("/classify/earth/correct", json={
+        "body_id": "earth",
+        "predicted_type": "Planet",
+        "corrected_type": "Planet",
+        "features": [365.25, 23.44, 1.0, 1.0, 0.017, 5.51, 9.81, 288, 1, 0, 24],
+        "uncertainty": 0.05,
+    })
+    assert r.status_code == 200
+    data = r.json()
+    assert data["status"] == "recorded"
+    assert "id" in data
+
+
+def test_list_corrections():
+    r = client.get("/corrections?limit=5")
+    assert r.status_code == 200
+    data = r.json()
+    assert isinstance(data, list)
+
+
 def test_classify_response_shape():
     r = client.get(f"/classify/earth{EARTH_PARAMS}")
     data = r.json()
-    assert list(data.keys()) == ["classification", "confidence", "alternatives", "features", "similarObjects"]
+    assert list(data.keys()) == ["classification", "confidence", "uncertainty", "alternatives", "features", "similarObjects"]

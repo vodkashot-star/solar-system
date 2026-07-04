@@ -25,6 +25,29 @@ export async function registerRoutes(app: Express): Promise<Server> {
     res.json({ status: "ok" });
   });
 
+  app.post("/api/ai/correct", async (req, res) => {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), PROXY_TIMEOUT_MS);
+    try {
+      const upstream = await fetch(`${SPACEAI_URL}/classify/${req.body.body_id}/correct`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(req.body),
+        signal: controller.signal,
+      });
+      const data = await upstream.json();
+      res.status(upstream.status).json(data);
+    } catch (err: unknown) {
+      if (err instanceof Error && err.name === "AbortError") {
+        res.status(504).json({ error: "AI service timed out" });
+      } else {
+        res.status(503).json({ error: "AI service unavailable" });
+      }
+    } finally {
+      clearTimeout(timer);
+    }
+  });
+
   app.get("/api/ai/precomputed", async (_req, res) => {
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), PROXY_TIMEOUT_MS);

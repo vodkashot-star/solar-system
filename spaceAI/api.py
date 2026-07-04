@@ -37,6 +37,7 @@ class SimilarObject(BaseModel):
 class AIAnalysis(BaseModel):
     classification: str
     confidence: float
+    uncertainty: float = 0.0
     alternatives: List[Alternative]
     features: List[Feature]
     similarObjects: List[SimilarObject]
@@ -109,9 +110,64 @@ def get_precomputed():
     return get_all()
 
 
+class CorrectionRequest(BaseModel):
+    body_id: str
+    predicted_type: str
+    corrected_type: str
+    features: List[float]
+    uncertainty: float = 0.0
+
+
+class CorrectionResponse(BaseModel):
+    id: int
+    status: str
+
+
 class PredictResponse(BaseModel):
     prediction: float
     confidence_interval: List[float]
+
+
+@app.post("/classify/{body_id}/correct", response_model=CorrectionResponse)
+def submit_correction(body_id: str, correction: CorrectionRequest):
+    from src.database import Correction as CorrectionModel, get_session
+    from src.database import init_db
+    init_db()
+    with get_session() as session:
+        record = CorrectionModel(
+            body_id=body_id,
+            predicted_type=correction.predicted_type,
+            corrected_type=correction.corrected_type,
+            features=correction.features,
+            uncertainty=correction.uncertainty if correction.uncertainty else 0.0,
+            source="user",
+        )
+        session.add(record)
+        session.commit()
+        return CorrectionResponse(id=record.id, status="recorded")
+
+
+@app.get("/corrections")
+def list_corrections(limit: int = 50):
+    from src.database import Correction as CorrectionModel, get_session
+    from src.database import init_db
+    init_db()
+    with get_session() as session:
+        rows = session.query(CorrectionModel).order_by(
+            CorrectionModel.created_at.desc()
+        ).limit(limit).all()
+    return [
+        {
+            "id": r.id,
+            "body_id": r.body_id,
+            "predicted_type": r.predicted_type,
+            "corrected_type": r.corrected_type,
+            "uncertainty": r.uncertainty,
+            "source": r.source,
+            "created_at": r.created_at.isoformat() if r.created_at else None,
+        }
+        for r in rows
+    ]
 
 
 @app.post("/predict/mass", response_model=PredictResponse)
@@ -154,6 +210,10 @@ def classify(
     sorted_idx = np.argsort(proba)[::-1]
     classification = classes[sorted_idx[0]]
     confidence = float(proba[sorted_idx[0]])
+    uncertainty = predictor.predict_uncertainty(
+        orbital_period, axial_tilt, mass, radius, eccentricity,
+        density, gravity, temperature, semi_major_axis, inclination, rotation_period,
+    ) or 0.0
 
     alternatives = [
         Alternative(type=classes[i], score=float(proba[i]))
@@ -182,6 +242,7 @@ def classify(
     result = AIAnalysis(
         classification=classification,
         confidence=confidence,
+        uncertainty=uncertainty,
         alternatives=alternatives,
         features=features,
         similarObjects=similar_objects,

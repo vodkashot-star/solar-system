@@ -17,6 +17,7 @@ export type AstronomicalProperties = {
 export type AIAnalysis = {
   classification: string;
   confidence: number;
+  uncertainty: number;
   alternatives: Array<{ type: string; score: number }>;
   features: Array<{ name: string; value: number; importance: number }>;
   similarObjects: Array<{ bodyId: string; similarity: number }>;
