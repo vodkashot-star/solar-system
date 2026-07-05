@@ -3,11 +3,12 @@ import { Body } from "./bodies";
 type AIClassificationPanelProps = {
   body: Body;
   className?: string;
+  compact?: boolean;
 };
 
 const CORRECTION_TYPES = ["Star", "Planet", "DwarfPlanet", "Moon", "Asteroid", "Comet", "Interstellar", "Spacecraft"];
 
-export default function AIClassificationPanel({ body, className = "" }: AIClassificationPanelProps) {
+export default function AIClassificationPanel({ body, className = "", compact }: AIClassificationPanelProps) {
   const [showCorrection, setShowCorrection] = useState(false);
   const [selectedType, setSelectedType] = useState("");
   const [correctionSubmitted, setCorrectionSubmitted] = useState(false);
@@ -27,6 +28,19 @@ export default function AIClassificationPanel({ body, className = "" }: AIClassi
         ) : (
           <p className="mt-2 text-sm text-white/60">Waiting for prediction...</p>
         )}
+      </div>
+    );
+  }
+
+  if (compact) {
+    const { classification, confidence } = body.aiAnalysis;
+    return (
+      <div className="flex items-center gap-2">
+        <span className="text-xs font-medium text-white">{classification}</span>
+        <span className="text-[10px] text-white/50">{(confidence * 100).toFixed(0)}%</span>
+        <div className="h-1 flex-1 overflow-hidden rounded-full bg-white/10">
+          <div className="h-full rounded-full bg-gradient-to-r from-green-400 to-emerald-500" style={{ width: `${confidence * 100}%` }} />
+        </div>
       </div>
     );
   }

@@ -230,71 +230,73 @@ export default function SolarSystem() {
         </div>
       )}
 
-      <div className="pointer-events-none absolute inset-x-0 top-0 z-20 flex items-start justify-between p-2 sm:p-4">
-        <div className="pointer-events-auto flex items-center gap-2">
-          <h1 className="text-xs font-semibold tracking-[0.2em] text-white/80 uppercase sm:text-sm">
-            Solar System
-          </h1>
-          <button
-            onClick={() => setSearchOpen(true)}
-            className="rounded-full border border-white/15 bg-white/5 px-2 py-0.5 text-[10px] font-medium text-white/60 backdrop-blur transition hover:bg-white/10 hover:text-white"
-            title="Search bodies (/)"
-          >
-            Search
-          </button>
-        </div>
-        <div className="pointer-events-auto flex items-center gap-1.5">
-          <ScaleControl currentMode={scaleMode} onModeChange={setScaleMode} className="!static !bottom-auto !left-auto !right-auto" />
-          <div className="flex items-center gap-1.5 rounded-full border border-white/15 bg-white/5 px-2 py-1 backdrop-blur-md">
-            <span className="hidden text-[10px] text-white/50 sm:inline">Speed</span>
-            <input
-              type="range"
-              min="0"
-              max="5"
-              step="0.1"
-              value={speedMultiplier}
-              onChange={(e) => setSpeedMultiplier(parseFloat(e.target.value))}
-              className="h-1 w-12 cursor-pointer appearance-none rounded-full bg-white/20 accent-white sm:w-16"
-            />
-            <span className="w-4 text-right text-[10px] font-medium text-white/70 sm:w-5">{speedMultiplier.toFixed(1)}x</span>
+      <div className="pointer-events-none absolute inset-x-0 top-0 z-20 flex flex-col gap-1 p-1.5 sm:p-4">
+        <div className="flex items-start justify-between">
+          <div className="pointer-events-auto flex items-center gap-1.5">
+            <h1 className="hidden text-xs font-semibold tracking-[0.2em] text-white/80 uppercase xs:inline sm:text-sm">
+              Solar System
+            </h1>
+            <button
+              onClick={() => setSearchOpen(true)}
+              className="rounded-full border border-white/15 bg-white/5 px-2 py-1 text-[10px] font-medium text-white/60 backdrop-blur transition hover:bg-white/10 hover:text-white"
+              title="Search bodies (/)"
+            >
+              Search
+            </button>
           </div>
-          <button
-            onClick={() => {
-              setTourOn((v) => {
-                if (!v) clearFocus();
-                return !v;
-              });
-            }}
-            className="rounded-full border border-white/15 bg-white/5 px-3 py-1 text-[10px] font-medium text-white/90 backdrop-blur-md transition hover:bg-white/10 sm:px-4 sm:py-1.5 sm:text-xs"
-          >
-            {tourOn ? "Pause tour" : "Tour"}
-          </button>
+          <div className="pointer-events-auto flex items-center gap-1">
+            <ScaleControl currentMode={scaleMode} onModeChange={setScaleMode} compact />
+            <div className="flex items-center gap-1 rounded-full border border-white/15 bg-white/5 px-1.5 py-1 backdrop-blur-md sm:px-2">
+              <span className="hidden text-[10px] text-white/50 sm:inline">Speed</span>
+              <input
+                type="range"
+                min="0"
+                max="5"
+                step="0.1"
+                value={speedMultiplier}
+                onChange={(e) => setSpeedMultiplier(parseFloat(e.target.value))}
+                className="h-2 w-10 cursor-pointer appearance-none rounded-full bg-white/20 accent-white sm:h-1 sm:w-16"
+              />
+              <span className="w-3 text-right text-[9px] font-medium text-white/70 sm:w-5 sm:text-[10px]">{speedMultiplier.toFixed(1)}x</span>
+            </div>
+            <button
+              onClick={() => {
+                setTourOn((v) => {
+                  if (!v) clearFocus();
+                  return !v;
+                });
+              }}
+              className="rounded-full border border-white/15 bg-white/5 px-2 py-1 text-[10px] font-medium text-white/90 backdrop-blur-md transition hover:bg-white/10 sm:px-4 sm:py-1.5 sm:text-xs"
+            >
+              {tourOn ? "Pause" : "Tour"}
+            </button>
+          </div>
         </div>
       </div>
 
       <div
         key={overview ? "overview" : active.id}
-        className="pointer-events-none absolute bottom-3 left-3 right-3 z-20 animate-fade-in sm:bottom-6 sm:left-8 sm:right-auto sm:max-w-xs"
+        className="pointer-events-none absolute bottom-2 left-2 right-2 z-20 animate-fade-in sm:bottom-6 sm:left-8 sm:right-auto sm:max-w-xs"
       >
         {overview ? (
-          <div className="rounded-xl border border-white/10 bg-white/[0.04] p-3 backdrop-blur-md sm:p-4">
+          <div className="rounded-xl border border-white/10 bg-white/[0.04] p-2 backdrop-blur-md sm:p-4">
             <div className="font-mono text-[10px] font-semibold uppercase tracking-[0.3em] text-white/40">
               Now viewing
             </div>
-            <div className="mt-0.5 text-lg font-light text-white sm:text-xl">Solar System</div>
-            <p className="mt-1 text-xs leading-relaxed text-white/60">
+            <div className="mt-0.5 text-base font-light text-white sm:text-xl">Solar System</div>
+            <p className="mt-1 text-[11px] leading-relaxed text-white/60 sm:text-xs">
               Our cosmic neighborhood — eight planets, five dwarf planets, hundreds of moons,
               and countless asteroids orbit a single yellow dwarf star.
             </p>
           </div>
         ) : (
-          <div className="rounded-xl border border-white/10 bg-white/[0.04] p-3 backdrop-blur-md sm:p-4">
+          <div className="rounded-xl border border-white/10 bg-white/[0.04] p-2 backdrop-blur-md sm:p-4">
             <div className="flex items-start justify-between">
               <div className="flex-1 min-w-0">
                 <div className="font-mono text-[10px] font-semibold uppercase tracking-[0.3em] text-white/40">
                   Now viewing
                 </div>
-                <div className="mt-0.5 truncate text-lg font-light text-white sm:text-xl">{active.name}</div>
+                <div className="mt-0.5 truncate text-base font-light text-white sm:text-xl">{active.name}</div>
               </div>
               <button
                 onClick={() => setDetailBodyId(active.id)}
@@ -303,13 +305,14 @@ export default function SolarSystem() {
                 Details
               </button>
             </div>
-            <p className="mt-1 text-xs leading-relaxed text-white/60">{active.fact}</p>
+            <p className="mt-1 text-[11px] leading-relaxed text-white/60 sm:text-xs">{active.fact}</p>
 
             {aiCache[active.id] && (
-              <div className="mt-2 border-t border-white/10 pt-2">
+              <div className="mt-1.5 border-t border-white/10 pt-1.5 sm:mt-2 sm:pt-2">
                 <AIClassificationPanel
                   body={{ ...active, aiAnalysis: aiCache[active.id] }}
                   className="!border-0 !bg-transparent !p-0 !backdrop-blur-none"
+                  compact
                 />
               </div>
             )}
@@ -324,7 +327,7 @@ export default function SolarSystem() {
         const body = BODIES.find((b) => b.id === hoveredBodyId);
         if (!body) return null;
         return (
-          <div className="pointer-events-none fixed bottom-20 left-1/2 z-40 -translate-x-1/2 animate-fade-in rounded-lg border border-white/10 bg-black/80 px-3 py-1.5 backdrop-blur-md">
+          <div className="pointer-events-none fixed left-1/2 z-40 -translate-x-1/2 animate-fade-in rounded-lg border border-white/10 bg-black/80 px-3 py-1.5 backdrop-blur-md sm:bottom-20 bottom-auto top-20">
             <div className="text-xs font-medium text-white">{body.name}</div>
             <div className="text-[10px] text-white/50">{body.type.replace(/([A-Z])/g, " $1").trim()}</div>
           </div>
