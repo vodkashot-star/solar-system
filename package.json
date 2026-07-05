@@ -1,12 +1,12 @@
 {
   "name": "solar-system",
-  "version": "1.2.0",
+  "version": "1.3.0",
   "type": "module",
   "license": "MIT",
   "scripts": {
     "dev": "NODE_ENV=development concurrently \"tsx server/index-dev.ts\" \"npm run ai:serve\"",
     "build": "bash scripts/copy-draco.sh && vite build && esbuild server/index-prod.ts --platform=node --packages=external --bundle --format=esm --outdir=dist",
-    "build:cf": "bash scripts/build-ai-cache.sh && bash scripts/copy-draco.sh && vite build",
+    "build:cf": "bash scripts/copy-draco.sh && vite build",
     "start": "NODE_ENV=production concurrently \"node dist/index-prod.js\" \"npm run ai:serve\"",
     "validate": "tsc && vitest run",
     "check": "tsc",
@@ -33,6 +33,7 @@
     "@react-three/drei": "^9.122.0",
     "@react-three/fiber": "^8.18.0",
     "@react-three/postprocessing": "^2.19.1",
+    "astronomy-engine": "^2.1.19",
     "clsx": "^2.1.1",
     "cors": "^2.8.6",
     "drizzle-orm": "^0.45.2",

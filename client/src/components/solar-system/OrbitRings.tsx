@@ -1,6 +1,7 @@
 import { useMemo } from "react";
 import * as THREE from "three";
 import { BODIES, BODY_TYPE_COLORS } from "./bodies";
+import { getHeliocentricPosition, ASTRONOMY_BODIES, SIM_SPEED } from "@/lib/astronomy-positions";
 
 const SEGMENTS = 128;
 
@@ -45,6 +46,20 @@ function sampleOrbitPoints(a: number, e: number, inclRad: number, segments: numb
   return pts;
 }
 
+function sampleEphemerisPoints(bodyId: string, orbitalPeriod: number, segments: number): number[] {
+  if (orbitalPeriod <= 0) return [];
+  const pts: number[] = [];
+  const periodSec = orbitalPeriod / SIM_SPEED;
+  for (let i = 0; i <= segments; i++) {
+    const t = (i / segments) * periodSec;
+    const pos = getHeliocentricPosition(bodyId, t, 1);
+    if (pos) {
+      pts.push(pos.x, pos.y, pos.z);
+    }
+  }
+  return pts;
+}
+
 export default function OrbitRings({ scaleMultiplier = 1 }: Props) {
   const geometry = useMemo(() => {
     const positions: number[] = [];
@@ -55,13 +70,12 @@ export default function OrbitRings({ scaleMultiplier = 1 }: Props) {
       if (body.orbit <= 0) continue;
       if (body.parentBody) continue;
 
-      const a = body.orbit;
-      const e = body.properties.eccentricity;
-      const inclRad = body.properties.inclination * Math.PI / 180;
       const hex = BODY_TYPE_COLORS[body.type] ?? "#ffffff";
       color.set(hex);
 
-      const pts = sampleOrbitPoints(a, e, inclRad, SEGMENTS);
+      const pts = ASTRONOMY_BODIES.has(body.id)
+        ? sampleEphemerisPoints(body.id, body.properties.orbitalPeriod, SEGMENTS)
+        : sampleOrbitPoints(body.orbit, body.properties.eccentricity, body.properties.inclination * Math.PI / 180, SEGMENTS);
 
       for (let i = 0; i < pts.length / 3 - 1; i++) {
         const i3 = i * 3;

@@ -1,12 +1,4 @@
 services:
-  spaceai:
-    build:
-      context: ./spaceAI
-      dockerfile: Dockerfile
-    ports:
-      - "8000:8000"
-    restart: unless-stopped
-
   app:
     build:
       context: .
@@ -15,7 +7,4 @@ services:
       - "5000:5000"
     environment:
       - NODE_ENV=production
-      - SPACEAI_URL=http://spaceai:8000
-    depends_on:
-      - spaceai
     restart: unless-stopped

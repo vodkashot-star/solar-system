@@ -4,13 +4,13 @@
 
 | Command | Action |
 |---------|--------|
-| `npm run dev` | Full stack: Express (:5000) + FastAPI (:8000) via `concurrently` |
+| `npm run dev` | Express dev on :5000 + FastAPI training server on :8000 (concurrently) |
 | `npm run check` | `tsc` — 0 expected errors |
 | `npm test` | `vitest run` — 172 tests (2 files, parameterized) |
 | `npm run test:watch` | `vitest` in watch mode |
 | `npm run build` | `copy-draco.sh && vite build && esbuild server` → `dist/` |
-| `npm run build:cf` | CF Pages static build (Draco → vite build → `dist/`) |
-| `npm start` | Production: `node dist/index-prod.js` (build first) |
+| `npm run build:cf` | Static SPA build (Draco → vite build → `dist/`) |
+| `npm start` | Production: `node dist/index-prod.js` on :5000 (build first) |
 | `npm run models:convert` | Convert a NASA OBJ model → Draco GLB (see NASA Model Pipeline below) |
 | `npm run models:validate` | Cross-reference GLBs against ML classification |
 | `npm run models:generate` | Regenerate procedural GLB models via Blender (requires Blender 3.4+) |
@@ -22,7 +22,7 @@
 | `npm run ai:train-all` | Both train commands sequentially |
 | `npm run ai:retrain` | Retrain classifier with user corrections from DB |
 | `npm run ai:test` | pytest — 50 tests in `spaceAI/tests/` |
-| `npm run ai:serve` | Start FastAPI on :8000 |
+| `npm run ai:serve` | Start FastAPI on :8000 (training-only, not needed for runtime) |
 | `npm run db:push` | Push Drizzle schema to PostgreSQL (Neon) |
 | `npm run db:generate` | Generate Drizzle migration |
 | `npm run db:studio` | Drizzle Studio UI |
@@ -39,11 +39,10 @@
 - **Camera focus**: `FocusCamera` reads `positions.current[targetBodyId]` every frame in `useFrame` — always tracks live body position
 - **Keyboard shortcuts**: `Space` toggle tour, `←`/`→` prev/next body, `/` open search, `Esc` close modals/clear focus
 - **Body search**: Press `/` or click "Search" button — type to filter all bodies by name, select to focus
-- **Server proxy**: Express `/api/ai/*` → `SPACEAI_URL` (default `:8000`), 10s timeout, in-memory cache with 5min TTL
-- **Cloudflare Functions**: `functions/api/ai/classify/[bodyId].js` mirrors the proxy for CF Pages deploy. SPA fallback: `client/public/_redirects`
-- **Netlify**: `netlify.toml` at root — same `build:cf` command, same SPA fallback. `deploy-netlify.yml` workflow supports it.
-- **Docker**: `docker-compose up` → `spaceai` (:8000) + `app` (:5000). `SPACEAI_URL=http://spaceai:8000` in container
-- **Frontend works without spaceAI**: AI fetch failures silently caught; scene renders, tour runs, GLBs load. AI features (classification panel, similar bodies) are absent but nothing crashes.
+- **AI API**: Express serves precomputed classifications from `spaceAI/data/ai_cache.json` on `:5000` — no FastAPI runtime needed. Corrections stored in-memory.
+- **Netlify / CF Pages deploy**: `npm run build:cf` builds static site to `dist/` with SPA fallback via `client/public/_redirects` and `netlify.toml`.
+- **Docker**: `docker-compose up` starts Express on `:5000` only. No separate spaceAI container.
+- **Frontend works without AI data**: AI fetch failures silently caught; scene renders, tour runs, GLBs load. AI features (classification panel, similar bodies) are absent but nothing crashes.
 
 ## Hyperbolic Kepler Orbits (e > 1)
 
@@ -106,35 +105,44 @@ After conversion, create `client/src/assets/solar/<name>.glb.asset.json`:
 ```
 Then add the body entry to `bodies.ts` and run `npm run check`.
 
-## spaceAI (Python ML microservice)
+## spaceAI (Python ML — training only)
+
+No longer required at runtime. Express serves `spaceAI/data/ai_cache.json` directly. FastAPI is only used for **training + regenerating the cache**.
 
 - 11 features: `orbital_period`, `axial_tilt`, `mass`, `radius`, `eccentricity`, `density`, `gravity`, `temperature`, `semi_major_axis`, `inclination`, `rotation_period`
 - Classifiers: RF (default), SVC, LogisticRegression via `--model-type`; `--tune` for GridSearchCV
 - CLI entry: `spaceAI/run.py`. All `npm run ai:*` scripts delegate via `cd spaceAI && python run.py <cmd>`
-- Precomputation: all bodies classified at FastAPI startup (lifespan handler), persisted in DB
-- **Spacecraft classification**: spacecraft entries in `spaceAI/data/celestial_objects.csv` use `body_type = spacecraft`. If the AI service is offline, the frontend shows a static "Human-made spacecraft" fallback in the classification panel.
+- Training outputs `spaceAI/data/ai_cache.json` (27 precomputed bodies) + model `.pkl` files in `spaceAI/models/`
+- **Spacecraft classification**: spacecraft entries in `spaceAI/data/celestial_objects.csv` use `body_type = spacecraft`. Express serves the cache; if a body is not cached the classify endpoint returns 404 and the frontend shows a static "Human-made spacecraft" fallback.
 - **Database**: `SPACEAI_DATABASE_URL` for PostgreSQL (Neon), falls back to `sqlite:///data/spaceai.db` locally. SQLAlchemy + Alembic in `spaceAI/alembic/`
 - DB tables: `ai_cache` (precomputed classifications) and `prediction_logs` (regression history)
 - `shared/schema.ts` mirrors these as Drizzle `pgTable` — requires PG env for `drizzle-kit push`; TS errors when PG types not installed
-- Model files: `spaceAI/models/` — `celestial_classifier.pkl`, `mass_regressor.pkl`, `temperature_regressor.pkl`
 - Tests: `spaceAI/tests/` — 50 pytest. Run via `npm run ai:test` or `cd spaceAI && python -m pytest tests/ -v`
 - The test module seeds cache at module level in `tests/test_api.py` via `precompute_all()`
-- Dockerfile trains model at build time (`RUN python src/train_model.py`) — keep this path if refactoring training
 - Dependencies in `requirements.txt` + `requirements-dev.txt` (pytest, httpx)
 - **Training quirk**: `train_model.py` calls `pipe.fit(X, y)` on the full dataset _after_ the evaluation split, so rare classes like Star (1 sample) appear in `pipeline.classes_`. Never remove this final fit.
 
 ## CI / Deploy
 
 - **`deploy.yml`**: On push to `Master` — `npm ci && npm run build:cf && wrangler pages deploy` to CF Pages
-  - `build:cf` = `build-ai-cache.sh` (regenerates `functions/api/ai/data.js` from `ai_cache.json`) → `copy-draco.sh` → `vite build`
+  - `build:cf` = `copy-draco.sh` → `vite build` (static SPA build, no CF Functions)
   - Requires `CLOUDFLARE_API_TOKEN` + `CLOUDFLARE_ACCOUNT_ID` as repo secrets
   - Project name and `pages_build_output_dir` come from `wrangler.toml`
   - Node 22
 - **`deploy-netlify.yml`**: Same build flow, deploys to Netlify. Requires `NETLIFY_AUTH_TOKEN` + `NETLIFY_SITE_ID`.
 - **`validate-data.yml`**: On push/PR to `Master` — taxonomy validation + AI training (classifier + regression) + pytest + TypeScript check + vitest client tests
-- **`opencode.yml`**: OpenCode workflow (likely agent-based CI)
-- **Cloudflare Pages Functions** replace the Python SpaceAI backend entirely — `functions/api/ai/` serves cached classifications, corrections, and health from inline precomputed data (`aiCache` in `data.js`). No separate `SPACEAI_URL` needed.
 - **`wrangler.toml`** at repo root: sets `name` and `pages_build_output_dir` — deploy command is just `pages deploy dist`
+
+## Available Expansions
+
+Planned features with detailed designs in `thoughts/plans/`:
+
+| Expansion | Plan |
+|-----------|------|
+| Real planet orbits via astronomy-engine | `thoughts/plans/astronomy-engine-integration.md` |
+| Scheduled AI retraining | `thoughts/plans/spaceai-ensemble-active-learning.md` |
+| WebSocket training progress | `thoughts/plans/spaceai-v2.md` |
+| Spacecraft GLB downloads | `thoughts/plans/spacecraft-integration.md` |
 
 ## Known Issues
 

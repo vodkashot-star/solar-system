@@ -22,7 +22,7 @@ import { useCinematicMode } from "@/stores/cinematic-mode";
 import SpacecraftOrbit from "./SpacecraftOrbit";
 
 export default function SolarSystem() {
-  const [tourOn, setTourOn] = useState(true);
+  const [tourOn, setTourOn] = useState(false);
   const [overview, setOverview] = useState(true);
   const [active, setActive] = useState<Body>(BODIES[0]);
   const [scaleMode, setScaleMode] = useState<ScaleMode>("visual");

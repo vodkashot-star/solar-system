@@ -1,120 +1,80 @@
+import fs from "node:fs";
+import path from "node:path";
 import type { Express, Request, Response } from "express";
 import { createServer, type Server } from "http";
 
-const SPACEAI_URL = process.env.SPACEAI_URL ?? "http://127.0.0.1:8000";
-const PROXY_TIMEOUT_MS = 10_000;
-const cache = new Map<string, { data: unknown; timestamp: number }>();
-const CACHE_TTL_MS = 5 * 60 * 1000;
-const CACHE_MAX_SIZE = 1_000;
+let precomputedCache: Record<string, unknown> | null = null;
 
-setInterval(() => {
-  const now = Date.now();
-  const expiredKeys: string[] = [];
-  cache.forEach((entry, key) => {
-    if (now - entry.timestamp > CACHE_TTL_MS) {
-      expiredKeys.push(key);
-    }
-  });
-  expiredKeys.forEach(key => cache.delete(key));
-  if (cache.size > CACHE_MAX_SIZE) {
-    const entries = Array.from(cache.entries());
-    entries.sort((a, b) => a[1].timestamp - b[1].timestamp);
-    const toEvict = entries.slice(0, entries.length - CACHE_MAX_SIZE);
-    toEvict.forEach(([key]) => cache.delete(key));
+function loadPrecomputed(): Record<string, unknown> {
+  if (precomputedCache) return precomputedCache!;
+  const jsonPath = path.resolve(import.meta.dirname, "..", "spaceAI", "data", "ai_cache.json");
+  try {
+    const raw = fs.readFileSync(jsonPath, "utf-8");
+    precomputedCache = JSON.parse(raw);
+    console.log(`[spaceai] loaded ${Object.keys(precomputedCache!).length} precomputed classifications`);
+  } catch (err) {
+    console.error("[spaceai] failed to load ai_cache.json:", err);
+    precomputedCache = {};
   }
-}, 10 * 60 * 1000);
+  return precomputedCache!;
+}
 
-export async function registerRoutes(app: Express): Promise<Server> {
-  console.log(`[spaceai] proxy target: ${SPACEAI_URL}`);
+const corrections: Array<{
+  bodyId: string;
+  predictedType: string;
+  correctedType: string;
+  timestamp: number;
+}> = [];
+
+export function registerRoutes(app: Express): Server {
+  const precomputed = loadPrecomputed();
 
   app.get("/api/health", (_req, res) => {
+    res.json({ status: "ok", cached_bodies: Object.keys(precomputed).length });
+  });
+
+  app.get("/api/ai/precomputed", (_req, res) => {
+    res.json(precomputed);
+  });
+
+  app.get("/api/ai/classify/:bodyId", (req, res) => {
+    const entry = precomputed[req.params.bodyId];
+    if (entry) {
+      res.json(entry);
+    } else {
+      res.status(404).json(null);
+    }
+  });
+
+  app.post("/api/ai/correct", (req, res) => {
+    const { body_id, predicted_type, corrected_type } = req.body ?? {};
+    if (!body_id || !corrected_type) {
+      res.status(400).json({ error: "body_id and corrected_type required" });
+      return;
+    }
+    corrections.push({
+      bodyId: body_id,
+      predictedType: predicted_type ?? "",
+      correctedType: corrected_type,
+      timestamp: Date.now(),
+    });
     res.json({ status: "ok" });
   });
 
-  async function proxyCorrect(req: Request, res: Response) {
-    const controller = new AbortController();
-    const timer = setTimeout(() => controller.abort(), PROXY_TIMEOUT_MS);
-    try {
-      const bodyId = req.params.bodyId || req.body?.body_id;
-      if (!bodyId) {
-        res.status(400).json({ error: "body_id required" });
-        return;
-      }
-      const upstream = await fetch(`${SPACEAI_URL}/classify/${bodyId}/correct`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(req.body),
-        signal: controller.signal,
-      });
-      const data = await upstream.json();
-      res.status(upstream.status).json(data);
-    } catch (err: unknown) {
-      if (err instanceof Error && err.name === "AbortError") {
-        res.status(504).json({ error: "AI service timed out" });
-      } else {
-        res.status(503).json({ error: "AI service unavailable" });
-      }
-    } finally {
-      clearTimeout(timer);
+  app.post("/api/classify/:bodyId/correct", (req, res) => {
+    const bodyId = req.params.bodyId;
+    const { predicted_type, corrected_type } = req.body ?? {};
+    if (!corrected_type) {
+      res.status(400).json({ error: "corrected_type required" });
+      return;
     }
-  }
-
-  app.post("/api/ai/correct", proxyCorrect);
-  app.post("/api/classify/:bodyId/correct", proxyCorrect);
-
-  app.get("/api/ai/precomputed", async (_req, res) => {
-    const controller = new AbortController();
-    const timer = setTimeout(() => controller.abort(), PROXY_TIMEOUT_MS);
-    try {
-      const upstream = await fetch(`${SPACEAI_URL}/precomputed`, {
-        signal: controller.signal,
-      });
-      const data = await upstream.json();
-      res.status(upstream.status).json(data);
-    } catch (err: unknown) {
-      if (err instanceof Error && err.name === "AbortError") {
-        res.status(504).json({ error: "AI service timed out" });
-      } else {
-        res.status(503).json({ error: "AI service unavailable" });
-      }
-    } finally {
-      clearTimeout(timer);
-    }
-  });
-
-  app.get("/api/ai/classify/:bodyId", async (req, res) => {
-    // Safely forward only string query params — drop arrays/objects
-    const params = new URLSearchParams();
-    for (const [k, v] of Object.entries(req.query)) {
-      if (typeof v === "string") params.set(k, v);
-    }
-
-    const cacheKey = `${req.params.bodyId}?${params}`;
-    const cachedEntry = cache.get(cacheKey);
-    if (cachedEntry && Date.now() - cachedEntry.timestamp < CACHE_TTL_MS) {
-      return res.json(cachedEntry.data);
-    }
-
-    const controller = new AbortController();
-    const timer = setTimeout(() => controller.abort(), PROXY_TIMEOUT_MS);
-
-    try {
-      const upstream = await fetch(
-        `${SPACEAI_URL}/classify/${req.params.bodyId}?${params}`,
-        { signal: controller.signal }
-      );
-      const data = await upstream.json();
-      if (upstream.ok) cache.set(cacheKey, { data, timestamp: Date.now() });
-      res.status(upstream.status).json(data);
-    } catch (err: unknown) {
-      if (err instanceof Error && err.name === "AbortError") {
-        res.status(504).json({ error: "AI service timed out" });
-      } else {
-        res.status(503).json({ error: "AI service unavailable" });
-      }
-    } finally {
-      clearTimeout(timer);
-    }
+    corrections.push({
+      bodyId,
+      predictedType: predicted_type ?? "",
+      correctedType: corrected_type,
+      timestamp: Date.now(),
+    });
+    res.json({ status: "ok" });
   });
 
   return createServer(app);

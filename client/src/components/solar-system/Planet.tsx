@@ -8,6 +8,7 @@ import { useCameraFocus } from "@/stores/camera-focus";
 import { useCinematicMode } from "@/stores/cinematic-mode";
 import AtmosphereGlow from "./AtmosphereGlow";
 import { applyProceduralMaterials, getCachedDiffuse, getCachedNormal, getCachedRoughness } from "@/lib/procedural-textures";
+import { getHeliocentricPosition, ASTRONOMY_BODIES } from "@/lib/astronomy-positions";
 
 type PlanetProps = {
   body: Body;
@@ -228,15 +229,22 @@ export default function Planet({ body, onPosition, scaleMultiplier = 1, onComput
     const p = pivot.current;
     if (p) {
       if (!isStationary) {
-        const M = body.phase + state.clock.elapsedTime * body.orbitSpeed * speedMultiplier;
-        const E = solveKepler(M, e);
-        const xOrb = effectiveOrbit * (e > 1 ? (e - Math.cosh(E)) : (Math.cos(E) - e));
-        const zOrb = effectiveOrbit * (e > 1
-          ? Math.sqrt(e * e - 1) * Math.sinh(E)
-          : sqrt1me2 * Math.sin(E));
-        p.position.x = xOrb;
-        p.position.y = zOrb * Math.sin(inclRad);
-        p.position.z = zOrb * Math.cos(inclRad);
+        if (ASTRONOMY_BODIES.has(body.id)) {
+          const pos = getHeliocentricPosition(body.id, state.clock.elapsedTime, speedMultiplier);
+          if (pos) {
+            p.position.set(pos.x * scaleMultiplier, pos.y * scaleMultiplier, pos.z * scaleMultiplier);
+          }
+        } else {
+          const M = body.phase + state.clock.elapsedTime * body.orbitSpeed * speedMultiplier;
+          const E = solveKepler(M, e);
+          const xOrb = effectiveOrbit * (e > 1 ? (e - Math.cosh(E)) : (Math.cos(E) - e));
+          const zOrb = effectiveOrbit * (e > 1
+            ? Math.sqrt(e * e - 1) * Math.sinh(E)
+            : sqrt1me2 * Math.sin(E));
+          p.position.x = xOrb;
+          p.position.y = zOrb * Math.sin(inclRad);
+          p.position.z = zOrb * Math.cos(inclRad);
+        }
       }
       if (cinematic) {
         const bobAmplitude = 0.15 + effectiveRadius * 0.1;
