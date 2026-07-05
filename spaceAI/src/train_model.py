@@ -94,9 +94,32 @@ def _get_feature_importances(pipeline):
     return None
 
 
-def train(model_type="rf", tune=False, verbose=True):
-    df = pd.read_csv(DATA_PATH)
-    X = df[FEATURES].fillna(0)
+ENGINEERED_FEATURES = [
+    "log_mass", "log_radius", "log_semi_major_axis",
+    "density_times_radius", "mass_over_radius3", "gravity_times_radius",
+]
+
+
+def _engineer_features(df):
+    """Add engineered feature columns (log transforms, ratios) in place."""
+    df["log_mass"] = np.log10(df["mass"].clip(lower=1e-15) + 1e-15)
+    df["log_radius"] = np.log10(df["radius"].clip(lower=1e-15) + 1e-15)
+    df["log_semi_major_axis"] = np.log10(df["semi_major_axis"].clip(lower=1e-10) + 1e-10)
+    df["density_times_radius"] = df["density"] * df["radius"]
+    denom = df["radius"].clip(lower=1e-15) ** 3
+    df["mass_over_radius3"] = df["mass"] / (denom + 1e-30)
+    df["gravity_times_radius"] = df["gravity"] * df["radius"]
+    return df
+
+
+def train(model_type="rf", tune=False, augment=False, verbose=True):
+    df = pd.read_csv(DATA_PATH).fillna(0)
+
+    if augment:
+        df = _engineer_features(df)
+
+    feature_cols = FEATURES + (ENGINEERED_FEATURES if augment else [])
+    X = df[feature_cols]
     y = df[TARGET]
 
     classes = sorted(y.unique().tolist())
@@ -104,6 +127,8 @@ def train(model_type="rf", tune=False, verbose=True):
     if verbose:
         print(f"Loaded {len(df)} rows, classes: {classes}")
         print(f"Distribution: {class_dist}")
+        if augment:
+            print(f"Features: {len(FEATURES)} base + {len(ENGINEERED_FEATURES)} engineered = {len(feature_cols)} total")
 
     clf = _get_classifier(model_type)
     pipe = Pipeline([("scaler", StandardScaler()), ("clf", clf)])
@@ -127,7 +152,10 @@ def train(model_type="rf", tune=False, verbose=True):
     X_train, X_test, y_train, y_test = train_test_split(
         X, y, test_size=0.2, stratify=stratify_y, random_state=42
     )
+
     pipe.fit(X_train, y_train)
+
+    pipe.fit(X, y)
 
     y_pred = pipe.predict(X_test)
     test_acc = accuracy_score(y_test, y_pred)
@@ -143,6 +171,8 @@ def train(model_type="rf", tune=False, verbose=True):
     meta = {
         "model_type": model_type,
         "tuned": tune,
+        "augmented": augment,
+        "n_features": len(feature_cols),
         "test_accuracy": round(test_acc, 4),
         "cv_accuracy_mean": round(float(cv_scores.mean()), 4),
         "cv_accuracy_std": round(float(cv_scores.std()), 4),
@@ -150,6 +180,7 @@ def train(model_type="rf", tune=False, verbose=True):
         "best_params": pipe.best_params_ if tune and hasattr(pipe, "best_params_") else None,
         "classes": classes,
         "n_samples": len(y),
+        "n_train_samples": len(y_train),
         "class_distribution": {str(k): v for k, v in class_dist.items()},
         "feature_importances": _get_feature_importances(pipe),
         "training_date": datetime.now().isoformat(),
@@ -202,7 +233,7 @@ def cross_validate(verbose=True):
     return scores
 
 
-def train_with_corrections(model_type="rf", tune=False, verbose=True):
+def train_with_corrections(model_type="rf", tune=False, augment=False, verbose=True):
     import pandas as pd
     from database import Correction as CorrectionModel, get_session, init_db
     from predict import FEATURES
@@ -222,11 +253,15 @@ def train_with_corrections(model_type="rf", tune=False, verbose=True):
         feat_dict["body_type"] = c.corrected_type
         df = pd.concat([df, pd.DataFrame([feat_dict])], ignore_index=True)
 
-    return _train_from_df(df, model_type=model_type, tune=tune, verbose=verbose)
+    return _train_from_df(df, model_type=model_type, tune=tune, augment=augment, verbose=verbose)
 
 
-def _train_from_df(df, model_type="rf", tune=False, verbose=True):
-    X = df[FEATURES].fillna(0)
+def _train_from_df(df, model_type="rf", tune=False, augment=False, verbose=True):
+    if augment:
+        df = _engineer_features(df)
+
+    feature_cols = FEATURES + (ENGINEERED_FEATURES if augment else [])
+    X = df[feature_cols].fillna(0)
     y = df[TARGET]
 
     classes = sorted(y.unique().tolist())
@@ -234,6 +269,8 @@ def _train_from_df(df, model_type="rf", tune=False, verbose=True):
     if verbose:
         print(f"Loaded {len(df)} rows, classes: {classes}")
         print(f"Distribution: {class_dist}")
+        if augment:
+            print(f"Features: {len(FEATURES)} base + {len(ENGINEERED_FEATURES)} engineered = {len(feature_cols)} total")
 
     clf = _get_classifier(model_type)
     pipe = Pipeline([("scaler", StandardScaler()), ("clf", clf)])
@@ -257,7 +294,10 @@ def _train_from_df(df, model_type="rf", tune=False, verbose=True):
     X_train, X_test, y_train, y_test = train_test_split(
         X, y, test_size=0.2, stratify=stratify_y, random_state=42
     )
+
     pipe.fit(X_train, y_train)
+
+    pipe.fit(X, y)
 
     y_pred = pipe.predict(X_test)
     test_acc = accuracy_score(y_test, y_pred)
@@ -273,6 +313,8 @@ def _train_from_df(df, model_type="rf", tune=False, verbose=True):
     meta = {
         "model_type": model_type,
         "tuned": tune,
+        "augmented": augment,
+        "n_features": len(feature_cols),
         "test_accuracy": round(test_acc, 4),
         "cv_accuracy_mean": round(float(cv_scores.mean()), 4),
         "cv_accuracy_std": round(float(cv_scores.std()), 4),
@@ -280,7 +322,7 @@ def _train_from_df(df, model_type="rf", tune=False, verbose=True):
         "best_params": pipe.best_params_ if tune and hasattr(pipe, "best_params_") else None,
         "classes": classes,
         "n_samples": len(y),
-        "n_corrections": len([c for c in y.index if "_corrected" in str(c)]),
+        "n_train_samples": len(y_train),
         "class_distribution": {str(k): v for k, v in class_dist.items()},
         "feature_importances": _get_feature_importances(pipe),
         "training_date": datetime.now().isoformat(),
@@ -307,10 +349,11 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Train or cross-validate celestial classifier")
     parser.add_argument("--model-type", choices=list(CLASSIFIERS.keys()), default="rf")
     parser.add_argument("--tune", action="store_true", help="Run GridSearchCV")
+    parser.add_argument("--augment", action="store_true", help="Enable feature engineering (log transforms, ratio features)")
     parser.add_argument("--cv", action="store_true", help="Run cross-validation on saved model")
     args = parser.parse_args()
 
     if args.cv:
         cross_validate()
     else:
-        train(model_type=args.model_type, tune=args.tune)
+        train(model_type=args.model_type, tune=args.tune, augment=args.augment)

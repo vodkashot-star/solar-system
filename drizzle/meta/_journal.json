@@ -15,6 +15,13 @@
       "when": 1783013879405,
       "tag": "0001_rainy_nighthawk",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1783266323284,
+      "tag": "0002_sour_adam_warlock",
+      "breakpoints": true
     }
   ]
 }

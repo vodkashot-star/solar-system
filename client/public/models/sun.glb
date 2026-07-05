@@ -120,12 +120,12 @@
     {
       "buffer": 0,
       "byteOffset": 40040,
-      "byteLength": 13306
+      "byteLength": 13544
     },
     {
       "buffer": 0,
-      "byteOffset": 53346,
-      "byteLength": 13306
+      "byteOffset": 53584,
+      "byteLength": 13544
     }
   ],
   "samplers": [
@@ -167,7 +167,7 @@
   "buffers": [
     {
       "uri": "sun.glb.bin",
-      "byteLength": 66652
+      "byteLength": 67128
     }
   ],
   "materials": [

@@ -5,6 +5,7 @@ import * as THREE from "three";
 import type { Body } from "./bodies";
 import { startLoad, finishLoad, failLoad } from "@/lib/load-debugger";
 import { useCameraFocus } from "@/stores/camera-focus";
+import { useCinematicMode } from "@/stores/cinematic-mode";
 import AtmosphereGlow from "./AtmosphereGlow";
 import { applyProceduralMaterials, getCachedDiffuse, getCachedNormal, getCachedRoughness } from "@/lib/procedural-textures";
 
@@ -17,8 +18,7 @@ type PlanetProps = {
   speedMultiplier?: number;
 };
 
-function solveKepler(M: number, e: number): number {
-  if (e < 1e-6) return M;
+function solveKeplerElliptic(M: number, e: number): number {
   let E = M;
   for (let i = 0; i < 12; i++) {
     const dE = (M - E + e * Math.sin(E)) / (1 - e * Math.cos(E));
@@ -26,6 +26,22 @@ function solveKepler(M: number, e: number): number {
     if (Math.abs(dE) < 1e-8) break;
   }
   return E;
+}
+
+function solveKeplerHyperbolic(M: number, e: number): number {
+  let H = M;
+  for (let i = 0; i < 20; i++) {
+    const dH = (M - e * Math.sinh(H) + H) / (e * Math.cosh(H) - 1);
+    H += dH;
+    if (Math.abs(dH) < 1e-8) break;
+  }
+  return H;
+}
+
+function solveKepler(M: number, e: number): number {
+  if (e < 1e-6) return M;
+  if (e > 1) return solveKeplerHyperbolic(M, e);
+  return solveKeplerElliptic(M, e);
 }
 
 const ATMOSPHERE_BODIES = new Set(["earth", "venus", "mars", "jupiter", "saturn", "neptune"]);
@@ -181,6 +197,8 @@ export default function Planet({ body, onPosition, scaleMultiplier = 1, onComput
   const inclRad = body.properties.inclination * Math.PI / 180;
   const sqrt1me2 = Math.sqrt(Math.max(0, 1 - e * e));
 
+  const cinematic = useCinematicMode((s) => s.enabled);
+
   const handleClick = useCallback(
     (e: ThreeEvent<MouseEvent>) => {
       e.stopPropagation();
@@ -212,11 +230,18 @@ export default function Planet({ body, onPosition, scaleMultiplier = 1, onComput
       if (!isStationary) {
         const M = body.phase + state.clock.elapsedTime * body.orbitSpeed * speedMultiplier;
         const E = solveKepler(M, e);
-        const xOrb = effectiveOrbit * (Math.cos(E) - e);
-        const zOrb = effectiveOrbit * sqrt1me2 * Math.sin(E);
+        const xOrb = effectiveOrbit * (e > 1 ? (e - Math.cosh(E)) : (Math.cos(E) - e));
+        const zOrb = effectiveOrbit * (e > 1
+          ? Math.sqrt(e * e - 1) * Math.sinh(E)
+          : sqrt1me2 * Math.sin(E));
         p.position.x = xOrb;
         p.position.y = zOrb * Math.sin(inclRad);
         p.position.z = zOrb * Math.cos(inclRad);
+      }
+      if (cinematic) {
+        const bobAmplitude = 0.15 + effectiveRadius * 0.1;
+        const bobFrequency = 0.6 + body.visualRadius * 0.08;
+        p.position.y += Math.sin(state.clock.elapsedTime * bobFrequency + body.phase) * bobAmplitude;
       }
       if (onPosition) onPosition(p.position);
     }

@@ -39,13 +39,13 @@
     {
       "buffer": 0,
       "byteOffset": 0,
-      "byteLength": 2328403
+      "byteLength": 2328892
     }
   ],
   "buffers": [
     {
       "uri": "orcus.glb.bin",
-      "byteLength": 2328403
+      "byteLength": 2328892
     }
   ],
   "materials": [

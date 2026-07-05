@@ -18,6 +18,7 @@ import BodyDetailModal from "./BodyDetailModal";
 import ScaleControl, { type ScaleMode } from "./ScaleControl";
 import BodySearch from "./BodySearch";
 import { useCameraFocus } from "@/stores/camera-focus";
+import { useCinematicMode } from "@/stores/cinematic-mode";
 import SpacecraftOrbit from "./SpacecraftOrbit";
 
 export default function SolarSystem() {
@@ -36,10 +37,15 @@ export default function SolarSystem() {
   const clearFocus = useCameraFocus((s) => s.clear);
   const focus = useCameraFocus((s) => s.focus);
   const isFocused = useCameraFocus((s) => s.isFocused);
+  const setCinematic = useCinematicMode((s) => s.setEnabled);
 
   useEffect(() => {
     if (isFocused) setOverview(false);
   }, [isFocused]);
+
+  useEffect(() => {
+    setCinematic(tourOn);
+  }, [tourOn, setCinematic]);
 
   useEffect(() => {
     fetch("/api/ai/precomputed")
@@ -141,7 +147,7 @@ export default function SolarSystem() {
     <div className="relative h-screen w-screen overflow-hidden bg-black">
       <div className="absolute inset-0" style={{ zIndex: 0, isolation: "isolate" }}>
         <Canvas
-          camera={{ position: [0, 18, 60], fov: 55, near: nearPlane, far: farPlane }}
+          camera={{ position: [0, 55, 130], fov: 55, near: nearPlane, far: farPlane }}
           dpr={[1, 1.75]}
           gl={{ powerPreference: "high-performance", logarithmicDepthBuffer: scaleMultiplier < 0.5 }}
           frameloop="demand"
@@ -224,23 +230,23 @@ export default function SolarSystem() {
         </div>
       )}
 
-      <div className="pointer-events-none absolute inset-x-0 top-0 z-20 flex items-start justify-between p-4 sm:p-6">
-        <div className="pointer-events-auto flex items-center gap-3">
-          <h1 className="text-sm font-semibold tracking-[0.25em] text-white/80 uppercase">
+      <div className="pointer-events-none absolute inset-x-0 top-0 z-20 flex items-start justify-between p-2 sm:p-4">
+        <div className="pointer-events-auto flex items-center gap-2">
+          <h1 className="text-xs font-semibold tracking-[0.2em] text-white/80 uppercase sm:text-sm">
             Solar System
           </h1>
           <button
             onClick={() => setSearchOpen(true)}
-            className="ml-2 rounded-full border border-white/15 bg-white/5 px-2.5 py-1 text-[10px] font-medium text-white/60 backdrop-blur transition hover:bg-white/10 hover:text-white"
+            className="rounded-full border border-white/15 bg-white/5 px-2 py-0.5 text-[10px] font-medium text-white/60 backdrop-blur transition hover:bg-white/10 hover:text-white"
             title="Search bodies (/)"
           >
             Search
           </button>
         </div>
-        <div className="pointer-events-auto flex items-center gap-2">
+        <div className="pointer-events-auto flex items-center gap-1.5">
           <ScaleControl currentMode={scaleMode} onModeChange={setScaleMode} className="!static !bottom-auto !left-auto !right-auto" />
-          <div className="flex items-center gap-2 rounded-full border border-white/15 bg-white/5 px-3 py-1.5 backdrop-blur-md">
-            <span className="text-[10px] text-white/50">Speed</span>
+          <div className="flex items-center gap-1.5 rounded-full border border-white/15 bg-white/5 px-2 py-1 backdrop-blur-md">
+            <span className="hidden text-[10px] text-white/50 sm:inline">Speed</span>
             <input
               type="range"
               min="0"
@@ -248,9 +254,9 @@ export default function SolarSystem() {
               step="0.1"
               value={speedMultiplier}
               onChange={(e) => setSpeedMultiplier(parseFloat(e.target.value))}
-              className="h-1 w-16 cursor-pointer appearance-none rounded-full bg-white/20 accent-white"
+              className="h-1 w-12 cursor-pointer appearance-none rounded-full bg-white/20 accent-white sm:w-16"
             />
-            <span className="w-5 text-right text-[10px] font-medium text-white/70">{speedMultiplier.toFixed(1)}x</span>
+            <span className="w-4 text-right text-[10px] font-medium text-white/70 sm:w-5">{speedMultiplier.toFixed(1)}x</span>
           </div>
           <button
             onClick={() => {
@@ -259,85 +265,53 @@ export default function SolarSystem() {
                 return !v;
               });
             }}
-            className="rounded-full border border-white/15 bg-white/5 px-4 py-2 text-xs font-medium text-white/90 backdrop-blur-md transition hover:bg-white/10"
+            className="rounded-full border border-white/15 bg-white/5 px-3 py-1 text-[10px] font-medium text-white/90 backdrop-blur-md transition hover:bg-white/10 sm:px-4 sm:py-1.5 sm:text-xs"
           >
-            {tourOn ? "Pause tour \u00b7 Free look" : "Resume tour"}
+            {tourOn ? "Pause tour" : "Tour"}
           </button>
         </div>
       </div>
 
       <div
         key={overview ? "overview" : active.id}
-        className="pointer-events-none absolute bottom-6 left-4 right-4 z-20 animate-fade-in sm:left-8 sm:right-auto sm:max-w-md"
+        className="pointer-events-none absolute bottom-3 left-3 right-3 z-20 animate-fade-in sm:bottom-6 sm:left-8 sm:right-auto sm:max-w-xs"
       >
         {overview ? (
-          <div className="rounded-2xl border border-white/10 bg-white/[0.04] p-5 backdrop-blur-md">
+          <div className="rounded-xl border border-white/10 bg-white/[0.04] p-3 backdrop-blur-md sm:p-4">
             <div className="font-mono text-[10px] font-semibold uppercase tracking-[0.3em] text-white/40">
               Now viewing
             </div>
-            <div className="mt-1 text-3xl font-light text-white">Solar System</div>
-            <p className="mt-2 text-sm leading-relaxed text-white/60">
+            <div className="mt-0.5 text-lg font-light text-white sm:text-xl">Solar System</div>
+            <p className="mt-1 text-xs leading-relaxed text-white/60">
               Our cosmic neighborhood — eight planets, five dwarf planets, hundreds of moons,
-              and countless asteroids orbit a single yellow dwarf star. The Solar System spans
-              nearly 300 astronomical units from the Sun to the distant Oort Cloud.
+              and countless asteroids orbit a single yellow dwarf star.
             </p>
           </div>
         ) : (
-          <div className="rounded-2xl border border-white/10 bg-white/[0.04] p-5 backdrop-blur-md">
+          <div className="rounded-xl border border-white/10 bg-white/[0.04] p-3 backdrop-blur-md sm:p-4">
             <div className="flex items-start justify-between">
-              <div className="flex-1">
+              <div className="flex-1 min-w-0">
                 <div className="font-mono text-[10px] font-semibold uppercase tracking-[0.3em] text-white/40">
                   Now viewing
                 </div>
-                <div className="mt-1 text-3xl font-light text-white">{active.name}</div>
+                <div className="mt-0.5 truncate text-lg font-light text-white sm:text-xl">{active.name}</div>
               </div>
               <button
                 onClick={() => setDetailBodyId(active.id)}
-                className="pointer-events-auto ml-3 mt-1 rounded-full border border-white/15 bg-white/5 px-3 py-1.5 text-[10px] font-medium text-white/70 backdrop-blur transition hover:bg-white/10 hover:text-white"
+                className="pointer-events-auto ml-2 mt-0.5 shrink-0 rounded-full border border-white/15 bg-white/5 px-2 py-0.5 text-[10px] font-medium text-white/70 backdrop-blur transition hover:bg-white/10 hover:text-white"
               >
                 Details
               </button>
             </div>
-            <p className="mt-2 text-sm leading-relaxed text-white/60">{active.fact}</p>
+            <p className="mt-1 text-xs leading-relaxed text-white/60">{active.fact}</p>
 
             {aiCache[active.id] && (
-              <>
-                <div className="mt-4 border-t border-white/10 pt-4">
-                  <AIClassificationPanel
-                    body={{ ...active, aiAnalysis: aiCache[active.id] }}
-                    className="!border-0 !bg-transparent !p-0 !backdrop-blur-none"
-                  />
-                </div>
-
-                {aiCache[active.id].similarObjects.length > 0 && (
-                  <div className="mt-3">
-                    <div className="text-[10px] font-semibold uppercase tracking-[0.2em] text-white/40">
-                      Similar bodies
-                    </div>
-                    <div className="pointer-events-auto mt-1.5 flex flex-wrap gap-1.5">
-                      {aiCache[active.id].similarObjects.map(({ bodyId }) => {
-                        const match = BODIES.find((b) => b.id === bodyId);
-                        if (!match) return null;
-                        return (
-                          <button
-                            key={bodyId}
-                            onClick={() => {
-                              const pos = positions.current[bodyId];
-                              if (pos) {
-                                focus(bodyId);
-                                setOverview(false);
-                              }
-                            }}
-                            className="rounded-full border border-white/10 bg-white/5 px-2.5 py-0.5 text-[11px] text-white/70 transition hover:bg-white/10 hover:text-white"
-                          >
-                            {match.name}
-                          </button>
-                        );
-                      })}
-                    </div>
-                  </div>
-                )}
-              </>
+              <div className="mt-2 border-t border-white/10 pt-2">
+                <AIClassificationPanel
+                  body={{ ...active, aiAnalysis: aiCache[active.id] }}
+                  className="!border-0 !bg-transparent !p-0 !backdrop-blur-none"
+                />
+              </div>
             )}
           </div>
         )}
@@ -350,7 +324,7 @@ export default function SolarSystem() {
         const body = BODIES.find((b) => b.id === hoveredBodyId);
         if (!body) return null;
         return (
-          <div className="pointer-events-none fixed top-4 left-1/2 z-40 -translate-x-1/2 animate-fade-in rounded-lg border border-white/10 bg-black/80 px-3 py-2 backdrop-blur-md">
+          <div className="pointer-events-none fixed bottom-20 left-1/2 z-40 -translate-x-1/2 animate-fade-in rounded-lg border border-white/10 bg-black/80 px-3 py-1.5 backdrop-blur-md">
             <div className="text-xs font-medium text-white">{body.name}</div>
             <div className="text-[10px] text-white/50">{body.type.replace(/([A-Z])/g, " $1").trim()}</div>
           </div>

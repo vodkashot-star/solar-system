@@ -59,13 +59,13 @@ export default function AIClassificationPanel({ body, className = "" }: AIClassi
       {/* Main classification */}
       <div className="mt-2">
         <div className="flex items-baseline gap-2">
-          <div className="text-2xl font-light text-white">{classification}</div>
-          <div className="text-xs text-white/50">{(confidence * 100).toFixed(1)}% confidence</div>
+          <div className="text-base font-medium text-white">{classification}</div>
+          <div className="text-[10px] text-white/50">{(confidence * 100).toFixed(1)}%</div>
         </div>
       </div>
 
       {/* Confidence bar */}
-      <div className="mt-3 h-1.5 w-full overflow-hidden rounded-full bg-white/10">
+      <div className="mt-2 h-1 w-full overflow-hidden rounded-full bg-white/10">
         <div
           className="h-full rounded-full bg-gradient-to-r from-green-400 to-emerald-500 transition-all duration-500"
           style={{ width: `${confidence * 100}%` }}

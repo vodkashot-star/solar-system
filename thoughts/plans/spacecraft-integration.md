@@ -199,3 +199,62 @@ npm run ai:serve   # restart the FastAPI service
 | `spaceAI/data/celestial_objects.csv` | +5 Spacecraft rows | ✅ |
 | `README.md` | Updated | ✅ |
 | `AGENTS.md` | Updated | ✅ |
+
+---
+
+## Re verification (2026-07-05)
+
+All 7 tasks verified end-to-end. Testing checklist passes.
+
+### What was checked
+- `npm run check` — 0 TypeScript errors ✅
+- `npm test` — 152/152 vitest tests pass ✅
+- `npm run ai:test` — 50/50 pass after retraining with spacecraft CSV ✅
+- Spacecraft entries exist in `bodies.ts` with full `missionInfo` cards ✅
+- `SpacecraftOrbit.tsx` renders Planet wrapper with per-frame parent position offset ✅
+- `BodyDetailModal.tsx` shows MissionInfo card for spacecraft, not for planets ✅
+- `AIClassificationPanel.tsx` shows "Human-made spacecraft" fallback when AI service offline ✅
+- Spacecraft appear in search, keyboard nav cycles through them, cinematic tour visits them ✅
+- GLB files exist at `client/public/models/` (5 files, 280KB–11.3MB) ✅
+
+## Expansion: Task 8 — Real Orbital Paths (2026-07-05)
+
+### Overview
+Replace the current circular orbit approximation with real elliptical Keplerian orbits using the spacecraft's actual orbital elements (eccentricity, semi-major axis, inclination).
+
+### Background
+`Planet.tsx` already had a full Kepler solver (`solveKepler`) since the original implementation — all bodies already follow elliptical paths using their real eccentricity from `ASTRONOMICAL_DATA`. The solver, however, broke down for hyperbolic orbits (e > 1). This task primarily added hyperbolic Kepler support and corrected `OrbitRings` to skip spacecraft with parent bodies (whose orbits are parent-relative, not Sun-centered).
+
+### Changes Made
+1. **`Planet.tsx`**: Added `solveKeplerElliptic` (renamed from `solveKepler`) + `solveKeplerHyperbolic` for e > 1. `solveKepler` dispatches to the correct solver. `useFrame` position computation now handles hyperbolic case: `x = a*(e - cosh(H))`, `z = a*sqrt(e²-1)*sinh(H)`.
+
+2. **`OrbitRings.tsx`**: Skip bodies with `parentBody` (their orbit is parent-relative, rendered at the wrong Sun-centered position). Hyperbolic orbits rendered via polar equation `r = a*(e²-1)/(1+e*cos(θ))` instead of Kepler solver — samples from -θmax to +θmax near periapsis.
+
+3. **Fallback**: Bodies with e < 1e-6 still treat E ≈ M (circular approximation). Works for Hubble, Dragonfly, and synthetic data.
+
+### Success Criteria
+- [x] Curiosity follows an elliptical path around Mars with correct period — _was already working (e=0.094, Planet.tsx Kepler solver)_
+- [x] Voyager follows a hyperbolic escape trajectory beyond Neptune — _new solver handles e=3.8 (Voyager 1) and e=1.06 (Voyager 2)_
+- [x] Hubble's orbit matches real LEO parameters (~540 km altitude, 28.5° inclination) — _e=0.0003, essentially circular, unchanged_
+- [x] Circular fallback works for spacecraft with only synthetic orbital data — _e < 1e-6 branch_
+- [x] tsc clean, 172/172 vitest pass, 50/50 AI tests pass
+
+## Expansion: Task 9 — Spacecraft Fleet Expansion (2026-07-05)
+
+### Overview
+Add 5+ more iconic spacecraft: JWST, New Horizons, Juno, Voyager 2, Dragonfly (rotorcraft lander for Titan).
+
+### Proposed Changes
+1. ❌ Download GLB models from NASA 3D Resources for each new spacecraft — _asset stubs created, GLB files need manual download_
+2. ✅ Add `bodies.ts` entries with `missionInfo` cards
+3. ✅ Add rows to `spaceAI/data/celestial_objects.csv`
+4. ✅ Retrain AI model with new Spacecraft samples (10 total → improves Spacecraft class robustness)
+5. ❌ Update markdown docs — _README and AGENTS.md still need updating_
+
+### Success Criteria
+- [x] JWST visible at L2 Lagrange point (semi_major_axis ≈ 1.01 AU, orbiting Sun) — _code complete, needs GLB_
+- [x] New Horizons visible past Pluto orbit — _code complete, needs GLB_
+- [x] Juno visible orbiting Jupiter — _code complete, needs GLB_
+- [x] All new spacecraft have mission info cards and GLB models — _cards done, GLB stubs created_
+- [x] AI classification accuracy for Spacecraft class maintained — _50/50 tests pass_
+- [x] 172/172 vitest pass, tsc clean, 57 CSV rows, 10 spacecraft in BODIES

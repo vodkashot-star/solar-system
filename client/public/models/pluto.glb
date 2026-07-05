@@ -39,13 +39,13 @@
     {
       "buffer": 0,
       "byteOffset": 0,
-      "byteLength": 2329044
+      "byteLength": 2328385
     }
   ],
   "buffers": [
     {
       "uri": "pluto.glb.bin",
-      "byteLength": 2329044
+      "byteLength": 2328385
     }
   ],
   "materials": [

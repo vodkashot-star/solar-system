@@ -638,6 +638,12 @@ httpx>=0.25.0
 - **Reason**: Requires both Express and FastAPI running; more suitable as a manual smoke test than CI
 - **Impact**: Express→FastAPI proxy chain is simple pass-through with limited test coverage
 
+### Phase 3: Regression R² values
+- **Original Plan**: Expect reasonable predictions (Earth ~1.0 Earth masses, Sun ~5778 K)
+- **Actual Implementation**: mass R² = -7.2e11, temperature R² = -18.9
+- **Reason**: Only 49/51 bodies have non-zero mass; 32/51 have non-zero temperature. With 10 features and limited non-zero targets, RandomForestRegressor cannot learn meaningful patterns. Extreme outliers (Sun at 333,000 Earth masses, Jupiter at 318) dominate the loss.
+- **Impact**: Regression endpoints exist and return plausible-looking values but have no predictive power. Marked as experimental in the API. Improvement requires more samples with known mass/temperature or feature engineering.
+
 ---
 
 ## References
@@ -649,3 +655,52 @@ httpx>=0.25.0
 - Precomputation data source: `client/src/components/solar-system/bodies.ts:98-476`
 - Existing client tests: `client/src/test/bodies.test.ts`
 - Drizzle schema (deferred): `shared/schema.ts`
+
+---
+
+## Re verification (2026-07-05)
+
+All 4 phases verified end-to-end. No gaps found.
+
+### What was checked
+- **Phase 1**: `python run.py train --model-type rf --tune` produces `.pkl` + `.meta.json` metadata (model_type, test_accuracy, cv_scores, training_date). `--model-type svc` and `logreg` also work. `python run.py cv` prints 3-fold CV. All model types pass `--query`.
+- **Phase 2**: FastAPI lifespan prints `Precomputing classifications...` and caches to SQLAlchemy DB. `GET /precomputed` returns JSON. Express `GET /api/ai/precomputed` proxies correctly. `SolarSystem.tsx` fetches precomputed on mount.
+- **Phase 3**: `python run.py train-regression` trains both mass and temperature regressors. `POST /predict/mass` and `POST /predict/temperature` return 200 with `prediction`, `confidence_interval`, `unit`.
+- **Phase 4**: `npm run ai:test` passes 50/50. `npm test` passes 152/152. `tsc` clean. Model accuracy asserts >= 0.50 (current: 0.8182).
+
+### Current State
+- **Classifier**: RandomForest, 8 classes (includes Spacecraft), 51 samples, 81.82% test accuracy, 0.8235 mean CV
+- **Regression**: mass R² = poor (-7.2e11), temperature R² = poor (-18.9) — limited non-zero samples
+- **Cache**: SQLAlchemy-backed ai_cache table, precomputed at startup
+
+## Expansion: Phase 5 — Data Augmentation & Minority Class Handling
+
+### Overview
+The classifier plateaus at ~82% accuracy due to extreme class imbalance (Star: 1, Interstellar: 2, Comet: 4). Synthetic data generation for minority classes could push accuracy toward 90%.
+
+### Proposed Changes
+1. Add SMOTE or ADASYN oversampling to `train_model.py` for classes with <5 samples
+2. Add feature engineering: log transforms for skewed features (mass, radius), ratio features (density*radius, mass/radius^3)
+3. Add `--augment` flag to `train()` that enables synthetic sampling
+4. Evaluate accuracy improvement on held-out test set
+
+### Success Criteria
+- [ ] Accuracy >= 85% with augmentation enabled
+- [ ] Star and Interstellar classes still distinguishable after augmentation
+- [ ] No degradation on majority class (Moon) precision/recall
+
+## Expansion: Phase 6 — Real-time Training Progress
+
+### Overview
+Add a WebSocket endpoint that streams training progress (epoch, current score, params being evaluated) so the frontend can show a progress bar during `npm run ai:retrain`.
+
+### Proposed Changes
+1. Add `fastapi.WebSocket` endpoint `/ws/train` in `api.py`
+2. Refactor `train_model.py` `train()` to accept a callback for progress reporting
+3. Emit JSON messages: `{"phase": "tuning", "progress": 0.5, "best_score": 0.82}`
+4. Frontend `AIClassificationPanel` shows progress when retraining is triggered
+
+### Success Criteria
+- [ ] WebSocket streams progress updates during training
+- [ ] Frontend displays live progress bar
+- [ ] Fallback gracefully if WebSocket unavailable
