@@ -12,11 +12,12 @@ type Props = {
   onActiveChange?: (body: Body) => void;
   positions: React.MutableRefObject<Record<string, THREE.Vector3>>;
   computedRadii: React.MutableRefObject<Record<string, number>>;
+  speedMultiplier?: number;
 };
 
 const SECONDS_PER_BODY = 5;
 
-export default function CinematicTour({ enabled, onActiveChange, positions, computedRadii }: Props) {
+export default function CinematicTour({ enabled, onActiveChange, positions, computedRadii, speedMultiplier = 1 }: Props) {
   const { camera, invalidate } = useThree();
   const elapsed = useRef(0);
   const currentIndex = useRef(-1);
@@ -28,7 +29,8 @@ export default function CinematicTour({ enabled, onActiveChange, positions, comp
   useFrame((_, delta) => {
     if (!enabled || isFocused) return;
 
-    elapsed.current += delta;
+    const scaledDelta = delta * speedMultiplier;
+    elapsed.current += scaledDelta;
     const idx = Math.floor(elapsed.current / SECONDS_PER_BODY) % BODIES.length;
     if (idx !== currentIndex.current) {
       currentIndex.current = idx;
@@ -53,8 +55,8 @@ export default function CinematicTour({ enabled, onActiveChange, positions, comp
 
     lookAt.current.copy(bodyPos);
 
-    damp3(camera.position, targetPos.current, 0.87, delta);
-    damp3(currentLook.current, lookAt.current, 0.85, delta);
+    damp3(camera.position, targetPos.current, 0.87 * Math.min(speedMultiplier, 1), scaledDelta);
+    damp3(currentLook.current, lookAt.current, 0.85 * Math.min(speedMultiplier, 1), scaledDelta);
     camera.lookAt(currentLook.current);
 
     invalidate();

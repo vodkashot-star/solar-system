@@ -1,12 +1,12 @@
-import type { Express } from "express";
+import type { Express, Request, Response } from "express";
 import { createServer, type Server } from "http";
 
 const SPACEAI_URL = process.env.SPACEAI_URL ?? "http://127.0.0.1:8000";
 const PROXY_TIMEOUT_MS = 10_000;
 const cache = new Map<string, { data: unknown; timestamp: number }>();
-const CACHE_TTL_MS = 5 * 60 * 1000; // 5 minutes
+const CACHE_TTL_MS = 5 * 60 * 1000;
+const CACHE_MAX_SIZE = 1_000;
 
-// Periodic cache cleanup (runs every 10 minutes)
 setInterval(() => {
   const now = Date.now();
   const expiredKeys: string[] = [];
@@ -16,6 +16,12 @@ setInterval(() => {
     }
   });
   expiredKeys.forEach(key => cache.delete(key));
+  if (cache.size > CACHE_MAX_SIZE) {
+    const entries = Array.from(cache.entries());
+    entries.sort((a, b) => a[1].timestamp - b[1].timestamp);
+    const toEvict = entries.slice(0, entries.length - CACHE_MAX_SIZE);
+    toEvict.forEach(([key]) => cache.delete(key));
+  }
 }, 10 * 60 * 1000);
 
 export async function registerRoutes(app: Express): Promise<Server> {
@@ -25,11 +31,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
     res.json({ status: "ok" });
   });
 
-  app.post("/api/ai/correct", async (req, res) => {
+  async function proxyCorrect(req: Request, res: Response) {
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), PROXY_TIMEOUT_MS);
     try {
-      const upstream = await fetch(`${SPACEAI_URL}/classify/${req.body.body_id}/correct`, {
+      const bodyId = req.params.bodyId || req.body?.body_id;
+      if (!bodyId) {
+        res.status(400).json({ error: "body_id required" });
+        return;
+      }
+      const upstream = await fetch(`${SPACEAI_URL}/classify/${bodyId}/correct`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(req.body),
@@ -46,7 +57,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } finally {
       clearTimeout(timer);
     }
-  });
+  }
+
+  app.post("/api/ai/correct", proxyCorrect);
+  app.post("/api/classify/:bodyId/correct", proxyCorrect);
 
   app.get("/api/ai/precomputed", async (_req, res) => {
     const controller = new AbortController();

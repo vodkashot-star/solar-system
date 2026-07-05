@@ -188,7 +188,7 @@ export default function SolarSystem() {
         ))}
 
         <FocusCamera positions={positions} computedRadii={computedRadii} />
-        <CinematicTour enabled={tourOn} onActiveChange={setActive} positions={positions} computedRadii={computedRadii} />
+        <CinematicTour enabled={tourOn} onActiveChange={setActive} positions={positions} computedRadii={computedRadii} speedMultiplier={speedMultiplier} />
 
         {!tourOn && (
           <OrbitControls enableDamping {...({ dampingFactor: 0.15, minDistance: 2, maxDistance: 200, zoomSpeed: 0.8, rotateSpeed: 0.6 } as any)} />

@@ -3,8 +3,9 @@ const corrections = [];
 export async function onRequest(context) {
   const { request } = context;
   const url = new URL(request.url);
+  const bodyId = url.pathname.split("/").filter(Boolean).at(-2);
 
-  if (request.method === "GET" && url.pathname.endsWith("/correct")) {
+  if (request.method === "GET") {
     return new Response(JSON.stringify(corrections), {
       status: 200,
       headers: { "Content-Type": "application/json" },
@@ -14,16 +15,16 @@ export async function onRequest(context) {
   if (request.method === "POST") {
     try {
       const body = await request.json();
-      const { body_id, predicted_type, corrected_type } = body;
-      if (!body_id || !corrected_type) {
+      const { predicted_type, corrected_type } = body;
+      if (!corrected_type) {
         return new Response(
-          JSON.stringify({ error: "body_id and corrected_type required" }),
+          JSON.stringify({ error: "corrected_type required" }),
           { status: 400, headers: { "Content-Type": "application/json" } },
         );
       }
       const entry = {
         id: corrections.length + 1,
-        body_id,
+        body_id: bodyId,
         predicted_type: predicted_type || null,
         corrected_type,
         features: body.features || [],

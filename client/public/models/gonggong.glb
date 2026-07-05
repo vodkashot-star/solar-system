@@ -39,13 +39,13 @@
     {
       "buffer": 0,
       "byteOffset": 0,
-      "byteLength": 2328441
+      "byteLength": 2329022
     }
   ],
   "buffers": [
     {
       "uri": "gonggong.glb.bin",
-      "byteLength": 2328441
+      "byteLength": 2329022
     }
   ],
   "materials": [

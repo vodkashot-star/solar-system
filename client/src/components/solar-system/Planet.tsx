@@ -221,7 +221,7 @@ export default function Planet({ body, onPosition, scaleMultiplier = 1, onComput
       if (onPosition) onPosition(p.position);
     }
     if (spin.current) {
-      spin.current.rotation.y += body.spinSpeed * delta;
+      spin.current.rotation.y += body.spinSpeed * delta * speedMultiplier;
     }
     state.invalidate();
   });

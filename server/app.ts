@@ -26,7 +26,7 @@ export const app = express();
 const allowedOrigin = process.env.ALLOWED_ORIGIN ?? "*";
 app.use(cors({
   origin: allowedOrigin,
-  methods: ["GET"],
+  methods: ["GET", "POST"],
 }));
 
 app.use(express.json());

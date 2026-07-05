@@ -39,13 +39,13 @@
     {
       "buffer": 0,
       "byteOffset": 0,
-      "byteLength": 2328957
+      "byteLength": 2328214
     }
   ],
   "buffers": [
     {
       "uri": "ceres.glb.bin",
-      "byteLength": 2328957
+      "byteLength": 2328214
     }
   ],
   "materials": [
