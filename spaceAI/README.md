@@ -21,16 +21,18 @@ python run.py serve
 
 ## Features
 
-- **Classification**: Predicts body type (Planet, Moon, Star, DwarfPlanet, Asteroid, Comet, Interstellar)
-  from 11 features; supports RF, SVC, LogisticRegression
+- **Classification**: Predicts body type (Planet, Moon, Star, DwarfPlanet, Asteroid, Comet, Interstellar, Spacecraft)
+  from 11 features; supports RF, SVC, LogisticRegression, and Ensemble (RF + GB + SVC with soft voting)
+- **Uncertainty**: Normalized entropy per prediction (0 = certain, 1 = uniform); threshold at 0.4 triggers "Uncertain" badge in the UI
+- **User corrections**: `POST /classify/{body_id}/correct` stores corrections; `python run.py retrain` incorporates them into the next model
 - **Hyperparameter tuning**: `--tune` flag runs GridSearchCV with StratifiedKFold(3)
 - **Cross-validation**: `python run.py cv` runs 3-fold CV on saved model
 - **Regression**: Predicts mass and temperature via RandomForestRegressor with confidence intervals
-- **Precomputed cache**: All 29 bodies classified at server startup, served via `GET /precomputed`
+- **Precomputed cache**: All bodies classified at server startup, DB-backed, served via `GET /precomputed`
 - **Similarity**: Finds similar objects via cosine distance across all features
-- **API**: FastAPI at `GET /classify/{body_id}` returning class, confidence,
+- **API**: FastAPI at `GET /classify/{body_id}` returning class, confidence, uncertainty,
   alternatives, feature importances, and similar objects
-- **Model**: Pipeline(StandardScaler, classifier) trained on 46 celestial objects
+- **Model**: Pipeline(StandardScaler, classifier) trained on 51 celestial objects
   — saves `celestial_classifier.pkl` + `celestial_classifier.meta.json`
 
 ## CLI
@@ -58,4 +60,4 @@ python run.py serve
 - Frontend fetches `GET /api/ai/precomputed` once on mount; falls back to per-body `/classify/:bodyId`
 - Express proxy at `GET /api/ai/classify/:bodyId` and `GET /api/ai/precomputed` → FastAPI
 - `scripts/validate_models.py` checks generated GLBs against classifier
-- Precomputed cache persists to `data/ai_cache.json`
+- Precomputed cache persists in the SQLAlchemy DB (`ai_cache` table)

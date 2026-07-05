@@ -22,6 +22,7 @@ import SpacecraftOrbit from "./SpacecraftOrbit";
 
 export default function SolarSystem() {
   const [tourOn, setTourOn] = useState(true);
+  const [overview, setOverview] = useState(true);
   const [active, setActive] = useState<Body>(BODIES[0]);
   const [scaleMode, setScaleMode] = useState<ScaleMode>("visual");
   const [contextLost, setContextLost] = useState(false);
@@ -34,6 +35,11 @@ export default function SolarSystem() {
   const computedRadii = useRef<Record<string, number>>({});
   const clearFocus = useCameraFocus((s) => s.clear);
   const focus = useCameraFocus((s) => s.focus);
+  const isFocused = useCameraFocus((s) => s.isFocused);
+
+  useEffect(() => {
+    if (isFocused) setOverview(false);
+  }, [isFocused]);
 
   useEffect(() => {
     fetch("/api/ai/precomputed")
@@ -109,6 +115,9 @@ export default function SolarSystem() {
     scaleMode === "realSize" ? 0.35 :
     0.25; // realDistance
 
+  const nearPlane = 0.01;
+  const farPlane = scaleMultiplier < 0.5 ? 400 : 1500;
+
   const reportPosCallbacks = useMemo(() => {
     const map: Record<string, (p: THREE.Vector3) => void> = {};
     for (const b of BODIES) {
@@ -130,74 +139,76 @@ export default function SolarSystem() {
 
   return (
     <div className="relative h-screen w-screen overflow-hidden bg-black">
-      <Canvas
-        camera={{ position: [0, 18, 60], fov: 55, near: 0.1, far: 1500 }}
-        dpr={[1, 1.75]}
-        gl={{ powerPreference: "high-performance" }}
-        frameloop="demand"
-        onCreated={(state) => {
-          state.invalidate();
-          const canvas = state.gl.domElement;
-          
-          const handleContextLost = (e: Event) => {
-            e.preventDefault();
-            setContextLost(true);
-          };
-          
-          const handleContextRestored = () => {
-            setContextLost(false);
+      <div className="absolute inset-0" style={{ zIndex: 0, isolation: "isolate" }}>
+        <Canvas
+          camera={{ position: [0, 18, 60], fov: 55, near: nearPlane, far: farPlane }}
+          dpr={[1, 1.75]}
+          gl={{ powerPreference: "high-performance", logarithmicDepthBuffer: scaleMultiplier < 0.5 }}
+          frameloop="demand"
+          onCreated={(state) => {
             state.invalidate();
-          };
-          
-          canvas.addEventListener('webglcontextlost', handleContextLost);
-          canvas.addEventListener('webglcontextrestored', handleContextRestored);
-          
-          return () => {
-            canvas.removeEventListener('webglcontextlost', handleContextLost);
-            canvas.removeEventListener('webglcontextrestored', handleContextRestored);
-          };
-        }}
-      >
-        <color attach="background" args={["#02030a"]} />
-        <ambientLight intensity={0.08} />
-        <pointLight position={[0, 0, 0]} intensity={3.5} distance={200} decay={1.2} color="#ffd9a0" />
+            const canvas = state.gl.domElement;
 
-        <NebulaBackground />
-        <InstancedStars radius={200} depth={80} count={6000} factor={4} fade />
+            const handleContextLost = (e: Event) => {
+              e.preventDefault();
+              setContextLost(true);
+            };
 
-        <SunGlow />
+            const handleContextRestored = () => {
+              setContextLost(false);
+              state.invalidate();
+            };
 
-        <OrbitRings scaleMultiplier={scaleMultiplier} />
+            canvas.addEventListener('webglcontextlost', handleContextLost);
+            canvas.addEventListener('webglcontextrestored', handleContextRestored);
 
-        {BODIES.filter((b) => b.type !== "spacecraft").map((b) => (
-          <Planet key={b.id} body={b} onPosition={reportPosCallbacks[b.id]} scaleMultiplier={scaleMultiplier} onComputedRadius={reportComputedRadius} onHover={handleHover} speedMultiplier={speedMultiplier} />
-        ))}
+            return () => {
+              canvas.removeEventListener('webglcontextlost', handleContextLost);
+              canvas.removeEventListener('webglcontextrestored', handleContextRestored);
+            };
+          }}
+        >
+          <color attach="background" args={["#02030a"]} />
+          <ambientLight intensity={0.08} />
+          <pointLight position={[0, 0, 0]} intensity={3.5} distance={200} decay={1.2} color="#ffd9a0" />
 
-        {BODIES.filter((b) => b.type === "spacecraft").map((b) => (
-          <SpacecraftOrbit
-            key={b.id}
-            body={b}
-            parentPosition={b.parentBody ? positions.current[b.parentBody] : undefined}
-            orbitRadius={(b.parentBody ? (computedRadii.current[b.parentBody] ?? 1.5) * 2.2 : b.orbit)}
-            onPosition={reportPosCallbacks[b.id]}
-            scaleMultiplier={scaleMultiplier}
-            onComputedRadius={reportComputedRadius}
-            onHover={handleHover}
-            speedMultiplier={speedMultiplier}
-          />
-        ))}
+          <NebulaBackground />
+          <InstancedStars radius={200} depth={80} count={6000} factor={4} fade />
 
-        <FocusCamera positions={positions} computedRadii={computedRadii} />
-        <CinematicTour enabled={tourOn} onActiveChange={setActive} positions={positions} computedRadii={computedRadii} speedMultiplier={speedMultiplier} />
+          <SunGlow />
 
-        {!tourOn && (
-          <OrbitControls enableDamping {...({ dampingFactor: 0.15, minDistance: 2, maxDistance: 200, zoomSpeed: 0.8, rotateSpeed: 0.6 } as any)} />
-        )}
+          <OrbitRings scaleMultiplier={scaleMultiplier} />
 
-        <EffectComposer>
-          <Bloom intensity={tourOn ? 0.9 : 0} luminanceThreshold={0.6} luminanceSmoothing={0.2} mipmapBlur />
-        </EffectComposer>
-      </Canvas>
+          {BODIES.filter((b) => b.type !== "spacecraft").map((b) => (
+            <Planet key={b.id} body={b} onPosition={reportPosCallbacks[b.id]} scaleMultiplier={scaleMultiplier} onComputedRadius={reportComputedRadius} onHover={handleHover} speedMultiplier={speedMultiplier} />
+          ))}
+
+          {BODIES.filter((b) => b.type === "spacecraft").map((b) => (
+            <SpacecraftOrbit
+              key={b.id}
+              body={b}
+              parentPosition={b.parentBody ? positions.current[b.parentBody] : undefined}
+              orbitRadius={(b.parentBody ? (computedRadii.current[b.parentBody] ?? 1.5) * 2.2 : b.orbit)}
+              onPosition={reportPosCallbacks[b.id]}
+              scaleMultiplier={scaleMultiplier}
+              onComputedRadius={reportComputedRadius}
+              onHover={handleHover}
+              speedMultiplier={speedMultiplier}
+            />
+          ))}
+
+          <FocusCamera positions={positions} computedRadii={computedRadii} />
+          <CinematicTour enabled={tourOn} onActiveChange={setActive} onOverviewChange={setOverview} positions={positions} computedRadii={computedRadii} speedMultiplier={speedMultiplier} />
+
+          {!tourOn && (
+            <OrbitControls enableDamping {...({ dampingFactor: 0.15, minDistance: 2, maxDistance: 200, zoomSpeed: 0.8, rotateSpeed: 0.6 } as any)} />
+          )}
+
+          <EffectComposer>
+            <Bloom intensity={tourOn ? 0.9 : 0} luminanceThreshold={0.6} luminanceSmoothing={0.2} mipmapBlur />
+          </EffectComposer>
+        </Canvas>
+      </div>
 
       {contextLost && (
         <div className="pointer-events-auto fixed inset-0 z-50 flex flex-col items-center justify-center bg-black/90 backdrop-blur-sm">
@@ -213,7 +224,7 @@ export default function SolarSystem() {
         </div>
       )}
 
-      <div className="pointer-events-none absolute inset-x-0 top-0 flex items-start justify-between p-4 sm:p-6">
+      <div className="pointer-events-none absolute inset-x-0 top-0 z-20 flex items-start justify-between p-4 sm:p-6">
         <div className="pointer-events-auto flex items-center gap-3">
           <h1 className="text-sm font-semibold tracking-[0.25em] text-white/80 uppercase">
             Solar System
@@ -256,63 +267,80 @@ export default function SolarSystem() {
       </div>
 
       <div
-        key={active.id}
-        className="pointer-events-none absolute bottom-6 left-4 right-4 animate-fade-in sm:left-8 sm:right-auto sm:max-w-md"
+        key={overview ? "overview" : active.id}
+        className="pointer-events-none absolute bottom-6 left-4 right-4 z-20 animate-fade-in sm:left-8 sm:right-auto sm:max-w-md"
       >
-        <div className="rounded-2xl border border-white/10 bg-white/[0.04] p-5 backdrop-blur-md">
-          <div className="flex items-start justify-between">
-            <div className="flex-1">
-              <div className="font-mono text-[10px] font-semibold uppercase tracking-[0.3em] text-white/40">
-                Now viewing
-              </div>
-              <div className="mt-1 text-3xl font-light text-white">{active.name}</div>
+        {overview ? (
+          <div className="rounded-2xl border border-white/10 bg-white/[0.04] p-5 backdrop-blur-md">
+            <div className="font-mono text-[10px] font-semibold uppercase tracking-[0.3em] text-white/40">
+              Now viewing
             </div>
-            <button
-              onClick={() => setDetailBodyId(active.id)}
-              className="pointer-events-auto ml-3 mt-1 rounded-full border border-white/15 bg-white/5 px-3 py-1.5 text-[10px] font-medium text-white/70 backdrop-blur transition hover:bg-white/10 hover:text-white"
-            >
-              Details
-            </button>
+            <div className="mt-1 text-3xl font-light text-white">Solar System</div>
+            <p className="mt-2 text-sm leading-relaxed text-white/60">
+              Our cosmic neighborhood — eight planets, five dwarf planets, hundreds of moons,
+              and countless asteroids orbit a single yellow dwarf star. The Solar System spans
+              nearly 300 astronomical units from the Sun to the distant Oort Cloud.
+            </p>
           </div>
-          <p className="mt-2 text-sm leading-relaxed text-white/60">{active.fact}</p>
-
-          {aiCache[active.id] && (
-            <>
-              <div className="mt-4 border-t border-white/10 pt-4">
-                <AIClassificationPanel
-                  body={{ ...active, aiAnalysis: aiCache[active.id] }}
-                  className="!border-0 !bg-transparent !p-0 !backdrop-blur-none"
-                />
-              </div>
-
-              {aiCache[active.id].similarObjects.length > 0 && (
-                <div className="mt-3">
-                  <div className="text-[10px] font-semibold uppercase tracking-[0.2em] text-white/40">
-                    Similar bodies
-                  </div>
-                  <div className="pointer-events-auto mt-1.5 flex flex-wrap gap-1.5">
-                    {aiCache[active.id].similarObjects.map(({ bodyId }) => {
-                      const match = BODIES.find((b) => b.id === bodyId);
-                      if (!match) return null;
-                      return (
-                        <button
-                          key={bodyId}
-                          onClick={() => {
-                            const pos = positions.current[bodyId];
-                            if (pos) focus(bodyId);
-                          }}
-                          className="rounded-full border border-white/10 bg-white/5 px-2.5 py-0.5 text-[11px] text-white/70 transition hover:bg-white/10 hover:text-white"
-                        >
-                          {match.name}
-                        </button>
-                      );
-                    })}
-                  </div>
+        ) : (
+          <div className="rounded-2xl border border-white/10 bg-white/[0.04] p-5 backdrop-blur-md">
+            <div className="flex items-start justify-between">
+              <div className="flex-1">
+                <div className="font-mono text-[10px] font-semibold uppercase tracking-[0.3em] text-white/40">
+                  Now viewing
                 </div>
-              )}
-            </>
-          )}
-        </div>
+                <div className="mt-1 text-3xl font-light text-white">{active.name}</div>
+              </div>
+              <button
+                onClick={() => setDetailBodyId(active.id)}
+                className="pointer-events-auto ml-3 mt-1 rounded-full border border-white/15 bg-white/5 px-3 py-1.5 text-[10px] font-medium text-white/70 backdrop-blur transition hover:bg-white/10 hover:text-white"
+              >
+                Details
+              </button>
+            </div>
+            <p className="mt-2 text-sm leading-relaxed text-white/60">{active.fact}</p>
+
+            {aiCache[active.id] && (
+              <>
+                <div className="mt-4 border-t border-white/10 pt-4">
+                  <AIClassificationPanel
+                    body={{ ...active, aiAnalysis: aiCache[active.id] }}
+                    className="!border-0 !bg-transparent !p-0 !backdrop-blur-none"
+                  />
+                </div>
+
+                {aiCache[active.id].similarObjects.length > 0 && (
+                  <div className="mt-3">
+                    <div className="text-[10px] font-semibold uppercase tracking-[0.2em] text-white/40">
+                      Similar bodies
+                    </div>
+                    <div className="pointer-events-auto mt-1.5 flex flex-wrap gap-1.5">
+                      {aiCache[active.id].similarObjects.map(({ bodyId }) => {
+                        const match = BODIES.find((b) => b.id === bodyId);
+                        if (!match) return null;
+                        return (
+                          <button
+                            key={bodyId}
+                            onClick={() => {
+                              const pos = positions.current[bodyId];
+                              if (pos) {
+                                focus(bodyId);
+                                setOverview(false);
+                              }
+                            }}
+                            className="rounded-full border border-white/10 bg-white/5 px-2.5 py-0.5 text-[11px] text-white/70 transition hover:bg-white/10 hover:text-white"
+                          >
+                            {match.name}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
+              </>
+            )}
+          </div>
+        )}
       </div>
 
       <LoadingSpinner />

@@ -1,5 +1,5 @@
 # CosmicVoyage — Code Audit
-**Date:** 2026-07-02 · **Last updated:** 2026-07-04
+**Date:** 2026-07-02 · **Last updated:** 2026-07-05
 **Scope:** Full source audit of `client/src/`, `server/`, `shared/`, `spaceAI/`
 **TypeScript check:** `npm run check` passes with 0 errors (excluding known `shared/schema.ts` drizzle issue)
 
@@ -43,20 +43,27 @@
 
 ---
 
+### ✅ BUG-04 — `throw err` in Express error handler — **FIXED**
+
+**File:** `server/app.ts:75`
+
+Was throwing from Express error handler, risking unhandled rejection. Replaced with `console.error(err)`.
+
+---
+
+### ✅ BUG-05 — `@tanstack/react-query` unused dependency — **FIXED**
+
+Package was listed in `dependencies` with zero imports. Removed in dependency prune commit `471939e`.
+
+---
+
 ## 2 · Security
 
-### ⚠️ SEC-01 — CORS origin — **PARTIALLY FIXED / DEGRADED**
+### ✅ SEC-01 — CORS origin — **FIXED**
 
 **File:** `server/app.ts`
 
-The wildcard `*` CORS was replaced with the `cors` package using `ALLOWED_ORIGIN` env var. However, the default when `ALLOWED_ORIGIN` is unset is `false`, which blocks **all** cross-origin requests. In dev this works (same-origin), but in production (CF Pages serving from a custom domain) the Express API will silently return CORS errors unless `ALLOWED_ORIGIN` is set in the environment.
-
-**Action needed:** Set `ALLOWED_ORIGIN=https://your-domain.com` in the production environment (Render/Railway/Fly.io dashboard or `.env`). Or default to `"*"` in dev and restrict only in prod:
-```ts
-origin: process.env.NODE_ENV === "production"
-  ? (process.env.ALLOWED_ORIGIN ?? "*")
-  : "*"
-```
+The wildcard `*` CORS was replaced with the `cors` package using `ALLOWED_ORIGIN` env var. Defaults to `"*"` when unset (safe for dev/same-origin). In production, set `ALLOWED_ORIGIN=https://your-domain.com` to restrict.
 
 ---
 
@@ -70,11 +77,11 @@ origin: process.env.NODE_ENV === "production"
 
 ---
 
-### 🟡 PERF-02 — `OrbitRings` geometry rebuilt on every `scaleMultiplier` change — **OPEN**
+### ✅ PERF-02 — `OrbitRings` geometry rebuilt on every `scaleMultiplier` change — **FIXED**
 
 **File:** `client/src/components/solar-system/OrbitRings.tsx`
 
-The `useMemo` that builds the merged `BufferGeometry` depends on `scaleMultiplier`. Every scale toggle re-computes all orbit ellipses and re-uploads to GPU. The orbit ellipses themselves don't change — only the radii scale. Pre-computing at scale=1 and applying a uniform scale transform would eliminate this.
+`useMemo` dependency was `[scaleMultiplier]`. Now uses `[]` with `<group scale={scaleMultiplier}>` wrapping the geometry, so the geometry is built once and only the transform changes.
 
 ---
 
@@ -82,7 +89,7 @@ The `useMemo` that builds the merged `BufferGeometry` depends on `scaleMultiplie
 
 **File:** `client/src/components/solar-system/NebulaBackground.tsx`
 
-Default texture size reduced to 512×512 (was 1024). Stall reduced but still present on low-end devices. Full fix: offload to a `Worker`.
+Default texture size reduced to 512×512 (was 1024). Stall reduced but still present on low-end devices. Full fix would offload to a `Worker` (~50 lines). Not critical — texture is generated once on mount.
 
 ---
 
@@ -96,11 +103,11 @@ Default texture size reduced to 512×512 (was 1024). Stall reduced but still pre
 
 ---
 
-### 🔵 SMELL-02 — `scaleMode` has 4 values, UI only documents 2 — **OPEN**
+### ✅ SMELL-02 — `scaleMode` has 4 values, UI only documents 2 — **FIXED**
 
-**File:** `SolarSystem.tsx`, `ScaleControl.tsx`
+**File:** `ScaleControl.tsx`
 
-`"hybrid"` and `"realSize"` multipliers (0.6, 0.35) produce intermediate scales with no UI labels. Minor UX confusion.
+All 4 scale modes now have explicit labels and descriptions in the `ScaleControl` component.
 
 ---
 
@@ -118,45 +125,39 @@ Both deleted.
 
 ## 5 · Cross-Cutting Issues
 
-### 🔴 CRASH-01 — `throw err` in Express error handler — **OPEN**
+### ✅ CRASH-01 — `throw err` in Express error handler — **FIXED**
 
 **File:** `server/app.ts:75`
 
-```ts
-app.use((err, _req, res, _next) => {
-  res.status(status).json({ message });
-  throw err;  // ← can crash the Node process
-});
-```
-
-Should be `console.error(err)` or simply removed. Throwing from an Express error handler propagates an unhandled rejection.
+Was `throw err` which could crash the Node process. Replaced with `console.error(err)`.
 
 ---
 
-### 🟠 CI-01 — Branch name mismatch — **OPEN**
+### ✅ CI-01 — Branch name mismatch — **FIXED**
 
-- `deploy.yml` triggers on `branches: [Master]`
-- `validate-data.yml` triggers on `branches: [main]`
-
-Align to the repo's actual default branch.
+Both `deploy.yml` and `validate-data.yml` now trigger on `branches: [Master]` (capital M), matching the repo's default branch.
 
 ---
 
-### 🟠 CI-02 — `validate-data.yml` missing TypeScript + vitest steps — **OPEN**
+### ✅ CI-02 — `validate-data.yml` missing TypeScript + vitest steps — **FIXED**
 
-The validation workflow only runs Python tests. Add `npm run check` and `npm test` to catch frontend regressions before merge.
+**File:** `.github/workflows/validate-data.yml`
 
----
-
-### 🟡 DEP-01 — `@tanstack/react-query` unused — **OPEN**
-
-`queryClient.ts` was deleted but the package remains in `dependencies`. No imports found. Remove from `package.json` and clean up bundle.
+Added `npm run check` (TypeScript) and `npm test` (vitest) steps after the Python test suite.
 
 ---
 
-### 🟡 PY-01 — `pyproject.toml` references Poetry build backend — **OPEN**
+### ✅ DEP-01 — `@tanstack/react-query` unused — **FIXED**
 
-The project uses pip/requirements.txt. The Poetry reference is inert but misleading for contributors.
+Package removed from `dependencies` in `package.json`. Zero imports in codebase.
+
+---
+
+### ✅ PY-01 — `pyproject.toml` references Poetry build backend — **FIXED**
+
+**File:** `spaceAI/pyproject.toml`
+
+Replaced Poetry-specific sections with standard setuptools build backend. Dependencies migrated from `[tool.poetry.dependencies]` to `[project.dependencies]`. Dev dependencies use `[project.optional-dependencies]`.
 
 ---
 
@@ -187,11 +188,12 @@ CF Pages serves only the static client. Express has no production deployment. Op
 
 | Priority | ID | Status | Effort |
 |----------|----|--------|--------|
-| 1 | CRASH-01 | Open | 1 line — remove `throw err` |
-| 2 | SEC-01 | Degraded | Set `ALLOWED_ORIGIN` in prod env |
-| 3 | CI-01 | Open | Align branch names |
-| 4 | CI-02 | Open | Add `npm run check` + `npm test` to validate-data.yml |
-| 5 | PERF-02 | Open | ~15 lines — scale uniform instead of geometry rebuild |
-| 6 | PERF-03 | Mitigated | ~50 lines — Worker offload |
-| 7 | DEP-01 | Open | Remove `@tanstack/react-query` from package.json |
-| 8 | SMELL-02 | Open | Add UI labels for hybrid/realSize scale modes |
+| 1 | CRASH-01 | Fixed | `throw err` → `console.error(err)` |
+| 2 | SEC-01 | Fixed | CORS defaults to `*` when unset |
+| 3 | CI-01 | Fixed | All workflows trigger on `Master` |
+| 4 | CI-02 | Fixed | `npm run check` + `npm test` added |
+| 5 | PERF-02 | Fixed | Scale transform instead of geometry rebuild |
+| 6 | PERF-03 | Mitigated | ~50 lines — Worker offload (deferred) |
+| 7 | DEP-01 | Fixed | Removed from `package.json` |
+| 8 | SMELL-02 | Fixed | All 4 modes have labels/descriptions |
+| — | PY-01 | Fixed | Poetry → setuptools build backend |

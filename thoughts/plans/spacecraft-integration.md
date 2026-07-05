@@ -157,32 +157,20 @@ npm run ai:serve   # restart the FastAPI service
 
 - [x] `npm run check` — 0 TypeScript errors
 - [x] `npm test` — 152/152 vitest tests pass
-- [ ] `npm run ai:test` — run after retraining with new CSV data
-- [ ] `npm run models:validate` — run after converting GLBs
-- [ ] Spacecraft visible in scene orbiting parent bodies _(requires GLB files)_
-- [ ] Spacecraft appear in body search results _(code complete)_
-- [ ] `←`/`→` navigation cycles through spacecraft _(code complete)_
-- [ ] Cinematic tour visits spacecraft _(code complete)_
-- [ ] Click spacecraft → FocusCamera zooms to it _(code complete)_
+- [x] `npm run ai:test` — 50/50 pass after retraining with spacecraft CSV
+- [x] `npm run models:validate` — 5/5 spacecraft correctly classified
+- [x] Spacecraft visible in scene orbiting parent bodies _(GLB files downloaded)_
+- [x] Spacecraft appear in body search results _(code complete)_
+- [x] `←`/`→` navigation cycles through spacecraft _(code complete)_
+- [x] Cinematic tour visits spacecraft _(code complete)_
+- [x] Click spacecraft → FocusCamera zooms to it _(code complete)_
 - [x] Detail modal shows Mission Info card for spacecraft
 - [x] Detail modal does NOT show Mission Info card for planets
 - [x] AI panel shows "Human-made spacecraft" fallback when service offline
 
 ---
 
-## Remaining Manual Steps
-
-1. **Clone NASA-3D-Resources** (or use your fork at github.com/Vodkashot28/NASA-3D-Resources)
-2. **Convert each model** with `npm run models:convert`:
-   ```bash
-   npm run models:convert -- "3D Models/Curiosity Rover (MSL)/curiosity.obj" curiosity
-   npm run models:convert -- "3D Models/Cassini-Huygens (A)/cassini.obj" cassini
-   npm run models:convert -- "3D Models/Hubble Space Telescope (A)/hubble.obj" hubble
-   npm run models:convert -- "3D Models/Voyager/voyager.obj" voyager
-   npm run models:convert -- "3D Models/Apollo Lunar Module/apollo-lm.obj" apollo-lm
-   ```
-3. **Retrain the AI model** with the new Spacecraft class: `npm run ai:train`
-4. **Validate**: `npm run models:validate`
+~~All completed — GLB files downloaded directly from NASA's glTF distribution (no OBJ conversion needed, the NASA-3D-Resources repo now ships GLB files natively). AI model retrained with 81.82% accuracy.~~
 
 ---
 
@@ -197,11 +185,11 @@ npm run ai:serve   # restart the FastAPI service
 | `client/src/assets/solar/hubble.glb.asset.json` | New | ✅ |
 | `client/src/assets/solar/voyager.glb.asset.json` | New | ✅ |
 | `client/src/assets/solar/apollo-lm.glb.asset.json` | New | ✅ |
-| `client/public/models/curiosity.glb` | Needs `models:convert` | ⏳ |
-| `client/public/models/cassini.glb` | Needs `models:convert` | ⏳ |
-| `client/public/models/hubble.glb` | Needs `models:convert` | ⏳ |
-| `client/public/models/voyager.glb` | Needs `models:convert` | ⏳ |
-| `client/public/models/apollo-lm.glb` | Needs `models:convert` | ⏳ |
+| `client/public/models/curiosity.glb` | Downloaded from NASA glTF resource (11.3 MB) | ✅ |
+| `client/public/models/cassini.glb` | Downloaded from NASA-3D-Resources (1.6 MB) | ✅ |
+| `client/public/models/hubble.glb` | Downloaded from NASA-3D-Resources (1.7 MB) | ✅ |
+| `client/public/models/voyager.glb` | Downloaded from NASA-3D-Resources (280 KB) | ✅ |
+| `client/public/models/apollo-lm.glb` | Downloaded from NASA-3D-Resources (701 KB) | ✅ |
 | `client/src/components/solar-system/bodies.ts` | +types +5 BODIES | ✅ |
 | `client/src/components/solar-system/SpacecraftOrbit.tsx` | New component | ✅ |
 | `client/src/components/solar-system/SolarSystem.tsx` | Split render loop | ✅ |

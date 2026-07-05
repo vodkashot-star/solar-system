@@ -4,8 +4,7 @@
 
 | Command | Action |
 |---------|--------|
-| `npm run dev` | Frontend + Express dev server (:5000) — **no AI service** |
-| `npm run dev:full` | Full stack: Express (:5000) + FastAPI (:8000) via `scripts/dev.sh` |
+| `npm run dev` | Full stack: Express (:5000) + FastAPI (:8000) via `concurrently` |
 | `npm run check` | `tsc` — 0 expected errors |
 | `npm test` | `vitest run` — 152 tests (2 files, parameterized) |
 | `npm run test:watch` | `vitest` in watch mode |
@@ -19,7 +18,7 @@
 | `npm run ai:train` | Train classifier (`--tune` for GridSearchCV) |
 | `npm run ai:train-regression` | Train mass + temp regressors |
 | `npm run ai:train-all` | Both train commands sequentially |
-| `npm run ai:test` | pytest — 46 tests in `spaceAI/tests/` |
+| `npm run ai:test` | pytest — 50 tests in `spaceAI/tests/` |
 | `npm run ai:serve` | Start FastAPI on :8000 |
 | `npm run db:push` | Push Drizzle schema to PostgreSQL (Neon) |
 | `npm run db:generate` | Generate Drizzle migration |
@@ -33,7 +32,7 @@
 - **GLB asset pointers**: `.glb.asset.json` files contain `{"url":"/models/<name>.glb"}` — CDN swap = edit JSON only
 - **Draco decoder**: `client/src/lib/draco-setup.ts` wires `useGLTF.setDRACOLoader()`; WASM auto-copied on build
 - **Loading**: `LoadingSpinner` tracks bodies via `load-debugger`; hides on all-loaded or 15s timeout
-- **Tour**: 5s per body (~1.5s fly-in, ~3s arc, ~0.5s pull-back), cycles all bodies including spacecraft. Camera arc = 1.2π radians (~216°)
+- **Tour**: 10s solar system establishing shot (full 360° orbit at distance 80), then 5s per body (~1.5s fly-in, ~3s arc, ~0.5s pull-back), cycles all bodies including spacecraft. Camera arc = 1.2π radians (~216°)
 - **Camera focus**: `FocusCamera` reads `positions.current[targetBodyId]` every frame in `useFrame` — always tracks live body position
 - **Keyboard shortcuts**: `Space` toggle tour, `←`/`→` prev/next body, `/` open search, `Esc` close modals/clear focus
 - **Body search**: Press `/` or click "Search" button — type to filter all bodies by name, select to focus

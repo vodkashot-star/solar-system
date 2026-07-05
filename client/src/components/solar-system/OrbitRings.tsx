@@ -45,7 +45,7 @@ export default function OrbitRings({ scaleMultiplier = 1 }: Props) {
   return (
     <group scale={scaleMultiplier}>
       <lineSegments geometry={geometry} frustumCulled={false}>
-        <lineBasicMaterial vertexColors transparent opacity={0.2} linewidth={1} />
+        <lineBasicMaterial vertexColors transparent opacity={0.2} linewidth={1} polygonOffset polygonOffsetFactor={-1} polygonOffsetUnits={-1} />
       </lineSegments>
     </group>
   );

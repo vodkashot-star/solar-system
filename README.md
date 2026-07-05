@@ -9,8 +9,7 @@ Fiber, Drei, and Three.js.
 
 ## Features
 
-- **Cinematic tour** — camera automatically flies between bodies with smooth
-  easing (5s per body, loops continuously)
+- **Cinematic tour** — 10s solar-system establishing shot (full 360° orbit), then camera visits each body with smooth easing (5s per body, loops continuously)
 - **34 GLB models** — sun + 8 planets + 20 dwarf planets/asteroids/comets +
   5 NASA spacecraft, loaded via `useGLTF` and auto-normalized to correct scale.
   Per-body loading grid shows individual progress; overlay dismisses when all
@@ -19,8 +18,7 @@ Fiber, Drei, and Three.js.
   Telescope (Earth), Voyager 1 (outer system), Apollo Lunar Module (Earth) as
   first-class bodies with their own orbits, data panels, and mission info cards.
   Models sourced from [NASA 3D Resources](https://github.com/nasa/NASA-3D-Resources)
-  (public domain), converted from OBJ to Draco-compressed GLB via the
-  `models:convert` pipeline.
+  (public domain), available as native GLB files — no conversion needed.
 - **Bloom + Stars** — emissive sun glow via `@react-three/postprocessing`,
   custom instanced star field. Bloom auto-disables when tour is paused to save
   GPU.
@@ -36,8 +34,7 @@ Fiber, Drei, and Three.js.
 - **AI classification** — precomputed ML classifications served via Cloudflare Pages Functions
   (planet/dwarf planet/asteroid/comet/spacecraft/etc.) with confidence scores,
   feature importance, and similar-body navigation, displayed in the HUD and detail modal
-- **Scale toggle** — switch between Cinematic (1×) and Realistic (0.25×)
-  orbit/body scales
+- **Scale toggle** — 4 modes: Visual (1×), Hybrid (0.6×), Real Planet Size (0.35×), Real Distance (0.25×)
 - **4K textures** — planets and the Sun use 4K Solar System Scope textures embedded in GLBs; dwarf planets, asteroids, comets, and interstellar bodies use procedural Canvas noise textures as fallback
 - **Saturn rings** — procedurally generated ring geometry on Saturn
 - **HUD overlay** — current body name and a short fact, fades in on each
@@ -129,11 +126,11 @@ Pipeline internals:
 | `bennu.glb` … `psyche.glb` | asteroid | 0.1–0.3 MB |
 | `halley.glb` | comet | 0.1 MB |
 | `oumuamua.glb` | interstellar | 0.1 MB |
-| `curiosity.glb` | spacecraft | ~1–3 MB |
-| `cassini.glb` | spacecraft | ~1–3 MB |
-| `hubble.glb` | spacecraft | ~1–3 MB |
-| `voyager.glb` | spacecraft | ~0.5 MB |
-| `apollo-lm.glb` | spacecraft | ~1 MB |
+| `curiosity.glb` | spacecraft | 12 MB |
+| `cassini.glb` | spacecraft | 1.6 MB |
+| `hubble.glb` | spacecraft | 1.7 MB |
+| `voyager.glb` | spacecraft | 280 KB |
+| `apollo-lm.glb` | spacecraft | 701 KB |
 
 All GLB files use Draco compression.
 
@@ -184,8 +181,7 @@ npm run ai:serve          # Start local AI classification microservice for dev
 | Free look (paused) | Click + drag to rotate, scroll to zoom |
 | Close modal / clear focus | `Esc` |
 
-The tour cycles through all bodies (celestial + spacecraft). Each body gets 5
-seconds: ~1.5s fly-in, ~3s arc around (216°), ~0.5s pull-back.
+The tour starts with a 10s solar-system establishing shot (wide orbit at distance 80, full 360° rotation), then cycles through all bodies (celestial + spacecraft). Each body gets 5 seconds: ~1.5s fly-in, ~3s arc around (216°), ~0.5s pull-back.
 
 > **Note:** The Canvas uses `frameloop="demand"` — every `useFrame`/animation
 > callback must call `state.invalidate()` or the scene freezes. `Planet`,
