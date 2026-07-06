@@ -90,3 +90,8 @@ All endpoints served from `server/routes.ts`. Reads `ai_cache` PostgreSQL table 
 - 5 spacecraft GLB stubs (JWST, New Horizons, Juno, Voyager 2, Dragonfly) need real GLB files downloaded to `client/public/models/<name>.glb`
 - `stats.html` is a build artifact from `rollup-plugin-visualizer` — gitignored
 - `.env*` gitignored; create `server/.env.local` for overrides
+- **Production JS MIME fix**: `npm start` must serve `.js`/`.css` from `dist/` with correct `Content-Type`.
+  `express.static` in the esbuild-bundled server returns `text/html` for these files (bundler quirk).
+  Replaced with a manual middleware (`server/index-prod.ts:29-39`) that reads files via `fs.readFileSync`
+  and sets MIME from a lookup table. Without this, the browser refuses ES module scripts, the React
+  app never mounts, and the user sees "Loading celestial chart..." forever.

@@ -193,8 +193,8 @@ export default function SolarSystem() {
             <SpacecraftOrbit
               key={b.id}
               body={b}
-              parentPosition={b.parentBody ? positions.current[b.parentBody] : undefined}
-              orbitRadius={(b.parentBody ? (computedRadii.current[b.parentBody] ?? 1.5) * 2.2 : b.orbit)}
+              parentPosition={positions.current[b.parentBody ?? "sun"]}
+              orbitRadius={b.parentBody ? (computedRadii.current[b.parentBody] ?? 1.5) * 2.2 : b.orbit}
               onPosition={reportPosCallbacks[b.id]}
               scaleMultiplier={scaleMultiplier}
               onComputedRadius={reportComputedRadius}

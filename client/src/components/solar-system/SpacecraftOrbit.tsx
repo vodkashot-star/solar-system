@@ -48,8 +48,6 @@ export default function SpacecraftOrbit({
   speedMultiplier = 1,
 }: SpacecraftOrbitProps) {
   const groupRef = useRef<THREE.Group>(null);
-  // Track whether the parent has ever been placed so we can un-hide the group.
-  const everVisible = useRef(false);
 
   /**
    * Build a modified body that orbits at the desired radius around origin.
@@ -74,11 +72,8 @@ export default function SpacecraftOrbit({
       return;
     }
 
-    // Reveal once parent is live.
-    if (!everVisible.current) {
-      group.visible = true;
-      everVisible.current = true;
-    }
+    // Reveal when parent is live.
+    group.visible = true;
 
     // Translate the group to the parent's current world position.
     _parentPos.copy(parentPosition);
@@ -99,7 +94,7 @@ export default function SpacecraftOrbit({
   };
 
   return (
-    <group ref={groupRef} visible={false}>
+    <group ref={groupRef}>
       <Planet
         body={localBody}
         onPosition={handlePosition}

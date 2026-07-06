@@ -38,7 +38,14 @@ export async function serveStatic(app: Express, _server: Server) {
     res.end(content);
   });
 
-  app.use("*", (_req, res) => {
+  app.use((req, res, next) => {
+    if (path.extname(req.path)) {
+      return res.status(404).end("Not found");
+    }
+    next();
+  });
+
+  app.use((_req, res) => {
     const indexPath = path.join(distPath, "index.html");
     const content = fs.readFileSync(indexPath);
     res.setHeader("Content-Type", "text/html; charset=utf-8");
