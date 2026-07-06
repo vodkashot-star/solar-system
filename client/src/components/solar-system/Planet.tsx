@@ -71,11 +71,8 @@ function GLBModel({ url, radius, body, onReady }: {
 }) {
   const { scene } = useGLTF(url);
 
-  useEffect(() => {
-    startLoad(body.id, body.name, url);
-  }, [body.id, body.name, url]);
-
   useMemo(() => {
+    startLoad(body.id, body.name, url);
     const box = new THREE.Box3().setFromObject(scene);
     const size = new THREE.Vector3();
     box.getSize(size);
