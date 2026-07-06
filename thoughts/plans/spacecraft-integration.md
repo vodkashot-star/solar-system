@@ -217,6 +217,26 @@ All 7 tasks verified end-to-end. Testing checklist passes.
 - Spacecraft appear in search, keyboard nav cycles through them, cinematic tour visits them ✅
 - GLB files exist at `client/public/models/` (5 files, 280KB–11.3MB) ✅
 
+## Fix: Juno Spacecraft GLB Collision + ParentPosition Bug (2026-07-06)
+
+### Juno GLB Collision
+
+**Problem**: Both the asteroid Juno (`juno`) and Juno spacecraft (`juno-spacecraft`) imported `juno.glb.asset.json` → `/models/juno.glb`. Spacecraft rendered as asteroid.
+
+**Fix applied:**
+- Created `client/src/assets/solar/juno-spacecraft.glb.asset.json` → `/models/juno-spacecraft.glb`
+- Updated `bodies.ts:121` to import from new asset JSON
+- Still needs real `juno-spacecraft.glb` model downloaded
+
+### Spacecraft Parent Position Stale Prop
+
+**Problem**: `SpacecraftOrbit` received `parentPosition` as `positions.current[b.parentBody]` evaluated at render time. `positions` is a `useRef` — mutations don't trigger re-render, so the prop was always `undefined` and spacecraft stayed hidden.
+
+**Fix applied:**
+- `SpacecraftOrbit.tsx` prop changed from `parentPosition: Vector3 | undefined` → `parentPositionRef: MutableRefObject<Record<string, Vector3>>`
+- `useFrame` reads `parentPositionRef.current[body.parentBody ?? "sun"]` directly every frame
+- `SolarSystem.tsx` passes the `positions` ref instead of `positions.current[...]`
+
 ## Expansion: Task 8 — Real Orbital Paths (2026-07-05)
 
 ### Overview

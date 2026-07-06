@@ -118,7 +118,7 @@ import voyagerGlb from "@/assets/solar/voyager.glb.asset.json";
 import apolloLmGlb from "@/assets/solar/apollo-lm.glb.asset.json";
 import jwstGlb from "@/assets/solar/jwst.glb.asset.json";
 import newHorizonsGlb from "@/assets/solar/new-horizons.glb.asset.json";
-import junoSpacecraftGlb from "@/assets/solar/juno.glb.asset.json";
+import junoSpacecraftGlb from "@/assets/solar/juno-spacecraft.glb.asset.json";
 import voyager2Glb from "@/assets/solar/voyager-2.glb.asset.json";
 import dragonflyGlb from "@/assets/solar/dragonfly.glb.asset.json";
 

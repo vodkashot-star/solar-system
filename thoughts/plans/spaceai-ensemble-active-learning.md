@@ -228,6 +228,15 @@ def test_uncertainty_lower_for_earth(predictor):
 
 ---
 
+## Deviation: Express Proxy Dual-Write (2026-07-06)
+
+The plan specifies running `POST /api/ai/correct` as a pure Express→FastAPI proxy. The actual implementation **writes to both** PostgreSQL (via Drizzle) and FastAPI SQLite (via proxy fetch), because:
+- Express serves corrections from its own DB for the `/api/ai/correct` POST response
+- FastAPI needs corrections in its SQLite DB for `npm run ai:retrain` to find them
+- If FastAPI is offline, the PostgreSQL store still captures the correction
+
+**Impact**: Corrections are dual-written but the PostgreSQL copy is authoritative if FastAPI was unreachable.
+
 ## Phase 2: Correction DB + API (Backend)
 
 ### Overview
@@ -523,6 +532,16 @@ def test_list_corrections():
 - [x] `npm run ai:test` passes after retraining with corrections
 
 ---
+
+## Deviation: Three-Tier Request Cascade (2026-07-06)
+
+The Express `GET /api/ai/classify/:bodyId` and `GET /api/ai/precomputed` endpoints follow a **three-tier cascade** not described in the plan:
+
+1. Drizzle `aiCache` table (PostgreSQL) — fastest, zero network
+2. `spaceAI/data/ai_cache.json` fallback file — survives FastAPI restart
+3. FastAPI proxy on `:8000` — live classification when caches are empty
+
+This was added because the original DB-first approach returned 404 on every request when the cache was empty (no precomputation had populated it). The cascade ensures the first request after startup still works.
 
 ## Phase 3: Active Learning UI (Frontend)
 

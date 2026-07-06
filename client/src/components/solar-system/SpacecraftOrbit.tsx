@@ -22,8 +22,8 @@ import Planet from "./Planet";
 
 type SpacecraftOrbitProps = {
   body: Body;
-  /** Live world-space position of the parent body (from positions.current). */
-  parentPosition: THREE.Vector3 | undefined;
+  /** Live world-space position ref of the parent body (from positions.current). */
+  parentPositionRef: React.MutableRefObject<Record<string, THREE.Vector3>>;
   /** Radius of the circular orbit around the parent, in scene units. */
   orbitRadius?: number;
   onPosition?: (pos: THREE.Vector3) => void;
@@ -39,7 +39,7 @@ const _reportedPos = new THREE.Vector3();
 
 export default function SpacecraftOrbit({
   body,
-  parentPosition,
+  parentPositionRef,
   orbitRadius = 1.8,
   onPosition,
   scaleMultiplier = 1,
@@ -65,7 +65,9 @@ export default function SpacecraftOrbit({
     const group = groupRef.current;
     if (!group) return;
 
-    if (!parentPosition) {
+    const parentPos = parentPositionRef.current[body.parentBody ?? "sun"];
+
+    if (!parentPos) {
       // Parent not placed yet — keep hidden.
       group.visible = false;
       state.invalidate();
@@ -76,7 +78,7 @@ export default function SpacecraftOrbit({
     group.visible = true;
 
     // Translate the group to the parent's current world position.
-    _parentPos.copy(parentPosition);
+    _parentPos.copy(parentPos);
     group.position.copy(_parentPos);
 
     state.invalidate();

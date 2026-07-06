@@ -22,8 +22,8 @@ import { useCinematicMode } from "@/stores/cinematic-mode";
 import SpacecraftOrbit from "./SpacecraftOrbit";
 
 export default function SolarSystem() {
-  const [tourOn, setTourOn] = useState(false);
-  const [overview, setOverview] = useState(true);
+  const [tourOn, setTourOn] = useState(true);
+  const [overview, setOverview] = useState(false);
   const [active, setActive] = useState<Body>(BODIES[0]);
   const [scaleMode, setScaleMode] = useState<ScaleMode>("visual");
   const [contextLost, setContextLost] = useState(false);
@@ -193,7 +193,7 @@ export default function SolarSystem() {
             <SpacecraftOrbit
               key={b.id}
               body={b}
-              parentPosition={positions.current[b.parentBody ?? "sun"]}
+              parentPositionRef={positions}
               orbitRadius={b.parentBody ? (computedRadii.current[b.parentBody] ?? 1.5) * 2.2 : b.orbit}
               onPosition={reportPosCallbacks[b.id]}
               scaleMultiplier={scaleMultiplier}

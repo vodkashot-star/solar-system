@@ -6,6 +6,9 @@ import { db } from "./db";
 import { aiCache, corrections, celestialBodies } from "../shared/schema";
 import { eq, sql } from "drizzle-orm";
 
+const SPACEAI_URL = process.env.SPACEAI_URL ?? "http://127.0.0.1:8000";
+const PROXY_TIMEOUT_MS = 10_000;
+
 let fallbackCache: Record<string, unknown> | null = null;
 
 function loadFallbackCache(): Record<string, unknown> {
@@ -35,6 +38,26 @@ async function getAICache() {
   }
 }
 
+async function proxyToFastAI(req: any, res: any, endpoint: string) {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), PROXY_TIMEOUT_MS);
+  try {
+    const upstream = await fetch(`${SPACEAI_URL}${endpoint}`, {
+      signal: controller.signal,
+    });
+    const data = await upstream.json();
+    res.status(upstream.status).json(data);
+  } catch (err: unknown) {
+    if (err instanceof Error && err.name === "AbortError") {
+      res.status(504).json({ error: "AI service timed out" });
+    } else {
+      res.status(503).json({ error: "AI service unavailable" });
+    }
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
 export function registerRoutes(app: Express): Server {
   app.get("/api/health", async (_req, res) => {
     try {
@@ -46,12 +69,17 @@ export function registerRoutes(app: Express): Server {
     }
   });
 
-  app.get("/api/ai/precomputed", async (_req, res) => {
+  app.get("/api/ai/precomputed", async (req, res) => {
     const cached = await getAICache();
-    if (cached) {
+    if (cached && Object.keys(cached).length > 0) {
       res.json(cached);
     } else {
-      res.json(loadFallbackCache());
+      const fallback = loadFallbackCache();
+      if (fallback && Object.keys(fallback).length > 0) {
+        res.json(fallback);
+      } else {
+        await proxyToFastAI(req, res, "/precomputed");
+      }
     }
   });
 
@@ -60,18 +88,17 @@ export function registerRoutes(app: Express): Server {
       const rows = await db.select().from(aiCache).where(eq(aiCache.bodyId, req.params.bodyId)).limit(1);
       if (rows.length > 0) {
         res.json(rows[0]);
-      } else {
-        res.status(404).json(null);
+        return;
       }
-    } catch {
-      const fallback = loadFallbackCache();
-      const entry = fallback[req.params.bodyId];
-      if (entry) {
-        res.json(entry);
-      } else {
-        res.status(404).json(null);
-      }
+    } catch { /* fall through */ }
+    const fallback = loadFallbackCache();
+    const entry = fallback[req.params.bodyId];
+    if (entry) {
+      res.json(entry);
+      return;
     }
+    const params = req.query.toString();
+    await proxyToFastAI(req, res, `/classify/${req.params.bodyId}?${params}`);
   });
 
   app.post("/api/ai/correct", async (req, res) => {
@@ -89,11 +116,19 @@ export function registerRoutes(app: Express): Server {
         uncertainty: uncertainty ?? null,
         source: "user",
       });
-      res.json({ status: "ok" });
     } catch (err) {
       console.error("[db] failed to save correction:", err);
-      res.status(500).json({ error: "Failed to save correction" });
     }
+    // Also forward to FastAPI so retrain picks it up
+    try {
+      await fetch(`${SPACEAI_URL}/classify/${body_id}/correct`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(req.body),
+        signal: AbortSignal.timeout(PROXY_TIMEOUT_MS),
+      });
+    } catch { /* FastAPI may be offline — local DB store is sufficient */ }
+    res.json({ status: "ok" });
   });
 
   app.post("/api/classify/:bodyId/correct", async (req, res) => {
@@ -112,11 +147,18 @@ export function registerRoutes(app: Express): Server {
         uncertainty: uncertainty ?? null,
         source: "user",
       });
-      res.json({ status: "ok" });
     } catch (err) {
       console.error("[db] failed to save correction:", err);
-      res.status(500).json({ error: "Failed to save correction" });
     }
+    try {
+      await fetch(`${SPACEAI_URL}/classify/${bodyId}/correct`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(req.body),
+        signal: AbortSignal.timeout(PROXY_TIMEOUT_MS),
+      });
+    } catch { /* FastAPI may be offline */ }
+    res.json({ status: "ok" });
   });
 
   app.get("/api/bodies", async (_req, res) => {

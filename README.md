@@ -45,29 +45,24 @@ Fiber, Drei, and Three.js.
 
 ## Architecture
 
+See `AGENTS.md` for the full agent-oriented reference. Key modules:
+
 ```
-client/src/
-  components/
-    solar-system/
-      SolarSystem.tsx        — Canvas, lights, planets, spacecraft, tour, HUD
-      Planet.tsx             — GLB loader + orbital/spin logic, click-to-focus, hover, Saturn rings
-      SpacecraftOrbit.tsx    — Positions spacecraft relative to parent body each frame
-      CinematicTour.tsx      — Camera animation state machine (damp3)
-      OrbitRings.tsx         — Merged LineSegments (1 draw call) for all 8 orbit paths
-      InstancedStars.tsx     — Custom Points-based star field
-      FocusCamera.tsx        — Camera lerp driven by zustand focus store
-      LoadingSpinner.tsx     — Per-body loading progress grid
-      BodyDetailModal.tsx    — Full-body detail modal with data explorer + mission info + similar bodies
-      EnhancedDataExplorer.tsx  — Collapsible data panels (physical/orbital/rotation/AI)
-      AIClassificationPanel.tsx — ML classification display
-      DebugPanel.tsx         — GLB load status overlay
-      bodies.ts              — Body config (name, radius, orbit, speed, tilt, fact, color, asset pointer,
-                               parentBody, missionInfo)
-  stores/
-    camera-focus.ts          — Zustand store for click-to-focus targets
-  lib/
-    load-debugger.ts         — Per-body load status tracking
-    draco-setup.ts           — DRACOLoader wiring
+client/src/components/solar-system/
+  SolarSystem.tsx        — Canvas, lights, planets, spacecraft, tour, HUD
+  Planet.tsx             — GLB loader + orbital/spin logic, click-to-focus, hover, Saturn rings
+  SpacecraftOrbit.tsx    — Positions spacecraft relative to parent body each frame
+  CinematicTour.tsx      — Camera animation state machine (damp3)
+  OrbitRings.tsx         — Merged LineSegments (1 draw call) for all 8 orbit paths
+  InstancedStars.tsx     — Custom Points-based star field
+  FocusCamera.tsx        — Camera lerp driven by zustand focus store
+  LoadingSpinner.tsx     — Per-body loading progress grid
+  BodyDetailModal.tsx    — Full-body detail modal with data explorer + mission info + similar bodies
+  EnhancedDataExplorer.tsx  — Collapsible data panels (physical/orbital/rotation/AI)
+  AIClassificationPanel.tsx — ML classification display
+  DebugPanel.tsx         — GLB load status overlay
+  bodies.ts              — Body config (name, radius, orbit, speed, tilt, fact, color, asset pointer,
+                           parentBody, missionInfo)
 ```
 
 ### Body Types
@@ -82,10 +77,6 @@ client/src/
 | `interstellar` | purple | ʻOumuamua |
 | `spacecraft` | teal | NASA missions (Curiosity, Cassini, Hubble, Voyager, Apollo LM) |
 
-Spacecraft have two extra fields on `Body`:
-- `parentBody?: string` — ID of the body they orbit (e.g. `"mars"`)
-- `missionInfo?: MissionInfo` — agency, launch year, target, status, description
-
 ### Asset Pointers (`.glb.asset.json`)
 
 Each `.glb.asset.json` file is a JSON object with a single `url` key:
@@ -94,46 +85,15 @@ Each `.glb.asset.json` file is a JSON object with a single `url` key:
 { "url": "/models/curiosity.glb" }
 ```
 
-The path points to the public `/models/` directory. To switch to an external
-CDN (e.g. Cloudflare R2, S3), update the `url` field — no code changes needed.
+Points to `public/models/`. To switch to an external CDN, update the `url` field.
 
 ### NASA Model Conversion Pipeline
 
-NASA 3D Resources ships OBJ + MTL + texture files. The `models:convert` script
-converts them to Draco-compressed GLB in one step:
-
 ```bash
-# Convert a single NASA OBJ model
 npm run models:convert -- "/path/to/NASAmodel.obj" output-name
-
-# Example — Curiosity Rover
-npm run models:convert -- "NASA-3D-Resources/3D Models/Curiosity Rover (MSL)/curiosity.obj" curiosity
-# → client/public/models/curiosity.glb
 ```
 
-Pipeline internals:
-1. `obj2gltf` — OBJ + MTL + textures → raw GLB
-2. `@gltf-transform optimize` — Draco compression + texture resize to 1024px
-3. `gltf-transform validate` — sanity check on the output
-
-### Available Models
-
-| File | Type | Size |
-|------|------|------|
-| `sun.glb` | star | 69 KB |
-| `mercury.glb` … `neptune.glb` | planet | 42–625 KB |
-| `pluto.glb` … `orcus.glb` | dwarf planet | 2.2 MB |
-| `vesta.glb` … `psyche.glb` | asteroid | 7.5–7.6 KB |
-| `halley.glb` | comet | 7.6 KB |
-| `oumuamua.glb` | interstellar | 7.6 KB |
-| `curiosity.glb` | spacecraft | 453 KB |
-| `cassini.glb` | spacecraft | 177 KB |
-| `hubble.glb` | spacecraft | 63 KB |
-| `voyager.glb` | spacecraft | 211 KB |
-| `apollo-lm.glb` | spacecraft | 660 KB |
-| `jwst.glb` … `dragonfly.glb` | spacecraft (stubs) | GLB files needed — see AGENTS.md |
-
-All GLB files use Draco compression.
+Pipeline: `obj2gltf` → Draco compression + 1024px texture resize → validation.
 
 ---
 
@@ -142,28 +102,23 @@ All GLB files use Draco compression.
 ```bash
 npm install
 npm run dev               # Vite dev server (:5000)
+npm test                  # tsc + vitest (172 tests)
 npm run build             # Production build → dist/
 npm run build:cf          # CF Pages build (Draco → Vite)
-npm test                  # Run tests (vitest)
 npm run models:convert    # Convert a NASA OBJ model to GLB (see above)
-npm run models:validate   # Validate GLBs against ML classification
-npm run ai:train          # Train spaceAI RandomForest classifier (11 features)
+npm run models:validate   # Validate GLBs against ML classifier
+npm run ai:train          # Train spaceAI classifier (see spaceAI/README.md)
 ```
 
 ---
 
 ## Stack
 
-- **React 18** + **TypeScript**
-- **three** + **@react-three/fiber** + **@react-three/drei**
-- **@react-three/postprocessing** (UnrealBloom)
-- **maath** (damp3 easing)
-- **Vite** (build tool)
-- **Tailwind CSS** (HUD styling)
-- **Zustand** (state management)
-- **Express** (AI classification via precomputed cache)
-- **FastAPI** (dev) — local AI training microservice (Python)
-- **obj2gltf** (dev) — OBJ → GLB conversion for NASA models
+- **React 18** + **TypeScript** + **Vite**
+- **three** / **@react-three/fiber** / **@react-three/drei** / **postprocessing**
+- **Tailwind CSS** (HUD) + **Zustand** (state)
+- **Express** (AI classification cache) + **FastAPI** (dev AI training)
+- **Python ML** (scikit-learn) — see `spaceAI/README.md`
 
 ---
 
@@ -185,6 +140,9 @@ The tour starts with a 10s solar-system establishing shot (wide orbit at distanc
 > **Note:** The Canvas uses `frameloop="demand"` — every `useFrame`/animation
 > callback must call `state.invalidate()` or the scene freezes. `Planet`,
 > `SpacecraftOrbit`, `CinematicTour`, and `FocusCamera` all do this.
+>
+> See [`AGENTS.md`](AGENTS.md) for AI API endpoints, database schema, CI/CD,
+> GLB asset references, spacecraft details, and known issues.
 
 ---
 

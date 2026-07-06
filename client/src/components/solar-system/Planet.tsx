@@ -69,10 +69,14 @@ function getFallbackMaterial(color: string, emissive: boolean) {
 function GLBModel({ url, radius, body, onReady }: {
   url: string; radius: number; body: Body; onReady?: () => void;
 }) {
+  // Register the load attempt BEFORE useGLTF so that if the hook throws or
+  // suspends for a missing file the body still appears in the tracker and the
+  // error boundary's failLoad call can update it correctly.
+  startLoad(body.id, body.name, url);
+
   const { scene } = useGLTF(url);
 
   useMemo(() => {
-    startLoad(body.id, body.name, url);
     const box = new THREE.Box3().setFromObject(scene);
     const size = new THREE.Vector3();
     box.getSize(size);
@@ -118,6 +122,9 @@ class GLBLoadErrorBoundary extends Component<
   retryTimer: ReturnType<typeof setTimeout> | null = null;
   static getDerivedStateFromError() { return { hasError: true }; }
   componentDidCatch(error: Error) {
+    // Ensure the body is registered in the tracker even if startLoad was never
+    // reached (e.g. the GLB fetch failed before the hook could run).
+    startLoad(this.props.bodyId, this.props.bodyName, "");
     failLoad(this.props.bodyId, error.message);
     this.retryTimer = setTimeout(() => {
       this.setState({ hasError: false, retryKey: this.state.retryKey + 1 });

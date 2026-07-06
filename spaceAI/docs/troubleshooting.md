@@ -99,5 +99,5 @@ df = df.astype({'column': 'float32'})
 
 1. Run with verbose output where available
 2. Review error messages carefully
-3. Verify data format matches [data-format.md](data-format.md)
+3. Verify data format matches the [Data Format section](../README.md#dataset)
 4. Test individual components: `run.py train` → `run.py test` → `run.py query`
