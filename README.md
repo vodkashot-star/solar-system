@@ -31,11 +31,11 @@ Fiber, Drei, and Three.js.
   with physical/orbital/rotation data, AI classification, similar-body
   navigation, and (for spacecraft) a Mission Info card showing agency, launch
   year, target, and status
-- **AI classification** — precomputed ML classifications served via Cloudflare Pages Functions
+- **AI classification** — precomputed ML classifications served via Express
   (planet/dwarf planet/asteroid/comet/spacecraft/etc.) with confidence scores,
   feature importance, and similar-body navigation, displayed in the HUD and detail modal
 - **Scale toggle** — 4 modes: Visual (1×), Hybrid (0.6×), Real Planet Size (0.35×), Real Distance (0.25×)
-- **4K textures** — planets and the Sun use 4K Solar System Scope textures embedded in GLBs; dwarf planets, asteroids, comets, and interstellar bodies use procedural Canvas noise textures as fallback
+- **4K textures** — planets and the Sun use 4K Solar System Scope textures; dwarf planets, asteroids, comets, and interstellar bodies use procedural Canvas noise textures as fallback
 - **Saturn rings** — procedurally generated ring geometry on Saturn
 - **HUD overlay** — current body name and a short fact, fades in on each
   transition
@@ -120,17 +120,18 @@ Pipeline internals:
 
 | File | Type | Size |
 |------|------|------|
-| `sun.glb` | star | 2.1 MB |
-| `mercury.glb` … `neptune.glb` | planet | 0.3–8.9 MB |
-| `pluto.glb` … `gonggong.glb` | dwarf planet | 0.2–0.4 MB |
-| `bennu.glb` … `psyche.glb` | asteroid | 0.1–0.3 MB |
-| `halley.glb` | comet | 0.1 MB |
-| `oumuamua.glb` | interstellar | 0.1 MB |
-| `curiosity.glb` | spacecraft | 12 MB |
-| `cassini.glb` | spacecraft | 1.6 MB |
-| `hubble.glb` | spacecraft | 1.7 MB |
-| `voyager.glb` | spacecraft | 280 KB |
-| `apollo-lm.glb` | spacecraft | 701 KB |
+| `sun.glb` | star | 69 KB |
+| `mercury.glb` … `neptune.glb` | planet | 42–625 KB |
+| `pluto.glb` … `orcus.glb` | dwarf planet | 2.2 MB |
+| `vesta.glb` … `psyche.glb` | asteroid | 7.5–7.6 KB |
+| `halley.glb` | comet | 7.6 KB |
+| `oumuamua.glb` | interstellar | 7.6 KB |
+| `curiosity.glb` | spacecraft | 453 KB |
+| `cassini.glb` | spacecraft | 177 KB |
+| `hubble.glb` | spacecraft | 63 KB |
+| `voyager.glb` | spacecraft | 211 KB |
+| `apollo-lm.glb` | spacecraft | 660 KB |
+| `jwst.glb` … `dragonfly.glb` | spacecraft (stubs) | GLB files needed — see AGENTS.md |
 
 All GLB files use Draco compression.
 
@@ -142,12 +143,11 @@ All GLB files use Draco compression.
 npm install
 npm run dev               # Vite dev server (:5000)
 npm run build             # Production build → dist/
-npm run build:cf          # CF Pages build (regenerates AI cache → Draco → Vite)
+npm run build:cf          # CF Pages build (Draco → Vite)
 npm test                  # Run tests (vitest)
 npm run models:convert    # Convert a NASA OBJ model to GLB (see above)
 npm run models:validate   # Validate GLBs against ML classification
 npm run ai:train          # Train spaceAI RandomForest classifier (11 features)
-npm run ai:serve          # Start local AI classification microservice for dev
 ```
 
 ---
@@ -161,10 +161,9 @@ npm run ai:serve          # Start local AI classification microservice for dev
 - **Vite** (build tool)
 - **Tailwind CSS** (HUD styling)
 - **Zustand** (state management)
-- **Cloudflare Pages Functions** (AI classification via precomputed cache)
+- **Express** (AI classification via precomputed cache)
 - **FastAPI** (dev) — local AI training microservice (Python)
 - **obj2gltf** (dev) — OBJ → GLB conversion for NASA models
-- **@gltf-transform/cli** (dev) — Draco compression + optimisation
 
 ---
 

@@ -14,10 +14,6 @@
     "test:watch": "vitest",
     "models:convert": "bash scripts/convert_nasa_model.sh",
     "models:validate": "python3 scripts/validate_models.py",
-    "models:generate": "blender --background --python scripts/generate_celestial_models.py",
-    "models:draco": "for f in client/public/models/*.glb; do npx gltf-transform draco \"$f\" \"$f.tmp\" --encode-speed 10 && mv \"$f.tmp\" \"$f\"; done",
-    "models:downscale": "bash scripts/downscale-textures.sh",
-    "models:build": "npm run models:generate && npm run models:draco && npm run models:downscale",
     "db:generate": "drizzle-kit generate",
     "db:push": "drizzle-kit push",
     "db:migrate": "npm run db:generate && npm run db:push",
@@ -39,6 +35,7 @@
     "drizzle-orm": "^0.45.2",
     "express": "^4.21.2",
     "maath": "^0.10.8",
+    "postgres": "^3.4.9",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
     "tailwind-merge": "^2.6.0",
@@ -47,7 +44,6 @@
     "zustand": "^5.0.14"
   },
   "devDependencies": {
-    "@gltf-transform/cli": "^4.4.1",
     "@tailwindcss/typography": "^0.5.20",
     "@testing-library/jest-dom": "^6.9.1",
     "@types/cors": "^2.8.19",

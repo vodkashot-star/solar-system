@@ -46,13 +46,13 @@ function sampleOrbitPoints(a: number, e: number, inclRad: number, segments: numb
   return pts;
 }
 
-function sampleEphemerisPoints(bodyId: string, orbitalPeriod: number, segments: number): number[] {
+function sampleEphemerisPoints(bodyId: string, orbitalPeriod: number, orbitRadius: number, segments: number): number[] {
   if (orbitalPeriod <= 0) return [];
   const pts: number[] = [];
   const periodSec = orbitalPeriod / SIM_SPEED;
   for (let i = 0; i <= segments; i++) {
     const t = (i / segments) * periodSec;
-    const pos = getHeliocentricPosition(bodyId, t, 1);
+    const pos = getHeliocentricPosition(bodyId, t, 1, orbitRadius);
     if (pos) {
       pts.push(pos.x, pos.y, pos.z);
     }
@@ -74,7 +74,7 @@ export default function OrbitRings({ scaleMultiplier = 1 }: Props) {
       color.set(hex);
 
       const pts = ASTRONOMY_BODIES.has(body.id)
-        ? sampleEphemerisPoints(body.id, body.properties.orbitalPeriod, SEGMENTS)
+        ? sampleEphemerisPoints(body.id, body.properties.orbitalPeriod, body.orbit, SEGMENTS)
         : sampleOrbitPoints(body.orbit, body.properties.eccentricity, body.properties.inclination * Math.PI / 180, SEGMENTS);
 
       for (let i = 0; i < pts.length / 3 - 1; i++) {

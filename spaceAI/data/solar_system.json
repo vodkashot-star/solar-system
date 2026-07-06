@@ -1,26 +1,450 @@
 [
   {
+    "category": "Star",
+    "sub_category": "G-type main-sequence",
+    "name": "Sun",
+    "mass_kg": 1.988676e+30,
+    "orbital_period_days": 0,
+    "composition_type": "plasma"
+  },
+  {
+    "category": "Planet",
+    "sub_category": "Terrestrial",
+    "name": "Mercury",
+    "mass_kg": 3.2846e+23,
+    "orbital_period_days": 88,
+    "composition_type": "silicate"
+  },
+  {
+    "category": "Planet",
+    "sub_category": "Terrestrial",
+    "name": "Venus",
+    "mass_kg": 4.86718e+24,
+    "orbital_period_days": 225,
+    "composition_type": "silicate"
+  },
+  {
     "category": "Planet",
     "sub_category": "Terrestrial",
     "name": "Earth",
-    "mass_kg": 5.972e24,
+    "mass_kg": 5.972e+24,
     "orbital_period_days": 365.25,
+    "composition_type": "silicate"
+  },
+  {
+    "category": "Planet",
+    "sub_category": "Terrestrial",
+    "name": "Mars",
+    "mass_kg": 6.39004e+23,
+    "orbital_period_days": 687,
     "composition_type": "silicate"
   },
   {
     "category": "Planet",
     "sub_category": "Gas Giant",
     "name": "Jupiter",
-    "mass_kg": 1.898e27,
+    "mass_kg": 1.8979016000000002e+27,
     "orbital_period_days": 4333,
     "composition_type": "gas"
   },
   {
-    "category": "Dwarf Planet",
+    "category": "Planet",
+    "sub_category": "Gas Giant",
+    "name": "Saturn",
+    "mass_kg": 5.6853440000000006e+26,
+    "orbital_period_days": 10759,
+    "composition_type": "gas"
+  },
+  {
+    "category": "Planet",
+    "sub_category": "Ice Giant",
+    "name": "Uranus",
+    "mass_kg": 8.6594e+25,
+    "orbital_period_days": 30685,
+    "composition_type": "ice"
+  },
+  {
+    "category": "Planet",
+    "sub_category": "Ice Giant",
+    "name": "Neptune",
+    "mass_kg": 1.0212120000000002e+26,
+    "orbital_period_days": 60190,
+    "composition_type": "ice"
+  },
+  {
+    "category": "DwarfPlanet",
     "sub_category": "Kuiper Belt Object",
     "name": "Pluto",
-    "mass_kg": 1.303e22,
+    "mass_kg": 1.3018960000000002e+22,
     "orbital_period_days": 90560,
     "composition_type": "ice"
+  },
+  {
+    "category": "DwarfPlanet",
+    "sub_category": "Scattered Disc",
+    "name": "Eris",
+    "mass_kg": 1.67216e+22,
+    "orbital_period_days": 204000,
+    "composition_type": "ice"
+  },
+  {
+    "category": "DwarfPlanet",
+    "sub_category": "Kuiper Belt Object",
+    "name": "Haumea",
+    "mass_kg": 3.94152e+21,
+    "orbital_period_days": 103410,
+    "composition_type": "ice"
+  },
+  {
+    "category": "DwarfPlanet",
+    "sub_category": "Kuiper Belt Object",
+    "name": "Makemake",
+    "mass_kg": 3.10544e+21,
+    "orbital_period_days": 111845,
+    "composition_type": "ice"
+  },
+  {
+    "category": "DwarfPlanet",
+    "sub_category": "Scattered Disc",
+    "name": "Gonggong",
+    "mass_kg": 2.20964e+21,
+    "orbital_period_days": 205000,
+    "composition_type": "ice"
+  },
+  {
+    "category": "DwarfPlanet",
+    "sub_category": "Main Belt",
+    "name": "Ceres",
+    "mass_kg": 937604000000000000000,
+    "orbital_period_days": 1682,
+    "composition_type": "ice"
+  },
+  {
+    "category": "DwarfPlanet",
+    "sub_category": "Kuiper Belt Object",
+    "name": "Orcus",
+    "mass_kg": 1.55272e+21,
+    "orbital_period_days": 90465,
+    "composition_type": "ice"
+  },
+  {
+    "category": "DwarfPlanet",
+    "sub_category": "Detached Object",
+    "name": "Sedna",
+    "mass_kg": 1.37356e+21,
+    "orbital_period_days": 4404480,
+    "composition_type": "ice"
+  },
+  {
+    "category": "Moon",
+    "sub_category": "Moon",
+    "name": "Luna",
+    "mass_kg": 7.345560000000001e+22,
+    "orbital_period_days": 27.3,
+    "composition_type": "silicate"
+  },
+  {
+    "category": "Moon",
+    "sub_category": "Moon",
+    "name": "Titan",
+    "mass_kg": 1.3437e+23,
+    "orbital_period_days": 15.95,
+    "composition_type": "silicate"
+  },
+  {
+    "category": "Moon",
+    "sub_category": "Moon",
+    "name": "Ganymede",
+    "mass_kg": 1.481056e+23,
+    "orbital_period_days": 7.15,
+    "composition_type": "silicate"
+  },
+  {
+    "category": "Moon",
+    "sub_category": "Moon",
+    "name": "Callisto",
+    "mass_kg": 1.0749599999999999e+23,
+    "orbital_period_days": 16.69,
+    "composition_type": "silicate"
+  },
+  {
+    "category": "Moon",
+    "sub_category": "Moon",
+    "name": "Io",
+    "mass_kg": 8.958e+22,
+    "orbital_period_days": 1.77,
+    "composition_type": "silicate"
+  },
+  {
+    "category": "Moon",
+    "sub_category": "Moon",
+    "name": "Europa",
+    "mass_kg": 4.7776e+22,
+    "orbital_period_days": 3.55,
+    "composition_type": "silicate"
+  },
+  {
+    "category": "Moon",
+    "sub_category": "Moon",
+    "name": "Triton",
+    "mass_kg": 2.143948e+22,
+    "orbital_period_days": 5.88,
+    "composition_type": "silicate"
+  },
+  {
+    "category": "Moon",
+    "sub_category": "Moon",
+    "name": "Charon",
+    "mass_kg": 1.540776e+21,
+    "orbital_period_days": 6.39,
+    "composition_type": "silicate"
+  },
+  {
+    "category": "Moon",
+    "sub_category": "Moon",
+    "name": "Enceladus",
+    "mass_kg": 107496000000000020000,
+    "orbital_period_days": 1.37,
+    "composition_type": "silicate"
+  },
+  {
+    "category": "Moon",
+    "sub_category": "Moon",
+    "name": "Rhea",
+    "mass_kg": 243657600000000030000,
+    "orbital_period_days": 4.52,
+    "composition_type": "silicate"
+  },
+  {
+    "category": "Moon",
+    "sub_category": "Moon",
+    "name": "Dione",
+    "mass_kg": 110482000000000000000,
+    "orbital_period_days": 2.74,
+    "composition_type": "silicate"
+  },
+  {
+    "category": "Moon",
+    "sub_category": "Moon",
+    "name": "Oberon",
+    "mass_kg": 300391600000000070000,
+    "orbital_period_days": 13.46,
+    "composition_type": "silicate"
+  },
+  {
+    "category": "Moon",
+    "sub_category": "Moon",
+    "name": "Titania",
+    "mass_kg": 351153600000000000000,
+    "orbital_period_days": 8.71,
+    "composition_type": "silicate"
+  },
+  {
+    "category": "Asteroid",
+    "sub_category": "Main Belt Asteroid",
+    "name": "Vesta",
+    "mass_kg": 266351200000000000000,
+    "orbital_period_days": 1325,
+    "composition_type": "silicate"
+  },
+  {
+    "category": "Asteroid",
+    "sub_category": "Main Belt Asteroid",
+    "name": "Pallas",
+    "mass_kg": 214394800000000000000,
+    "orbital_period_days": 1686,
+    "composition_type": "silicate"
+  },
+  {
+    "category": "Asteroid",
+    "sub_category": "Main Belt Asteroid",
+    "name": "Hygiea",
+    "mass_kg": 106898800000000020000,
+    "orbital_period_days": 2029,
+    "composition_type": "silicate"
+  },
+  {
+    "category": "Asteroid",
+    "sub_category": "Main Belt Asteroid",
+    "name": "Juno",
+    "mass_kg": 19110400000000000000,
+    "orbital_period_days": 1593,
+    "composition_type": "silicate"
+  },
+  {
+    "category": "Asteroid",
+    "sub_category": "NEA",
+    "name": "Eros",
+    "mass_kg": 400124000000000060,
+    "orbital_period_days": 643,
+    "composition_type": "silicate"
+  },
+  {
+    "category": "Asteroid",
+    "sub_category": "NEA",
+    "name": "Bennu",
+    "mass_kg": 50762000000000000,
+    "orbital_period_days": 437,
+    "composition_type": "silicate"
+  },
+  {
+    "category": "Asteroid",
+    "sub_category": "NEA",
+    "name": "Itokawa",
+    "mass_kg": 17916000000000000,
+    "orbital_period_days": 556,
+    "composition_type": "silicate"
+  },
+  {
+    "category": "Asteroid",
+    "sub_category": "NEA",
+    "name": "Ryugu",
+    "mass_kg": 26874000000000000,
+    "orbital_period_days": 474,
+    "composition_type": "silicate"
+  },
+  {
+    "category": "Asteroid",
+    "sub_category": "Main Belt Asteroid",
+    "name": "Psyche",
+    "mass_kg": 81219200000000000000,
+    "orbital_period_days": 1825,
+    "composition_type": "metal"
+  },
+  {
+    "category": "Asteroid",
+    "sub_category": "NEA",
+    "name": "Apophis",
+    "mass_kg": 36429200000000000,
+    "orbital_period_days": 324,
+    "composition_type": "silicate"
+  },
+  {
+    "category": "Comet",
+    "sub_category": "Short-Period Comet",
+    "name": "Halley",
+    "mass_kg": 1373560000000000,
+    "orbital_period_days": 27375,
+    "composition_type": "ice"
+  },
+  {
+    "category": "Comet",
+    "sub_category": "Short-Period Comet",
+    "name": "67P/Churyumov-Gerasimenko",
+    "mass_kg": 13735600000000000,
+    "orbital_period_days": 2379,
+    "composition_type": "ice"
+  },
+  {
+    "category": "Comet",
+    "sub_category": "Short-Period Comet",
+    "name": "9P/Tempel 1",
+    "mass_kg": 71664000000000000,
+    "orbital_period_days": 2068,
+    "composition_type": "ice"
+  },
+  {
+    "category": "Comet",
+    "sub_category": "Short-Period Comet",
+    "name": "81P/Wild 2",
+    "mass_kg": 13735600000000000,
+    "orbital_period_days": 2304,
+    "composition_type": "ice"
+  },
+  {
+    "category": "Interstellar",
+    "sub_category": "Interstellar Object",
+    "name": "1I/'Oumuamua",
+    "mass_kg": 0,
+    "orbital_period_days": 0,
+    "composition_type": "silicate"
+  },
+  {
+    "category": "Interstellar",
+    "sub_category": "Interstellar Object",
+    "name": "2I/Borisov",
+    "mass_kg": 0,
+    "orbital_period_days": 0,
+    "composition_type": "silicate"
+  },
+  {
+    "category": "Spacecraft",
+    "sub_category": "Mars Rover",
+    "name": "Curiosity",
+    "mass_kg": 895.8000000000001,
+    "orbital_period_days": 1.03,
+    "composition_type": "metal"
+  },
+  {
+    "category": "Spacecraft",
+    "sub_category": "Saturn Orbiter",
+    "name": "Cassini",
+    "mass_kg": 5792.840000000001,
+    "orbital_period_days": 0.44,
+    "composition_type": "metal"
+  },
+  {
+    "category": "Spacecraft",
+    "sub_category": "Space Telescope",
+    "name": "Hubble",
+    "mass_kg": 1194.4,
+    "orbital_period_days": 0.0264,
+    "composition_type": "metal"
+  },
+  {
+    "category": "Spacecraft",
+    "sub_category": "Interstellar Probe",
+    "name": "Voyager",
+    "mass_kg": 155.27200000000002,
+    "orbital_period_days": 0,
+    "composition_type": "metal"
+  },
+  {
+    "category": "Spacecraft",
+    "sub_category": "Lunar Lander",
+    "name": "Apollo Lunar Module",
+    "mass_kg": 406.096,
+    "orbital_period_days": 0.0748,
+    "composition_type": "metal"
+  },
+  {
+    "category": "Spacecraft",
+    "sub_category": "Space Telescope",
+    "name": "JWST",
+    "mass_kg": 656.9200000000001,
+    "orbital_period_days": 365.25,
+    "composition_type": "metal"
+  },
+  {
+    "category": "Spacecraft",
+    "sub_category": "Kuiper Belt Probe",
+    "name": "New Horizons",
+    "mass_kg": 495.67600000000004,
+    "orbital_period_days": 90560,
+    "composition_type": "metal"
+  },
+  {
+    "category": "Spacecraft",
+    "sub_category": "Jupiter Orbiter",
+    "name": "Juno",
+    "mass_kg": 3702.6400000000003,
+    "orbital_period_days": 53,
+    "composition_type": "metal"
+  },
+  {
+    "category": "Spacecraft",
+    "sub_category": "Interstellar Probe",
+    "name": "Voyager2",
+    "mass_kg": 776.36,
+    "orbital_period_days": 115740,
+    "composition_type": "metal"
+  },
+  {
+    "category": "Spacecraft",
+    "sub_category": "Titan Rotorcraft",
+    "name": "Dragonfly",
+    "mass_kg": 477.76,
+    "orbital_period_days": 16,
+    "composition_type": "metal"
   }
 ]

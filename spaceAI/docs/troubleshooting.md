@@ -43,27 +43,23 @@ print(sklearn.__version__)
 
 ## API Issues
 
-### FastAPI server won't start
+### AI classifications not appearing (404)
+
+The Express server loads `spaceAI/data/ai_cache.json` at startup. If the file
+doesn't exist or is empty, classifications won't appear:
 
 ```bash
-# Check if port is in use
-lsof -i :8000
-
-# Use a different port
-python run.py serve --port 8080
+# Train/regenerate the cache
+npm run ai:train
 ```
 
-### CORS errors from browser
+### Corrections lost after restart
 
-The FastAPI server has CORS middleware configured for all origins. If issues
-persist, check `api.py` CORS settings.
-
-### 503 "Model not loaded"
-
-Train the model before starting the server:
+Corrections are stored in-memory by Express. To persist them, run retrain before
+restarting:
 
 ```bash
-python run.py train && python run.py serve
+npm run ai:retrain   # incorporates corrections into the model + cache
 ```
 
 ## Data Issues

@@ -28,10 +28,10 @@ python run.py serve
 - **Hyperparameter tuning**: `--tune` flag runs GridSearchCV with StratifiedKFold(3)
 - **Cross-validation**: `python run.py cv` runs 3-fold CV on saved model
 - **Regression**: Predicts mass and temperature via RandomForestRegressor with confidence intervals
-- **Precomputed cache**: All bodies classified at server startup, DB-backed, served via `GET /precomputed`
+- **Precomputed cache**: All bodies classified via `python run.py train`, cached to `data/ai_cache.json`, loaded by Express at startup, served via `GET /api/ai/precomputed`
 - **Similarity**: Finds similar objects via cosine distance across all features
-- **API**: FastAPI at `GET /classify/{body_id}` returning class, confidence, uncertainty,
-  alternatives, feature importances, and similar objects
+- **API**: Express serves `GET /api/ai/classify/{body_id}` returning class, confidence, uncertainty,
+  alternatives, feature importances, and similar objects (from precomputed cache)
 - **Model**: Pipeline(StandardScaler, classifier) trained on 51 celestial objects
   — saves `celestial_classifier.pkl` + `celestial_classifier.meta.json`
 
@@ -57,7 +57,7 @@ python run.py serve
 
 ## Integration
 
-- Frontend fetches `GET /api/ai/precomputed` once on mount; falls back to per-body `/classify/:bodyId`
-- Express proxy at `GET /api/ai/classify/:bodyId` and `GET /api/ai/precomputed` → FastAPI
+- Express loads `data/ai_cache.json` at startup, serves `GET /api/ai/precomputed` and `GET /api/ai/classify/:bodyId` directly — no FastAPI runtime needed
+- Frontend fetches `/api/ai/precomputed` once on mount; falls back to per-body `/api/ai/classify/:bodyId`
+- Corrections stored in-memory by Express; `npm run ai:retrain` incorporates them into the next model
 - `scripts/validate_models.py` checks generated GLBs against classifier
-- Precomputed cache persists in the SQLAlchemy DB (`ai_cache` table)

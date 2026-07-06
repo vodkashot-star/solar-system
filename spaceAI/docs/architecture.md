@@ -5,55 +5,55 @@ System overview and component relationships.
 ## High-Level Architecture
 
 ```
-┌─────────────────────────────────────────────────────────────┐
-│                     Cosmic Voyage Game                       │
-│                    (Integration Layer)                       │
-└──────────────────────┬──────────────────────────────────────┘
+┌──────────────────────────────────────────────────────────────┐
+│                   Express Server (server/routes.ts)           │
+│  GET /api/ai/precomputed         ← reads ai_cache.json       │
+│  GET /api/ai/classify/:bodyId    ← lookup in cache           │
+│  POST /api/ai/classify/:bodyId/correct  ← in-memory store     │
+│  Loads cache at startup from spaceAI/data/ai_cache.json      │
+│  Corrections stored in-memory (restart loses them)           │
+└──────────────────────┬───────────────────────────────────────┘
                        │
                        ▼
-┌─────────────────────────────────────────────────────────────┐
-│                  FastAPI Server (api.py)                      │
-│  GET /health                                                 │
-│  GET /precomputed              ← cached classifications     │
-│  GET /classify/{body_id}?orbital_period=&axial_tilt=&...    │
-│  POST /predict/mass            ← regression (mass)          │
-│  POST /predict/temperature     ← regression (temperature)   │
-│  Returns: AIAnalysis { classification, confidence,          │
-│            alternatives, features, similarObjects }          │
-└──────────────────────┬──────────────────────────────────────┘
+┌──────────────────────────────────────────────────────────────┐
+│               spaceAI/ (Python — training only)               │
+│                                                              │
+│  run.py train  →  trains model → saves .pkl + ai_cache.json  │
+│  run.py serve  →  FastAPI :8000 (dev only, not for runtime)  │
+└──────────────────────┬───────────────────────────────────────┘
                        │
                        ▼
-┌─────────────────────────────────────────────────────────────┐
-│              CelestialPredictor (src/predict.py)              │
-│  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐      │
-│  │   predict    │  │ predict_proba│  │predict_batch │      │
-│  │  (1 object)  │  │  (probs)     │  │  (CSV bulk)  │      │
-│  └──────────────┘  └──────────────┘  └──────────────┘      │
-│  + load_meta(), model_metadata, feature_importances()       │
-└──────────────────────┬──────────────────────────────────────┘
+┌──────────────────────────────────────────────────────────────┐
+│              CelestialPredictor (src/predict.py)               │
+│  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐       │
+│  │   predict    │  │ predict_proba│  │predict_batch │       │
+│  │  (1 object)  │  │  (probs)     │  │  (CSV bulk)  │       │
+│  └──────────────┘  └──────────────┘  └──────────────┘       │
+│  + load_meta(), model_metadata, feature_importances()        │
+└──────────────────────┬───────────────────────────────────────┘
                        │
                        ▼
-┌─────────────────────────────────────────────────────────────┐
-│           Cache Layer (src/cache.py + precompute.py)         │
-│  data/ai_cache.json — persistent; precompute_all() runs     │
-│  at startup via FastAPI lifespan, classifies all 29 bodies  │
-└──────────────────────┬──────────────────────────────────────┘
+┌──────────────────────────────────────────────────────────────┐
+│           Cache Layer (src/cache.py + precompute.py)          │
+│  data/ai_cache.json — persistent; precompute_all() runs       │
+│  during training, classifies all bodies, writes to file       │
+└──────────────────────┬───────────────────────────────────────┘
                        │
                        ▼
-┌─────────────────────────────────────────────────────────────┐
-│              Trained Models (.pkl)                            │
-│  │ classifier: StandardScaler → RF/SVC/LogisticRegression   │
-│  │ regressor:  StandardScaler → RandomForestRegressor        │
-│  │ metadata:   celestial_classifier.meta.json (acc, CV, …)  │
-│  11 features (orbital_period, axial_tilt, mass, radius, …)   │
-└──────────────────────┬──────────────────────────────────────┘
+┌──────────────────────────────────────────────────────────────┐
+│              Trained Models (.pkl)                             │
+│  │ classifier: StandardScaler → RF/SVC/LogisticRegression    │
+│  │ regressor:  StandardScaler → RandomForestRegressor         │
+│  │ metadata:   celestial_classifier.meta.json (acc, CV, …)   │
+│  11 features (orbital_period, axial_tilt, mass, radius, …)    │
+└──────────────────────┬───────────────────────────────────────┘
                        │
                        ▼
-┌─────────────────────────────────────────────────────────────┐
-│                     Data Layer                               │
-│  data/celestial_objects.csv  (46 objects, 7 body types)      │
-│  data/stars.csv / planets.csv / galaxies.csv (reference)     │
-└─────────────────────────────────────────────────────────────┘
+┌──────────────────────────────────────────────────────────────┐
+│                     Data Layer                                │
+│  data/celestial_objects.csv  (46 objects, 7 body types)       │
+│  data/stars.csv / planets.csv / galaxies.csv (reference)      │
+└──────────────────────────────────────────────────────────────┘
 ```
 
 ## Components
@@ -72,7 +72,7 @@ python run.py recommend              # cosine-similarity search
 python run.py train-regression       # train mass + temperature regressors
 python run.py predict-mass           # predict mass with confidence interval
 python run.py predict-temperature    # predict temperature with confidence interval
-python run.py serve                  # start FastAPI server
+python run.py serve                  # start FastAPI server (dev only)
 ```
 
 ### Prediction Module (`src/predict.py`)
@@ -93,8 +93,8 @@ python run.py serve                  # start FastAPI server
 
 ### Precompute Module (`src/precompute.py`)
 
-- Parses `bodies.ts:ASTRONOMICAL_DATA` via regex
-- Calls `CelestialPredictor` for all 29 bodies at startup
+- Parses `client/src/components/solar-system/bodies.ts` for `ASTRONOMICAL_DATA`
+- Calls `CelestialPredictor` for all bodies during training
 - Returns dict keyed by bodyId
 
 ### Regression Module (`src/train_regression.py`)
@@ -105,21 +105,24 @@ python run.py serve                  # start FastAPI server
 
 ### FastAPI Server (`api.py`)
 
-REST endpoints:
+Development-only REST endpoints (started via `python run.py serve`):
 
 - `GET /health` — health check
-- `GET /precomputed` — all cached classifications (dict of bodyId → AIAnalysis)
-- `GET /classify/{body_id}` — classify one object, returns `AIAnalysis` JSON
+- `GET /precomputed` — all cached classifications
+- `GET /classify/{body_id}` — classify one object
 - `POST /predict/mass` — mass regression with confidence interval
 - `POST /predict/temperature` — temperature regression with confidence interval
 
 ## Data Flow
 
-1. **Startup**: FastAPI lifespan calls `precompute_all()` → cache results to disk
-2. **Precomputed**: Client fetches `GET /precomputed` once on mount
-3. **Fallback classication**: Per-body `GET /classify/{body_id}` if not cached
-4. **Regression**: Feature vector → scaled → RandomForestRegressor → prediction ± CI
-5. **Similarity**: Cosine distance computed against all known objects
+1. **Training**: `python run.py train` → trains model → writes `ai_cache.json` to `data/`
+2. **Deployment**: Express reads `ai_cache.json` at startup, serves from memory
+3. **Precomputed**: Client fetches `GET /api/ai/precomputed` once on mount
+4. **Fallback classification**: Per-body `GET /api/ai/classify/{body_id}` if not cached
+5. **Corrections**: `POST /api/ai/classify/{body_id}/correct` stored in-memory
+6. **Retraining**: `npm run ai:retrain` (or `python run.py retrain`) incorporates corrections
+7. **Regression**: Feature vector → scaled → RandomForestRegressor → prediction ± CI
+8. **Similarity**: Cosine distance computed against all known objects
 
 ## Extensions
 
@@ -129,3 +132,4 @@ Add new model types by:
 2. Training via `run.py train --model-type <type>` or `run.py train-regression`
 3. Saving model to `models/`
 4. Updating `CelestialPredictor` to load the new model
+5. Regenerating cache with `python run.py train` → commit updated `ai_cache.json`

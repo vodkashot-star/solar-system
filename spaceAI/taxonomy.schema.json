@@ -1,7 +1,7 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
   "title": "Celestial Body Taxonomy",
-  "description": "Taxonomy schema for classifying celestial bodies in the Solar System. Defines a strict hierarchy with required metadata fields.",
+  "description": "Taxonomy schema for classifying celestial bodies in the Solar System. Defines categories matching the frontend body types and ML model labels.",
   "type": "array",
   "items": {
     "type": "object",
@@ -10,33 +10,33 @@
     "properties": {
       "category": {
         "type": "string",
-        "enum": ["Planet", "Dwarf Planet", "Small Body"],
-        "description": "Top-level classification of the celestial body."
+        "enum": ["Star", "Planet", "DwarfPlanet", "Asteroid", "Comet", "Interstellar", "Moon", "Spacecraft"],
+        "description": "Top-level classification matching the frontend BodyType and ML model labels."
       },
       "sub_category": {
         "type": "string",
         "minLength": 1,
-        "description": "Sub-classification within the top-level category (e.g., 'Terrestrial', 'Gas Giant', 'Ice Giant', 'Asteroid', 'Comet', 'Kuiper Belt Object', 'Moon')."
+        "description": "Sub-classification within the top-level category (e.g., 'Terrestrial', 'Gas Giant', 'Ice Giant', 'Kuiper Belt Object', 'Main Belt', 'NEA', 'Trojan', 'Rover', 'Orbiter', 'Telescope', 'Lander')."
       },
       "name": {
         "type": "string",
         "minLength": 1,
-        "description": "Official IAU name of the celestial body."
+        "description": "Official IAU name or mission name of the celestial body."
       },
       "mass_kg": {
         "type": "number",
-        "exclusiveMinimum": 0,
-        "description": "Mass of the celestial body in kilograms. Must be a positive number."
+        "minimum": 0,
+        "description": "Mass of the celestial body in kilograms. Zero when unknown or not applicable."
       },
       "orbital_period_days": {
         "type": "number",
-        "exclusiveMinimum": 0,
-        "description": "Orbital period around the primary body in Earth days. Must be a positive number."
+        "minimum": 0,
+        "description": "Orbital period around the primary body in Earth days. Zero for the Sun, escaped spacecraft, or interstellar passers-through."
       },
       "composition_type": {
         "type": "string",
-        "enum": ["silicate", "ice", "gas"],
-        "description": "Primary bulk composition type. 'silicate' for rocky/metallic bodies, 'ice' for icy bodies, 'gas' for gas-dominated bodies."
+        "enum": ["silicate", "ice", "gas", "plasma", "metal"],
+        "description": "Primary bulk composition type. 'silicate' for rocky bodies, 'ice' for icy bodies, 'gas' for gas-dominated bodies, 'plasma' for stars, 'metal' for metallic bodies."
       }
     },
     "required": [

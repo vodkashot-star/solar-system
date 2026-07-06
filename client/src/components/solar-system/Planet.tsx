@@ -230,9 +230,9 @@ export default function Planet({ body, onPosition, scaleMultiplier = 1, onComput
     if (p) {
       if (!isStationary) {
         if (ASTRONOMY_BODIES.has(body.id)) {
-          const pos = getHeliocentricPosition(body.id, state.clock.elapsedTime, speedMultiplier);
+          const pos = getHeliocentricPosition(body.id, state.clock.elapsedTime, speedMultiplier, effectiveOrbit);
           if (pos) {
-            p.position.set(pos.x * scaleMultiplier, pos.y * scaleMultiplier, pos.z * scaleMultiplier);
+            p.position.set(pos.x, pos.y, pos.z);
           }
         } else {
           const M = body.phase + state.clock.elapsedTime * body.orbitSpeed * speedMultiplier;

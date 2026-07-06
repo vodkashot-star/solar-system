@@ -5,7 +5,6 @@ export const ASTRONOMY_BODIES = new Set([
   "jupiter", "saturn", "uranus", "neptune"
 ])
 
-export const AU_SCALE = 7
 export const SIM_SPEED = 0.5
 
 const REF_EPOCH = new Date(Date.UTC(2000, 0, 1, 12, 0, 0))
@@ -21,6 +20,7 @@ export function getHeliocentricPosition(
   bodyId: string,
   elapsedSeconds: number,
   speedMultiplier: number,
+  orbitRadius: number,
 ): { x: number; y: number; z: number } | null {
   if (!ASTRONOMY_BODIES.has(bodyId)) return null
 
@@ -29,9 +29,17 @@ export function getHeliocentricPosition(
 
   const vec = HelioVector(BODY_MAP[bodyId] as any, date)
   const ecl = Ecliptic(vec)
+
+  // Normalize the real ephemeris direction and scale to scene orbit radius.
+  // This keeps real orbital paths (inclination, eccentricity direction changes)
+  // while maintaining the visual orbit distance the scene is built around.
+  const dist = Math.sqrt(ecl.vec.x ** 2 + ecl.vec.y ** 2 + ecl.vec.z ** 2)
+  if (dist < 1e-10) return { x: 0, y: 0, z: 0 }
+
+  const scale = orbitRadius / dist
   return {
-    x: ecl.vec.x * AU_SCALE,
-    y: ecl.vec.z * AU_SCALE,
-    z: ecl.vec.y * AU_SCALE,
+    x: ecl.vec.x * scale,
+    y: ecl.vec.z * scale,   // map ecliptic Z → scene Y (up)
+    z: ecl.vec.y * scale,   // map ecliptic Y → scene Z
   }
 }
