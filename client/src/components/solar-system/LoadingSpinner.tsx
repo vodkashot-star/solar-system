@@ -33,7 +33,7 @@ export default function LoadingSpinner() {
         <div className="h-1 w-40 overflow-hidden rounded-full bg-white/10">
           <div
             className="h-full rounded-full bg-gradient-to-r from-amber-400 to-amber-600 transition-all duration-300 ease-out"
-            style={{ width: `${TOTAL_BODIES > 0 ? (loadedCount / TOTAL_BODIES) * 100 : 0}%` }}
+            style={{ width: `${TOTAL_BODIES > 0 ? ((loadedCount + errorCount) / TOTAL_BODIES) * 100 : 0}%` }}
           />
         </div>
         <span className="text-xs tabular-nums text-white/50">{loadedCount}/{TOTAL_BODIES}</span>

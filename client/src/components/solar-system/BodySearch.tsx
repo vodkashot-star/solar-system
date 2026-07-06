@@ -14,7 +14,7 @@ export default function BodySearch({ onSelect, open, onClose }: Props) {
 
   const results = query
     ? BODIES.filter((b) => b.name.toLowerCase().includes(query.toLowerCase()))
-    : [];
+    : BODIES;
 
   useEffect(() => {
     if (open) {

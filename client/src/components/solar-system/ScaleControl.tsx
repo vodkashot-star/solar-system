@@ -60,7 +60,7 @@ export default function ScaleControl({ currentMode, onModeChange, className = ""
           <span className={`text-[8px] transition-transform ${open ? "rotate-180" : ""}`}>▾</span>
         </button>
         {open && (
-          <div className="absolute right-0 top-full mt-1 z-50 w-40 rounded-lg border border-white/10 bg-gray-950/95 p-1 shadow-xl backdrop-blur-xl">
+          <div className="absolute right-0 top-full mt-1 z-50 w-40 max-w-[calc(100vw-1rem)] rounded-lg border border-white/10 bg-gray-950/95 p-1 shadow-xl backdrop-blur-xl">
             {SCALE_MODES.map((mode) => (
               <button
                 key={mode.id}

@@ -69,10 +69,14 @@ function getFallbackMaterial(color: string, emissive: boolean) {
 function GLBModel({ url, radius, body, onReady }: {
   url: string; radius: number; body: Body; onReady?: () => void;
 }) {
-  // Register the load attempt BEFORE useGLTF so that if the hook throws or
-  // suspends for a missing file the body still appears in the tracker and the
-  // error boundary's failLoad call can update it correctly.
-  startLoad(body.id, body.name, url);
+  // Register the load attempt exactly once BEFORE useGLTF so that if the hook
+  // throws/suspends on a missing file the body is still in the tracker and the
+  // error boundary's failLoad call can update its status.
+  const registeredRef = useRef(false);
+  if (!registeredRef.current) {
+    registeredRef.current = true;
+    startLoad(body.id, body.name, url);
+  }
 
   const { scene } = useGLTF(url);
 
@@ -260,7 +264,11 @@ export default function Planet({ body, onPosition, scaleMultiplier = 1, onComput
     if (spin.current) {
       spin.current.rotation.y += body.spinSpeed * delta * speedMultiplier;
     }
-    state.invalidate();
+    // Skip re-render when paused (speed=0) and not in cinematic tour — nothing
+    // is moving so there's no need to invalidate the frame each tick.
+    if (speedMultiplier > 0 || cinematic) {
+      state.invalidate();
+    }
   });
 
   useLayoutEffect(() => {

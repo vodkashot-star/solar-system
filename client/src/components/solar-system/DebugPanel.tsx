@@ -1,6 +1,20 @@
-import { useSyncExternalStore, useState } from "react";
+import { useSyncExternalStore, useState, useEffect } from "react";
 import { subscribe, getSnapshot } from "@/lib/load-debugger";
 import type { LoadStatus } from "@/lib/load-debugger";
+
+// Only render in dev or when ?debug is in the URL
+const IS_DEV = import.meta.env.DEV;
+function isDebugMode() {
+  if (IS_DEV) return true;
+  try {
+    return new URLSearchParams(window.location.search).has("debug");
+  } catch {
+    return false;
+  }
+}
+
+const DEBUG_MODE = isDebugMode();
+const LS_KEY = "debugpanel:minimized";
 
 function formatTime(ms: number) {
   return ms < 1000 ? `${ms.toFixed(0)}ms` : `${(ms / 1000).toFixed(2)}s`;
@@ -20,7 +34,25 @@ function statusClass(s: LoadStatus) {
 
 export default function DebugPanel() {
   const entries = useSyncExternalStore(subscribe, getSnapshot, getSnapshot);
-  const [minimized, setMinimized] = useState(false);
+
+  // Persist minimized state across page loads
+  const [minimized, setMinimized] = useState<boolean>(() => {
+    try {
+      return localStorage.getItem(LS_KEY) === "1";
+    } catch {
+      return false;
+    }
+  });
+
+  useEffect(() => {
+    try {
+      localStorage.setItem(LS_KEY, minimized ? "1" : "0");
+    } catch {
+      // localStorage unavailable — ignore
+    }
+  }, [minimized]);
+
+  if (!DEBUG_MODE) return null;
 
   return (
     <div className="pointer-events-none fixed bottom-4 right-4 z-40 font-mono text-[11px] leading-relaxed">

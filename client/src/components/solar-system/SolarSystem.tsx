@@ -103,8 +103,9 @@ export default function SolarSystem() {
         setTourOn(false);
         focus(next.id);
       } else if (e.key === "Escape") {
-        setDetailBodyId(null);
-        setSearchOpen(false);
+        // If a modal or search is open, close it only — don't also clear camera focus
+        if (detailBodyId) { setDetailBodyId(null); return; }
+        if (searchOpen) { setSearchOpen(false); return; }
         clearFocus();
       } else if (e.key === "/") {
         e.preventDefault();
@@ -113,7 +114,7 @@ export default function SolarSystem() {
     }
     window.addEventListener("keydown", handleKey);
     return () => window.removeEventListener("keydown", handleKey);
-  }, [currentIndex, focus, clearFocus]);
+  }, [currentIndex, focus, clearFocus, detailBodyId, searchOpen]);
 
   const scaleMultiplier =
     scaleMode === "visual" ? 1 :
@@ -294,7 +295,7 @@ export default function SolarSystem() {
             <div className="flex items-start justify-between">
               <div className="flex-1 min-w-0">
                 <div className="font-mono text-[10px] font-semibold uppercase tracking-[0.3em] text-white/40">
-                  Now viewing
+                  {tourOn || isFocused ? "Now viewing" : "Last viewed"}
                 </div>
                 <div className="mt-0.5 truncate text-base font-light text-white sm:text-xl">{active.name}</div>
               </div>
@@ -327,7 +328,7 @@ export default function SolarSystem() {
         const body = BODIES.find((b) => b.id === hoveredBodyId);
         if (!body) return null;
         return (
-          <div className="pointer-events-none fixed left-1/2 z-40 -translate-x-1/2 animate-fade-in rounded-lg border border-white/10 bg-black/80 px-3 py-1.5 backdrop-blur-md sm:bottom-20 bottom-auto top-20">
+          <div className="pointer-events-none fixed left-1/2 z-40 -translate-x-1/2 animate-fade-in rounded-lg border border-white/10 bg-black/80 px-3 py-1.5 backdrop-blur-md top-20 sm:top-auto sm:bottom-20">
             <div className="text-xs font-medium text-white">{body.name}</div>
             <div className="text-[10px] text-white/50">{body.type.replace(/([A-Z])/g, " $1").trim()}</div>
           </div>
