@@ -18,6 +18,7 @@ def _row_to_dict(row: AICache) -> dict:
     return {
         "classification": row.classification,
         "confidence": row.confidence,
+        "uncertainty": row.uncertainty or 0.0,
         "alternatives": row.alternatives or [],
         "features": row.features or [],
         "similarObjects": row.similar_objects or [],
@@ -43,6 +44,7 @@ def save_cache(data: dict):
                     body_id=body_id,
                     classification=result.get("classification", ""),
                     confidence=result.get("confidence", 0.0),
+                    uncertainty=result.get("uncertainty", 0.0),
                     alternatives=result.get("alternatives", []),
                     features=result.get("features", []),
                     similar_objects=result.get("similarObjects", []),
@@ -71,6 +73,7 @@ def set(body_id: str, result: dict):
             session.add(row)
         row.classification = result.get("classification", row.classification)
         row.confidence = result.get("confidence", row.confidence)
+        row.uncertainty = result.get("uncertainty", row.uncertainty or 0.0)
         row.alternatives = result.get("alternatives", row.alternatives)
         row.features = result.get("features", row.features)
         row.similar_objects = result.get("similarObjects", row.similar_objects)

@@ -72,8 +72,12 @@ def _load_regressor(target: str):
 async def lifespan(app: FastAPI):
     from src.database import init_db
     init_db()
+    # precompute_all is CPU-bound — run in a thread executor so we don't block
+    # the event loop during startup
+    import asyncio
     from src.precompute import precompute_all
-    precompute_all()
+    loop = asyncio.get_event_loop()
+    await loop.run_in_executor(None, precompute_all)
     yield
 
 

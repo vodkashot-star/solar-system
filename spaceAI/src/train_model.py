@@ -20,7 +20,7 @@ warnings.filterwarnings("ignore", message="Precision is ill-defined")
 import joblib
 import numpy as np
 import pandas as pd
-from sklearn.base import is_classifier
+from sklearn.base import clone, is_classifier
 from sklearn.ensemble import RandomForestClassifier, GradientBoostingClassifier, VotingClassifier
 from sklearn.linear_model import LogisticRegression
 from sklearn.metrics import accuracy_score, classification_report
@@ -83,10 +83,9 @@ def _get_classifier(model_type):
 
 
 def _get_feature_importances(pipeline):
-    from sklearn.model_selection import GridSearchCV
-    if isinstance(pipeline, GridSearchCV):
-        pipeline = pipeline.best_estimator_
     clf = pipeline.named_steps.get("clf")
+    if clf is None:
+        return None
     if hasattr(clf, "feature_importances_"):
         return clf.feature_importances_.tolist()
     if hasattr(clf, "coef_"):
@@ -112,14 +111,28 @@ def _engineer_features(df):
     return df
 
 
-def train(model_type="rf", tune=False, augment=False, verbose=True):
-    df = pd.read_csv(DATA_PATH).fillna(0)
+def _build_cv(y):
+    """Return appropriate cross-validator based on minimum class size."""
+    min_class_size = y.value_counts().min()
+    if min_class_size >= 3:
+        return StratifiedKFold(n_splits=3, shuffle=True, random_state=42), True
+    return KFold(n_splits=3, shuffle=True, random_state=42), False
 
+
+def _train_from_df(df, model_type="rf", tune=False, augment=False, verbose=True):
+    """
+    Core training routine.
+
+    Evaluation steps (in order):
+      1. Fit on train split  → honest held-out test accuracy
+      2. CV on unfitted clone → uncontaminated generalisation estimate
+      3. Fit fresh clone on full dataset → production model saved to disk
+    """
     if augment:
         df = _engineer_features(df)
 
     feature_cols = FEATURES + (ENGINEERED_FEATURES if augment else [])
-    X = df[feature_cols]
+    X = df[feature_cols].fillna(0)
     y = df[TARGET]
 
     classes = sorted(y.unique().tolist())
@@ -130,44 +143,55 @@ def train(model_type="rf", tune=False, augment=False, verbose=True):
         if augment:
             print(f"Features: {len(FEATURES)} base + {len(ENGINEERED_FEATURES)} engineered = {len(feature_cols)} total")
 
-    clf = _get_classifier(model_type)
-    pipe = Pipeline([("scaler", StandardScaler()), ("clf", clf)])
+    base_pipe = Pipeline([("scaler", StandardScaler()), ("clf", _get_classifier(model_type))])
+    cv, use_stratified = _build_cv(y)
 
-    min_class_size = y.value_counts().min()
-    use_stratified = min_class_size >= 3
-    cv = StratifiedKFold(n_splits=3, shuffle=True, random_state=42) if use_stratified else KFold(n_splits=3, shuffle=True, random_state=42)
     if not use_stratified and verbose:
-        print(f"Note: class '{y.value_counts().idxmin()}' has {min_class_size} sample(s). Using KFold instead of StratifiedKFold.")
+        print(f"Note: class '{y.value_counts().idxmin()}' has {y.value_counts().min()} sample(s). Using KFold.")
 
+    # Optionally wrap in GridSearchCV for hyperparameter tuning
     if tune:
         from sklearn.model_selection import GridSearchCV
         grid = PARAM_GRIDS.get(model_type, {})
-        pipe = GridSearchCV(pipe, grid, cv=cv, scoring="accuracy")
+        tuned_pipe = GridSearchCV(base_pipe, grid, cv=cv, scoring="accuracy")
         if verbose:
             print(f"Tuning with grid: {grid}")
+    else:
+        tuned_pipe = base_pipe
 
-    stratify_y = y if min_class_size >= 2 else None
+    # ── Step 1: eval on held-out test split ────────────────────────────────
+    stratify_y = y if y.value_counts().min() >= 2 else None
     if stratify_y is None and verbose:
-        print(f"Note: class '{y.value_counts().idxmin()}' has {min_class_size} sample(s). Using non-stratified train/test split.")
+        print(f"Note: class '{y.value_counts().idxmin()}' has {y.value_counts().min()} sample(s). Using non-stratified split.")
     X_train, X_test, y_train, y_test = train_test_split(
         X, y, test_size=0.2, stratify=stratify_y, random_state=42
     )
 
-    pipe.fit(X_train, y_train)
-
-    pipe.fit(X, y)
-
-    y_pred = pipe.predict(X_test)
+    eval_pipe = clone(tuned_pipe)
+    eval_pipe.fit(X_train, y_train)
+    y_pred = eval_pipe.predict(X_test)
     test_acc = accuracy_score(y_test, y_pred)
 
+    best_params = eval_pipe.best_params_ if tune and hasattr(eval_pipe, "best_params_") else None
+
     if verbose:
-        print(f"\nTest accuracy: {test_acc:.4f}")
+        print(f"\nTest accuracy (held-out): {test_acc:.4f}")
         print("\nClassification Report:")
         print(classification_report(y_test, y_pred))
-        if tune and hasattr(pipe, "best_params_"):
-            print(f"Best params: {pipe.best_params_}")
+        if best_params:
+            print(f"Best params: {best_params}")
 
-    cv_scores = cross_val_score(pipe, X, y, cv=cv)
+    # ── Step 2: CV on a fresh unfitted clone ───────────────────────────────
+    cv_pipe = clone(eval_pipe.best_estimator_ if tune and hasattr(eval_pipe, "best_estimator_") else eval_pipe)
+    cv_scores = cross_val_score(cv_pipe, X, y, cv=cv, scoring="accuracy")
+
+    if verbose:
+        print(f"\nCV accuracy: {cv_scores.mean():.4f} ± {cv_scores.std():.4f}")
+
+    # ── Step 3: production model — fit on full dataset ─────────────────────
+    prod_pipe = clone(eval_pipe.best_estimator_ if tune and hasattr(eval_pipe, "best_estimator_") else eval_pipe)
+    prod_pipe.fit(X, y)
+
     meta = {
         "model_type": model_type,
         "tuned": tune,
@@ -177,29 +201,31 @@ def train(model_type="rf", tune=False, augment=False, verbose=True):
         "cv_accuracy_mean": round(float(cv_scores.mean()), 4),
         "cv_accuracy_std": round(float(cv_scores.std()), 4),
         "cv_scores": [round(s, 4) for s in cv_scores.tolist()],
-        "best_params": pipe.best_params_ if tune and hasattr(pipe, "best_params_") else None,
+        "best_params": best_params,
         "classes": classes,
         "n_samples": len(y),
         "n_train_samples": len(y_train),
         "class_distribution": {str(k): v for k, v in class_dist.items()},
-        "feature_importances": _get_feature_importances(pipe),
+        "feature_importances": _get_feature_importances(prod_pipe),
         "training_date": datetime.now().isoformat(),
     }
 
     MODEL_PATH.parent.mkdir(parents=True, exist_ok=True)
-    if tune and hasattr(pipe, "best_estimator_"):
-        joblib.dump(pipe.best_estimator_, MODEL_PATH)
-    else:
-        joblib.dump(pipe, MODEL_PATH)
+    joblib.dump(prod_pipe, MODEL_PATH)
 
     with open(META_PATH, "w") as f:
         json.dump(meta, f, indent=2)
 
     if verbose:
-        print(f"\nModel saved to {MODEL_PATH}")
+        print(f"\nProduction model saved to {MODEL_PATH}")
         print(f"Metadata saved to {META_PATH}")
 
-    return pipe
+    return prod_pipe
+
+
+def train(model_type="rf", tune=False, augment=False, verbose=True):
+    df = pd.read_csv(DATA_PATH).fillna(0)
+    return _train_from_df(df, model_type=model_type, tune=tune, augment=augment, verbose=verbose)
 
 
 def cross_validate(verbose=True):
@@ -216,15 +242,15 @@ def cross_validate(verbose=True):
     X = df[FEATURES].fillna(0)
     y = df[TARGET]
 
-    min_class_size = y.value_counts().min()
-    use_stratified = min_class_size >= 3
-    cv = StratifiedKFold(n_splits=3, shuffle=True, random_state=42) if use_stratified else KFold(n_splits=3, shuffle=True, random_state=42)
+    cv, use_stratified = _build_cv(y)
     if not use_stratified and verbose:
-        print(f"Note: class '{y.value_counts().idxmin()}' has {min_class_size} sample(s). Using KFold.")
-    scores = cross_val_score(pipeline, X, y, cv=cv, scoring="accuracy")
+        print(f"Note: class '{y.value_counts().idxmin()}' has {y.value_counts().min()} sample(s). Using KFold.")
+
+    # Clone before CV so the saved model's internal state is not mutated
+    scores = cross_val_score(clone(pipeline), X, y, cv=cv, scoring="accuracy")
 
     if verbose:
-        print(f"Stratified 3-fold CV accuracy:")
+        print("Stratified 3-fold CV accuracy:")
         for i, s in enumerate(scores, 1):
             print(f"  Fold {i}: {s:.4f}")
         print(f"  Mean:   {scores.mean():.4f}")
@@ -234,9 +260,9 @@ def cross_validate(verbose=True):
 
 
 def train_with_corrections(model_type="rf", tune=False, augment=False, verbose=True):
-    import pandas as pd
-    from database import Correction as CorrectionModel, get_session, init_db
-    from predict import FEATURES
+    # Use src.database to be consistent with the rest of the codebase
+    from src.database import Correction as CorrectionModel, get_session, init_db
+    from predict import FEATURES as _FEATURES
 
     df = pd.read_csv(DATA_PATH).fillna(0)
 
@@ -248,100 +274,12 @@ def train_with_corrections(model_type="rf", tune=False, augment=False, verbose=T
         print(f"Incorporating {len(corrections)} user corrections")
 
     for c in corrections:
-        feat_dict = dict(zip(FEATURES, c.features[:11]))
+        feat_dict = dict(zip(_FEATURES, c.features[:11]))
         feat_dict["name"] = f"{c.body_id}_corrected"
-        feat_dict["body_type"] = c.corrected_type
+        feat_dict[TARGET] = c.corrected_type
         df = pd.concat([df, pd.DataFrame([feat_dict])], ignore_index=True)
 
     return _train_from_df(df, model_type=model_type, tune=tune, augment=augment, verbose=verbose)
-
-
-def _train_from_df(df, model_type="rf", tune=False, augment=False, verbose=True):
-    if augment:
-        df = _engineer_features(df)
-
-    feature_cols = FEATURES + (ENGINEERED_FEATURES if augment else [])
-    X = df[feature_cols].fillna(0)
-    y = df[TARGET]
-
-    classes = sorted(y.unique().tolist())
-    class_dist = y.value_counts().to_dict()
-    if verbose:
-        print(f"Loaded {len(df)} rows, classes: {classes}")
-        print(f"Distribution: {class_dist}")
-        if augment:
-            print(f"Features: {len(FEATURES)} base + {len(ENGINEERED_FEATURES)} engineered = {len(feature_cols)} total")
-
-    clf = _get_classifier(model_type)
-    pipe = Pipeline([("scaler", StandardScaler()), ("clf", clf)])
-
-    min_class_size = y.value_counts().min()
-    use_stratified = min_class_size >= 3
-    cv = StratifiedKFold(n_splits=3, shuffle=True, random_state=42) if use_stratified else KFold(n_splits=3, shuffle=True, random_state=42)
-    if not use_stratified and verbose:
-        print(f"Note: class '{y.value_counts().idxmin()}' has {min_class_size} sample(s). Using KFold instead of StratifiedKFold.")
-
-    if tune:
-        from sklearn.model_selection import GridSearchCV
-        grid = PARAM_GRIDS.get(model_type, {})
-        pipe = GridSearchCV(pipe, grid, cv=cv, scoring="accuracy")
-        if verbose:
-            print(f"Tuning with grid: {grid}")
-
-    stratify_y = y if min_class_size >= 2 else None
-    if stratify_y is None and verbose:
-        print(f"Note: class '{y.value_counts().idxmin()}' has {min_class_size} sample(s). Using non-stratified train/test split.")
-    X_train, X_test, y_train, y_test = train_test_split(
-        X, y, test_size=0.2, stratify=stratify_y, random_state=42
-    )
-
-    pipe.fit(X_train, y_train)
-
-    pipe.fit(X, y)
-
-    y_pred = pipe.predict(X_test)
-    test_acc = accuracy_score(y_test, y_pred)
-
-    if verbose:
-        print(f"\nTest accuracy: {test_acc:.4f}")
-        print("\nClassification Report:")
-        print(classification_report(y_test, y_pred))
-        if tune and hasattr(pipe, "best_params_"):
-            print(f"Best params: {pipe.best_params_}")
-
-    cv_scores = cross_val_score(pipe, X, y, cv=cv)
-    meta = {
-        "model_type": model_type,
-        "tuned": tune,
-        "augmented": augment,
-        "n_features": len(feature_cols),
-        "test_accuracy": round(test_acc, 4),
-        "cv_accuracy_mean": round(float(cv_scores.mean()), 4),
-        "cv_accuracy_std": round(float(cv_scores.std()), 4),
-        "cv_scores": [round(s, 4) for s in cv_scores.tolist()],
-        "best_params": pipe.best_params_ if tune and hasattr(pipe, "best_params_") else None,
-        "classes": classes,
-        "n_samples": len(y),
-        "n_train_samples": len(y_train),
-        "class_distribution": {str(k): v for k, v in class_dist.items()},
-        "feature_importances": _get_feature_importances(pipe),
-        "training_date": datetime.now().isoformat(),
-    }
-
-    MODEL_PATH.parent.mkdir(parents=True, exist_ok=True)
-    if tune and hasattr(pipe, "best_estimator_"):
-        joblib.dump(pipe.best_estimator_, MODEL_PATH)
-    else:
-        joblib.dump(pipe, MODEL_PATH)
-
-    with open(META_PATH, "w") as f:
-        json.dump(meta, f, indent=2)
-
-    if verbose:
-        print(f"\nModel saved to {MODEL_PATH}")
-        print(f"Metadata saved to {META_PATH}")
-
-    return pipe
 
 
 if __name__ == "__main__":
@@ -349,7 +287,7 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Train or cross-validate celestial classifier")
     parser.add_argument("--model-type", choices=list(CLASSIFIERS.keys()), default="rf")
     parser.add_argument("--tune", action="store_true", help="Run GridSearchCV")
-    parser.add_argument("--augment", action="store_true", help="Enable feature engineering (log transforms, ratio features)")
+    parser.add_argument("--augment", action="store_true", help="Enable feature engineering")
     parser.add_argument("--cv", action="store_true", help="Run cross-validation on saved model")
     args = parser.parse_args()
 

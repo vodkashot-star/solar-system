@@ -1,14 +1,16 @@
 """
-SQLAlchemy async-enabled models and session management for SpaceAI cache.
+SQLAlchemy models and session management for SpaceAI cache.
 
 Tables:
   ai_cache        — precomputed classification results per body_id
   prediction_logs — regression prediction history
+  corrections     — user-submitted classification corrections
 """
 
+from contextlib import contextmanager
 from datetime import datetime, timezone
 from sqlalchemy import Column, String, Float, DateTime, JSON, Integer, create_engine
-from sqlalchemy.orm import declarative_base, Session
+from sqlalchemy.orm import declarative_base, Session, sessionmaker
 
 from config import DATABASE_URL
 
@@ -21,6 +23,7 @@ class AICache(Base):
     body_id = Column(String(100), primary_key=True)
     classification = Column(String(50), nullable=False)
     confidence = Column(Float, nullable=False, default=0.0)
+    uncertainty = Column(Float, nullable=False, default=0.0)
     alternatives = Column(JSON, default=list)
     features = Column(JSON, default=list)
     similar_objects = Column(JSON, default=list)
@@ -59,6 +62,7 @@ class PredictionLog(Base):
 
 
 _engine = None
+_SessionFactory = None
 
 
 def get_engine():
@@ -71,10 +75,27 @@ def get_engine():
     return _engine
 
 
+def _get_session_factory():
+    global _SessionFactory
+    if _SessionFactory is None:
+        _SessionFactory = sessionmaker(bind=get_engine())
+    return _SessionFactory
+
+
 def init_db():
     """Create all tables if they don't exist (idempotent)."""
     Base.metadata.create_all(get_engine())
 
 
-def get_session() -> Session:
-    return Session(get_engine())
+@contextmanager
+def get_session():
+    """Context manager that yields a Session and guarantees close on exit."""
+    factory = _get_session_factory()
+    session = factory()
+    try:
+        yield session
+    except Exception:
+        session.rollback()
+        raise
+    finally:
+        session.close()
