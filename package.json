@@ -46,6 +46,7 @@
     "zustand": "^5.0.14"
   },
   "devDependencies": {
+    "@gltf-transform/cli": "^4.4.1",
     "@tailwindcss/typography": "^0.5.20",
     "@testing-library/jest-dom": "^6.9.1",
     "@types/cors": "^2.8.19",

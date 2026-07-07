@@ -9,6 +9,7 @@ Usage:
     python src/train_model.py --cv                                # CV report on saved model
 """
 import json
+import shutil
 import sys
 import warnings
 from datetime import datetime
@@ -119,7 +120,51 @@ def _build_cv(y):
     return KFold(n_splits=3, shuffle=True, random_state=42), False
 
 
-def _train_from_df(df, model_type="rf", tune=False, augment=False, verbose=True):
+def _archive_version(pipe, meta, n_corrections=0, verbose=True):
+    """
+    Create a ModelVersion DB record and archive the model files.
+    Called after successful training.
+    """
+    from src.database import ModelVersion, init_db, get_session
+
+    model_type = meta.get("model_type", "unknown")
+    tune = meta.get("tuned", False)
+    augment = meta.get("augmented", False)
+    n_samples = meta.get("n_samples", 0)
+
+    init_db()
+    with get_session() as session:
+        session.query(ModelVersion).update({"active": False})
+
+        version = ModelVersion(
+            model_type=model_type,
+            accuracy=meta.get("test_accuracy"),
+            cv_score=meta.get("cv_accuracy_mean"),
+            n_corrections=n_corrections,
+            tuned=tune,
+            augmented=augment,
+            n_samples=n_samples,
+            active=True,
+        )
+        session.add(version)
+        session.flush()
+
+        archive_dir = MODEL_PATH.parent / "archives" / f"v{version.id}"
+        archive_dir.mkdir(parents=True, exist_ok=True)
+
+        shutil.copy2(MODEL_PATH, archive_dir / "celestial_classifier.pkl")
+        shutil.copy2(META_PATH, archive_dir / "celestial_classifier.meta.json")
+
+        version.model_path = str(archive_dir / "celestial_classifier.pkl")
+        version.meta_path = str(archive_dir / "celestial_classifier.meta.json")
+
+        session.commit()
+
+    if verbose:
+        print(f"Archived version {version.id} to {archive_dir}")
+
+
+def _train_from_df(df, model_type="rf", tune=False, augment=False, verbose=True, n_corrections=0):
     """
     Core training routine.
 
@@ -220,12 +265,18 @@ def _train_from_df(df, model_type="rf", tune=False, augment=False, verbose=True)
         print(f"\nProduction model saved to {MODEL_PATH}")
         print(f"Metadata saved to {META_PATH}")
 
+    try:
+        _archive_version(prod_pipe, meta, n_corrections=n_corrections, verbose=verbose)
+    except Exception as e:
+        if verbose:
+            print(f"Note: model archiving skipped ({e})")
+
     return prod_pipe
 
 
 def train(model_type="rf", tune=False, augment=False, verbose=True):
     df = pd.read_csv(DATA_PATH).fillna(0)
-    return _train_from_df(df, model_type=model_type, tune=tune, augment=augment, verbose=verbose)
+    return _train_from_df(df, model_type=model_type, tune=tune, augment=augment, verbose=verbose, n_corrections=0)
 
 
 def cross_validate(verbose=True):
@@ -270,8 +321,9 @@ def train_with_corrections(model_type="rf", tune=False, augment=False, verbose=T
     with get_session() as session:
         corrections = session.query(CorrectionModel).all()
 
+    n_corrections = len(corrections)
     if corrections and verbose:
-        print(f"Incorporating {len(corrections)} user corrections")
+        print(f"Incorporating {n_corrections} user corrections")
 
     for c in corrections:
         feat_dict = dict(zip(_FEATURES, c.features[:11]))
@@ -279,7 +331,39 @@ def train_with_corrections(model_type="rf", tune=False, augment=False, verbose=T
         feat_dict[TARGET] = c.corrected_type
         df = pd.concat([df, pd.DataFrame([feat_dict])], ignore_index=True)
 
-    return _train_from_df(df, model_type=model_type, tune=tune, augment=augment, verbose=verbose)
+    return _train_from_df(df, model_type=model_type, tune=tune, augment=augment, verbose=verbose, n_corrections=n_corrections)
+
+
+def rollback(version_id, verbose=True):
+    """
+    Restore an archived model version to the active production path.
+    """
+    from src.database import ModelVersion, get_session, init_db
+
+    init_db()
+    with get_session() as session:
+        version = session.query(ModelVersion).filter_by(id=version_id).first()
+        if version is None:
+            print(f"Version {version_id} not found", file=sys.stderr)
+            sys.exit(1)
+
+        archive_pkl = Path(version.model_path) if version.model_path else None
+        archive_meta = Path(version.meta_path) if version.meta_path else None
+
+        if not archive_pkl or not archive_pkl.exists():
+            print(f"Archived model for version {version_id} not found at {archive_pkl}", file=sys.stderr)
+            sys.exit(1)
+
+        shutil.copy2(archive_pkl, MODEL_PATH)
+        if archive_meta and archive_meta.exists():
+            shutil.copy2(archive_meta, META_PATH)
+
+        session.query(ModelVersion).update({"active": False})
+        version.active = True
+        session.commit()
+
+    if verbose:
+        print(f"Restored version {version_id} ({version.model_type}, accuracy={version.accuracy})")
 
 
 if __name__ == "__main__":

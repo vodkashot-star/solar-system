@@ -7,7 +7,7 @@ from predict import DATA_PATH, FEATURES
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 
-EXPECTED_TYPES = {"Planet", "Moon", "Star", "DwarfPlanet", "Asteroid", "Comet", "Interstellar"}
+EXPECTED_TYPES = {"Planet", "Moon", "Star", "DwarfPlanet", "Asteroid", "Comet", "Interstellar", "Spacecraft"}
 
 
 @pytest.fixture

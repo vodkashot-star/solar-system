@@ -38,7 +38,7 @@ def test_model_accuracy_above_threshold():
 def test_model_has_expected_classes():
     pipeline = _load_pipeline()
     classes = pipeline.classes_.tolist()
-    expected = {"Planet", "Moon", "Star", "DwarfPlanet", "Asteroid", "Comet", "Interstellar"}
+    expected = {"Planet", "Moon", "Star", "DwarfPlanet", "Asteroid", "Comet", "Interstellar", "Spacecraft"}
     assert expected.issubset(set(classes)), f"Missing classes: {expected - set(classes)}"
 
 

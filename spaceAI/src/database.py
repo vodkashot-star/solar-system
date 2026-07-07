@@ -5,12 +5,13 @@ Tables:
   ai_cache        — precomputed classification results per body_id
   prediction_logs — regression prediction history
   corrections     — user-submitted classification corrections
+  model_versions  — tracked model versions for rollback
 """
 
 from contextlib import contextmanager
 from datetime import datetime, timezone
-from sqlalchemy import Column, String, Float, DateTime, JSON, Integer, create_engine
-from sqlalchemy.orm import declarative_base, Session, sessionmaker
+from sqlalchemy import Column, String, Float, DateTime, JSON, Integer, Boolean, ForeignKey, create_engine
+from sqlalchemy.orm import declarative_base, Session, sessionmaker, relationship
 
 from config import DATABASE_URL
 
@@ -35,6 +36,23 @@ class AICache(Base):
     )
 
 
+class ModelVersion(Base):
+    __tablename__ = "model_versions"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    model_type = Column(String(50), nullable=False)
+    accuracy = Column(Float, nullable=True)
+    cv_score = Column(Float, nullable=True)
+    n_corrections = Column(Integer, default=0)
+    tuned = Column(Boolean, default=False)
+    augmented = Column(Boolean, default=False)
+    n_samples = Column(Integer, nullable=True)
+    model_path = Column(String(500), nullable=True)
+    meta_path = Column(String(500), nullable=True)
+    active = Column(Boolean, default=False)
+    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
+
+
 class Correction(Base):
     __tablename__ = "corrections"
 
@@ -45,6 +63,7 @@ class Correction(Base):
     features = Column(JSON, nullable=False)
     uncertainty = Column(Float, nullable=True)
     source = Column(String(50), default="user")
+    model_version_id = Column(Integer, ForeignKey("model_versions.id"), nullable=True)
     created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
 
 

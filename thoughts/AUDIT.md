@@ -1,7 +1,9 @@
 # CosmicVoyage — Code Audit
-**Date:** 2026-07-02 · **Last updated:** 2026-07-05
+**Date:** 2026-07-02 · **Last updated:** 2026-07-07
 **Scope:** Full source audit of `client/src/`, `server/`, `shared/`, `spaceAI/`
 **TypeScript check:** `npm run check` passes with 0 errors (excluding known `shared/schema.ts` drizzle issue)
+**Frontend tests:** `npm test` — 172/172 pass
+**AI tests:** `npm run ai:test` — 50/50 pass
 
 ---
 
@@ -197,3 +199,33 @@ CF Pages serves only the static client. Express has no production deployment. Op
 | 7 | DEP-01 | Fixed | Removed from `package.json` |
 | 8 | SMELL-02 | Fixed | All 4 modes have labels/descriptions |
 | — | PY-01 | Fixed | Poetry → setuptools build backend |
+
+---
+
+## 9 · Audit Re-verification (2026-07-07)
+
+### Summary
+
+All 3 test suites pass after one fix:
+
+| Suite | Result | Details |
+|-------|--------|---------|
+| `npm run check` (tsc) | ✅ Pass | 0 errors |
+| `npm test` (vitest) | ✅ Pass | 172/172 pass |
+| `npm run ai:test` (pytest) | ✅ Pass | 50/50 pass (after fix) |
+
+### ✅ DB-01 — Stale `spaceai.db` schema mismatch — **FIXED**
+
+**Files:** `spaceAI/src/database.py:66`, `spaceAI/data/spaceai.db`
+
+**Issue:** The `Correction` model has a `model_version_id` foreign key column (added for Expansion Phase 4) but the existing `spaceai.db` on disk was created before this column existed. SQLAlchemy's `create_all()` is idempotent and does not add missing columns to existing tables, causing `test_submit_correction` and `test_list_corrections` to fail with `OperationalError: no such column: corrections.model_version_id`.
+
+**Fix:** Deleted the stale `spaceAI/data/spaceai.db` file. It is recreated with the correct schema on first `init_db()` call. The file is gitignored (`*.db` pattern) so this is a dev-only fix.
+
+**Prevention:** Add Alembic or a manual migration step when schema changes. For now, the local DB can be safely deleted and recreated since there is no production data.
+
+### 🔵 DB-02 — `model_version_id` in `corrections` table (Precursor)
+
+**File:** `spaceAI/src/database.py:66`
+
+The `model_version_id` foreign key on `corrections` references `model_versions.id`, but the Expansion Phase 4 (Model Versioning & Rollback) in `spaceai-ensemble-active-learning.md` is unchecked — none of its success criteria are met. The column exists but is always null. Consider either completing Phase 4 or removing the column until it's needed. No functional impact.
