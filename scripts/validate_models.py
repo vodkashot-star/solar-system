@@ -1,77 +1,96 @@
+#!/usr/bin/env python3
 """
-Validate generated GLB models against spaceAI ML classification.
-After running GLB generation, this script checks each body's physical features
-against the trained classifier and reports mismatches.
+Validate generated GLB models against the spaceAI ML classifier.
 
-Run: python3 scripts/validate_models.py
+For each body that has a GLB file, classifies it using the trained model
+and reports mismatches against the expected type from celestial_objects.csv.
+
+Usage:
+    python3 scripts/validate_models.py
+    npm run models:validate
+
+Exit codes:
+    0 — all bodies classified correctly (or no GLB present for a body)
+    1 — one or more classification mismatches found
+    2 — fatal error (model not loaded, data not parsed)
 """
 import sys
 import csv
+import numpy as np
 from pathlib import Path
 
-sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "spaceAI" / "src"))
-from predict import CelestialPredictor, FEATURES
+# Add spaceAI/src to path — reuse parse_astronomical_data (single source of truth)
+SPACEAI_SRC = Path(__file__).resolve().parent.parent / "spaceAI" / "src"
+sys.path.insert(0, str(SPACEAI_SRC))
+
+from predict import CelestialPredictor
 from precompute import parse_astronomical_data
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
-MODELS_DIR = PROJECT_ROOT / "client" / "public" / "models"
-BODIES_TS = PROJECT_ROOT / "client" / "src" / "components" / "solar-system" / "bodies.ts"
-CSV_PATH = PROJECT_ROOT / "spaceAI" / "data" / "celestial_objects.csv"
+MODELS_DIR   = PROJECT_ROOT / "client" / "public" / "models"
+BODIES_TS    = PROJECT_ROOT / "client" / "src" / "components" / "solar-system" / "bodies.ts"
+CSV_PATH     = PROJECT_ROOT / "spaceAI" / "data" / "celestial_objects.csv"
 
-# Load expected types from CSV
+# ── Expected types from training CSV ──────────────────────────────────────
 expected: dict[str, str] = {}
 with open(CSV_PATH, newline="") as f:
     for row in csv.DictReader(f):
         expected[row["name"].strip().lower()] = row["body_type"]
 
-# Load body features from bodies.ts ASTRONOMICAL_DATA
+# ── Body features from bodies.ts ASTRONOMICAL_DATA ────────────────────────
 body_features = parse_astronomical_data(BODIES_TS)
 if not body_features:
-    print("ERROR: could not parse ASTRONOMICAL_DATA from bodies.ts")
-    sys.exit(1)
+    print("ERROR: could not parse ASTRONOMICAL_DATA from bodies.ts", file=sys.stderr)
+    sys.exit(2)
 
-# Load ML model
+# ── ML model ──────────────────────────────────────────────────────────────
 predictor = CelestialPredictor()
 if predictor.model is None:
-    print("ERROR: could not load model. Run: npm run ai:train")
-    sys.exit(1)
+    print("ERROR: could not load model. Run: npm run ai:train", file=sys.stderr)
+    sys.exit(2)
 
-print(f"Model loaded — classifying {len(body_features)} bodies...\n")
-print(f"{'Body':<20} {'Expected':<16} {'Predicted':<16} {'Match':<8} {'Confidence'}")
-print("-" * 80)
+meta    = predictor.model_metadata or {}
+classes = predictor.classes_()
 
-total = 0
+print(f"Model: {meta.get('model_type','?')}  "
+      f"CV={meta.get('cv_accuracy_mean', 0):.3f} ± {meta.get('cv_accuracy_std', 0):.3f}")
+print(f"Classifying {len(body_features)} bodies with GLB files...\n")
+print(f"{'Body':<22} {'Expected':<16} {'Predicted':<16} {'OK':<5} {'Conf'}")
+print("─" * 76)
+
+total      = 0
 mismatches = 0
-for name, features in sorted(body_features.items()):
-    glb_path = MODELS_DIR / f"{name}.glb"
-    if not glb_path.exists():
-        continue
+
+for name in sorted(body_features):
+    if not (MODELS_DIR / f"{name}.glb").exists():
+        continue  # no GLB → skip silently
 
     total += 1
-    proba = predictor.predict_proba(*features)
-    classes = predictor.classes_()
+    proba = predictor.predict_proba(*body_features[name])
     if proba is None:
         continue
 
-    import numpy as np
-
     sorted_idx = np.argsort(proba)[::-1]
-    predicted = classes[sorted_idx[0]]
+    predicted  = classes[sorted_idx[0]]
     confidence = float(proba[sorted_idx[0]])
+    exp        = expected.get(name, "?")
+    ok         = predicted.lower() == exp.lower()
 
-    exp = expected.get(name, "?")
-    match = "✓" if predicted.lower() == exp.lower() else "✗"
-    if match == "✗":
+    if not ok:
         mismatches += 1
-        alt_info = " | alt: "
-        for i in sorted_idx[1:4]:
-            alt_info += f"{classes[i]}({proba[i]:.2f}) "
+        alts = "  alts: " + " ".join(
+            f"{classes[i]}({proba[i]:.2f})" for i in sorted_idx[1:3]
+        )
     else:
-        alt_info = ""
+        alts = ""
 
-    print(f"{name:<20} {exp:<16} {predicted:<16} {match:<8} {confidence:.3f}{alt_info}")
+    print(f"{name:<22} {exp:<16} {predicted:<16} {'✓' if ok else '✗':<5} {confidence:.3f}{alts}")
 
-print(f"\n{mismatches}/{total} mismatches found")
+print(f"\n{'─' * 76}")
+print(f"Checked {total} bodies — {mismatches} mismatch(es), {total - mismatches} correct")
+
 if mismatches:
-    print("TIP: Above-average mismatches may indicate the model needs retraining")
-    print("     or the body's physical features are unusual for its type.")
+    print("\nTIP: Run  npm run ai:train  to retrain the classifier.")
+    sys.exit(1)
+
+sys.exit(0)

@@ -14,6 +14,7 @@
     "test:watch": "vitest",
     "models:convert": "bash scripts/convert_nasa_model.sh",
     "models:validate": "python3 scripts/validate_models.py",
+    "models:check": "python3 scripts/validate_models.py",
     "db:generate": "drizzle-kit generate",
     "db:push": "drizzle-kit push",
     "db:migrate": "npm run db:generate && npm run db:push",
@@ -21,8 +22,8 @@
     "ai:serve": "cd spaceAI && python run.py serve",
     "ai:train": "cd spaceAI && python run.py train",
     "ai:train-regression": "cd spaceAI && python run.py train-regression",
-    "ai:train-all": "cd spaceAI && python run.py train && python run.py train-regression",
     "ai:retrain": "cd spaceAI && python run.py retrain",
+    "ai:cv": "cd spaceAI && python run.py cv",
     "ai:test": "cd spaceAI && python -m pytest tests/ -v"
   },
   "dependencies": {
