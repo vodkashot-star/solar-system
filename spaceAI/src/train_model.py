@@ -159,9 +159,10 @@ def _archive_version(pipe, meta, n_corrections=0, verbose=True):
         version.meta_path = str(archive_dir / "celestial_classifier.meta.json")
 
         session.commit()
+        version_id = version.id
 
     if verbose:
-        print(f"Archived version {version.id} to {archive_dir}")
+        print(f"Archived version {version_id} to {archive_dir}")
 
 
 def _train_from_df(df, model_type="rf", tune=False, augment=False, verbose=True, n_corrections=0):
@@ -361,9 +362,11 @@ def rollback(version_id, verbose=True):
         session.query(ModelVersion).update({"active": False})
         version.active = True
         session.commit()
+        model_type = version.model_type
+        accuracy = version.accuracy
 
     if verbose:
-        print(f"Restored version {version_id} ({version.model_type}, accuracy={version.accuracy})")
+        print(f"Restored version {version_id} ({model_type}, accuracy={accuracy})")
 
 
 if __name__ == "__main__":
