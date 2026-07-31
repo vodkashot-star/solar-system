@@ -51,5 +51,8 @@ coverage/
 htmlcov/
 .nyc_output/
 
-.opencode
+# opencode: only secrets stay ignored
+.opencode/**/.env
+.opencode/**/*.key
+.opencode/**/*.pem
 

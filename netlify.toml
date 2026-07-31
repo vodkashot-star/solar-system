@@ -23,11 +23,6 @@
     Cache-Control = "public, max-age=31536000, immutable"
 
 [[headers]]
-  for = "/textures/*"
-  [headers.values]
-    Cache-Control = "public, max-age=31536000, immutable"
-
-[[headers]]
   for = "/draco/*"
   [headers.values]
     Cache-Control = "public, max-age=31536000, immutable"

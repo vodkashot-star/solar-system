@@ -27,14 +27,21 @@ export async function serveStatic(app: Express, _server: Server) {
   };
 
   app.use((req, res, next) => {
-    const filePath = path.join(distPath, req.path.slice(1));
-    if (!fs.existsSync(filePath) || fs.statSync(filePath).isDirectory()) {
+    if (req.path === "/") {
       return next();
     }
-    const ext = path.extname(filePath);
+    const filePath = path.join(distPath, req.path.slice(1));
+    const resolved = path.resolve(filePath);
+    if (!resolved.startsWith(`${path.resolve(distPath)}${path.sep}`)) {
+      return res.status(403).end("Forbidden");
+    }
+    if (!fs.existsSync(resolved) || fs.statSync(resolved).isDirectory()) {
+      return next();
+    }
+    const ext = path.extname(resolved);
     const contentType = mime[ext as keyof typeof mime] || "application/octet-stream";
     res.setHeader("Content-Type", contentType);
-    const content = fs.readFileSync(filePath);
+    const content = fs.readFileSync(resolved);
     res.end(content);
   });
 

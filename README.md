@@ -10,15 +10,20 @@ Fiber, Drei, and Three.js.
 ## Features
 
 - **Cinematic tour** — 10s solar-system establishing shot (full 360° orbit), then camera visits each body with smooth easing (5s per body, loops continuously)
-- **34 GLB models** — sun + 8 planets + 20 dwarf planets/asteroids/comets +
-  5 NASA spacecraft, loaded via `useGLTF` and auto-normalized to correct scale.
-  Per-body loading grid shows individual progress; overlay dismisses when all
-  models load or after a 15s timeout.
+- **29 GLB models** — sun + 8 planets + moon + 7 dwarf planets/KBOs (Pluto,
+   Ceres, Eris, Makemake, Haumea, Gonggong, Orcus) + 3 asteroids (Bennu,
+   Itokawa, Eros) + 9 NASA spacecraft, loaded via `useGLTF` and auto-normalized
+   to correct scale. 11 small bodies with no NASA model (Dragonfly + minor
+   asteroids) render procedural textured spheres. Per-body loading grid shows
+   individual progress; overlay dismisses when all models load or after a 15s
+   timeout.
 - **NASA spacecraft** — Curiosity Rover (Mars), Cassini (Saturn), Hubble Space
-  Telescope (Earth), Voyager 1 (outer system), Apollo Lunar Module (Earth) as
-  first-class bodies with their own orbits, data panels, and mission info cards.
-  Models sourced from [NASA 3D Resources](https://github.com/nasa/NASA-3D-Resources)
-  (public domain), available as native GLB files — no conversion needed.
+   Telescope (Earth), Voyager 1 (outer system), Apollo Lunar Module (Earth),
+   JWST, New Horizons, Juno, Voyager 2, Dragonfly as first-class bodies with
+   their own orbits, data panels, and mission info cards. Spacecraft models
+   sourced from [NASA 3D Resources](https://github.com/nasa/NASA-3D-Resources)
+   (public domain), available as native GLB files — no conversion needed;
+   Dragonfly renders a procedural textured sphere (no NASA model exists).
 - **Bloom + Stars** — emissive sun glow via `@react-three/postprocessing`,
   custom instanced star field. Bloom auto-disables when tour is paused to save
   GPU.
@@ -35,7 +40,7 @@ Fiber, Drei, and Three.js.
   (planet/dwarf planet/asteroid/comet/spacecraft/etc.) with confidence scores,
   feature importance, and similar-body navigation, displayed in the HUD and detail modal
 - **Scale toggle** — 4 modes: Visual (1×), Hybrid (0.6×), Real Planet Size (0.35×), Real Distance (0.25×)
-- **4K textures** — planets and the Sun use 4K Solar System Scope textures; dwarf planets, asteroids, comets, and interstellar bodies use procedural Canvas noise textures as fallback
+- **Textures** — real NASA textures embedded in the GLBs; dwarf planets without texture maps and minor asteroids use procedural Canvas noise textures as fallback
 - **Saturn rings** — procedurally generated ring geometry on Saturn
 - **HUD overlay** — current body name and a short fact, fades in on each
   transition
@@ -94,6 +99,16 @@ npm run models:convert -- "/path/to/NASAmodel.obj" output-name
 ```
 
 Pipeline: `obj2gltf` → Draco compression + 1024px texture resize → validation.
+
+### GLB Validation
+
+```bash
+npm run models:validate          # Validate all GLB models
+npm run models:validate:fix      # Validate and auto-fix (add Draco compression)
+npm run models:validate -- --json   # JSON output for CI
+```
+
+Pipeline validates: GLB binary header, asset JSON pointers, Draco compression, file size limits.
 
 ---
 
@@ -249,8 +264,7 @@ CosmicVoyage/
 ├── client/                          # React + Vite frontend
 │   ├── index.html
 │   ├── public/
-│   │   ├── models/                  # 34 GLB files (sun, planets, asteroids, spacecraft)
-│   │   ├── textures/                # 4K planet textures (JPG)
+│   │   ├── models/                  # 29 GLB files (sun, planets, asteroids, spacecraft)
 │   │   ├── sounds/                  # Background music & SFX
 │   │   ├── draco/                   # Draco WASM decoder
 │   │   ├── fonts/
