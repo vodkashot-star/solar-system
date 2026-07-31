@@ -8,16 +8,18 @@ export type LoadStatus = {
   error?: string;
 };
 
-let statuses = new Map<string, LoadStatus>();
-let cached: LoadStatus[] = [];
-let listeners = new Set<() => void>();
+type Listener = () => void;
 
-function emit() {
+const statuses = new Map<string, LoadStatus>();
+let cached: LoadStatus[] = [];
+const listeners = new Set<Listener>();
+
+function emit(): void {
   cached = Array.from(statuses.values());
   listeners.forEach((l) => l());
 }
 
-export function subscribe(cb: () => void) {
+export function subscribe(cb: Listener): () => void {
   listeners.add(cb);
   return () => listeners.delete(cb);
 }
@@ -26,7 +28,7 @@ export function getSnapshot(): LoadStatus[] {
   return cached;
 }
 
-export function startLoad(bodyId: string, bodyName: string, url: string) {
+export function startLoad(bodyId: string, bodyName: string, url: string): void {
   if (statuses.has(bodyId)) return;
   statuses.set(bodyId, {
     bodyId,
@@ -38,7 +40,7 @@ export function startLoad(bodyId: string, bodyName: string, url: string) {
   emit();
 }
 
-export function finishLoad(bodyId: string) {
+export function finishLoad(bodyId: string): void {
   const s = statuses.get(bodyId);
   if (s && s.status === "loading") {
     s.status = "loaded";
@@ -47,7 +49,7 @@ export function finishLoad(bodyId: string) {
   }
 }
 
-export function failLoad(bodyId: string, error: string) {
+export function failLoad(bodyId: string, error: string): void {
   const s = statuses.get(bodyId);
   if (s) {
     s.status = "error";

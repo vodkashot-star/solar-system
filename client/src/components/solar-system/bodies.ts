@@ -91,6 +91,7 @@ import jupiterGlb from "@/assets/solar/jupiter.glb.asset.json";
 import saturnGlb from "@/assets/solar/saturn.glb.asset.json";
 import uranusGlb from "@/assets/solar/uranus.glb.asset.json";
 import neptuneGlb from "@/assets/solar/neptune.glb.asset.json";
+import moonGlb from "@/assets/solar/moon.glb.asset.json";
 import plutoGlb from "@/assets/solar/pluto.glb.asset.json";
 import ceresGlb from "@/assets/solar/ceres.glb.asset.json";
 import erisGlb from "@/assets/solar/eris.glb.asset.json";
@@ -98,19 +99,9 @@ import haumeaGlb from "@/assets/solar/haumea.glb.asset.json";
 import makemakeGlb from "@/assets/solar/makemake.glb.asset.json";
 import gonggongGlb from "@/assets/solar/gonggong.glb.asset.json";
 import orcusGlb from "@/assets/solar/orcus.glb.asset.json";
-import vestaGlb from "@/assets/solar/vesta.glb.asset.json";
-import pallasGlb from "@/assets/solar/pallas.glb.asset.json";
-import junoGlb from "@/assets/solar/juno.glb.asset.json";
-import hygieaGlb from "@/assets/solar/hygiea.glb.asset.json";
-import astraeaGlb from "@/assets/solar/astraea.glb.asset.json";
-import apophisGlb from "@/assets/solar/apophis.glb.asset.json";
 import bennuGlb from "@/assets/solar/bennu.glb.asset.json";
 import itokawaGlb from "@/assets/solar/itokawa.glb.asset.json";
 import erosGlb from "@/assets/solar/eros.glb.asset.json";
-import psycheGlb from "@/assets/solar/psyche.glb.asset.json";
-import vardaGlb from "@/assets/solar/varda.glb.asset.json";
-import oumuamuaGlb from "@/assets/solar/oumuamua.glb.asset.json";
-import halleyGlb from "@/assets/solar/halley.glb.asset.json";
 import curiosityGlb from "@/assets/solar/curiosity.glb.asset.json";
 import cassiniGlb from "@/assets/solar/cassini.glb.asset.json";
 import hubbleGlb from "@/assets/solar/hubble.glb.asset.json";
@@ -120,7 +111,6 @@ import jwstGlb from "@/assets/solar/jwst.glb.asset.json";
 import newHorizonsGlb from "@/assets/solar/new-horizons.glb.asset.json";
 import junoSpacecraftGlb from "@/assets/solar/juno-spacecraft.glb.asset.json";
 import voyager2Glb from "@/assets/solar/voyager-2.glb.asset.json";
-import dragonflyGlb from "@/assets/solar/dragonfly.glb.asset.json";
 
 // Real astronomical data from NASA planetary fact sheets
 // Mass: Earth = 1, Radius: Earth = 1, Density: g/cm³, Gravity: m/s², Temperature: Kelvin
@@ -754,6 +744,7 @@ export const BODIES: Body[] = [
     phase: 5.3, 
     color: "#9fd9e6", 
     glbUrl: uranusGlb.url, 
+    hasRings: true, 
     fact: "Tilted on its side — its poles face the sun.",
     properties: ASTRONOMICAL_DATA.uranus
   },
@@ -769,8 +760,38 @@ export const BODIES: Body[] = [
     phase: 0.8, 
     color: "#3a6dd1", 
     glbUrl: neptuneGlb.url, 
+    hasRings: true, 
     fact: "Supersonic winds reach 2,100 km/h — fastest in the system.",
     properties: ASTRONOMICAL_DATA.neptune
+  },
+  // --- Moon (orbits Earth) ---
+  { 
+    id: "moon", 
+    type: "dwarfPlanet",
+    name: "Moon", 
+    visualRadius: 0.22, 
+    orbit: 12.5, 
+    orbitSpeed: 0.13, 
+    spinSpeed: 0.0, 
+    tilt: 0, 
+    phase: 0, 
+    color: "#aaaaaa", 
+    glbUrl: moonGlb.url,
+    parentBody: "earth",
+    fact: "Earth's only natural satellite — tidally locked, same face always points to Earth.",
+    properties: {
+      mass: 0.0123,
+      radius: 0.273,
+      density: 3.34,
+      gravity: 1.62,
+      temperature: 250,
+      orbitalPeriod: 27.32,
+      semiMajorAxis: 0.00257, // AU
+      eccentricity: 0.055,
+      inclination: 5.14,
+      rotationPeriod: 655.7, // hours (tidally locked)
+      axialTilt: 6.68
+    }
   },
   // --- Dwarf Planets ---
   { 
@@ -890,7 +911,6 @@ export const BODIES: Body[] = [
     tilt: 0.51, 
     phase: 2.3, 
     color: "#8c8273", 
-    glbUrl: vestaGlb.url, 
     fact: "Second-largest asteroid — visited by NASA's Dawn mission.",
     properties: ASTRONOMICAL_DATA.vesta
   },
@@ -905,7 +925,6 @@ export const BODIES: Body[] = [
     tilt: 1.47, 
     phase: 5.1, 
     color: "#7a756e", 
-    glbUrl: pallasGlb.url, 
     fact: "Third-largest asteroid — its orbit is highly inclined at 35°.",
     properties: ASTRONOMICAL_DATA.pallas
   },
@@ -920,7 +939,6 @@ export const BODIES: Body[] = [
     tilt: 0, 
     phase: 3.8, 
     color: "#8c8073", 
-    glbUrl: junoGlb.url, 
     fact: "One of the first four asteroids discovered — found in 1804.",
     properties: ASTRONOMICAL_DATA.juno
   },
@@ -935,7 +953,6 @@ export const BODIES: Body[] = [
     tilt: 1.05, 
     phase: 1.9, 
     color: "#6e6b66", 
-    glbUrl: hygieaGlb.url, 
     fact: "Fourth-largest main-belt asteroid — darkest surface among the big four.",
     properties: ASTRONOMICAL_DATA.hygiea
   },
@@ -950,7 +967,6 @@ export const BODIES: Body[] = [
     tilt: 0, 
     phase: 0.9, 
     color: "#999180", 
-    glbUrl: astraeaGlb.url, 
     fact: "The fifth asteroid discovered — found 38 years after the first four.",
     properties: ASTRONOMICAL_DATA.astraea
   },
@@ -965,7 +981,6 @@ export const BODIES: Body[] = [
     tilt: 0, 
     phase: 4.7, 
     color: "#665e59", 
-    glbUrl: apophisGlb.url, 
     fact: "A near-Earth asteroid — will make a close pass in 2029.",
     properties: ASTRONOMICAL_DATA.apophis
   },
@@ -1025,7 +1040,6 @@ export const BODIES: Body[] = [
     tilt: 0, 
     phase: 0.6, 
     color: "#b3a699", 
-    glbUrl: psycheGlb.url, 
     fact: "A metallic asteroid — target of NASA's Psyche mission.",
     properties: ASTRONOMICAL_DATA.psyche
   },
@@ -1040,7 +1054,6 @@ export const BODIES: Body[] = [
     tilt: 0, 
     phase: 4.0, 
     color: "#736e69", 
-    glbUrl: vardaGlb.url, 
     fact: "A binary asteroid in the Kuiper belt with a moon named Ilmarë.",
     properties: ASTRONOMICAL_DATA.varda
   },
@@ -1056,7 +1069,6 @@ export const BODIES: Body[] = [
     tilt: 0, 
     phase: 1.2, 
     color: "#423830", 
-    glbUrl: halleyGlb.url, 
     fact: "The most famous comet — returns every 75-76 years.",
     properties: ASTRONOMICAL_DATA.halley
   },
@@ -1071,7 +1083,6 @@ export const BODIES: Body[] = [
     tilt: 0, 
     phase: 0, 
     color: "#8c6673", 
-    glbUrl: oumuamuaGlb.url, 
     fact: "First known interstellar object to pass through our solar system.",
     properties: ASTRONOMICAL_DATA.oumuamua
   },
@@ -1290,7 +1301,6 @@ export const BODIES: Body[] = [
     tilt: 0,
     phase: 2.3,
     color: "#26c6da",
-    glbUrl: dragonflyGlb.url,
     parentBody: "saturn",
     fact: "Dragonfly is a NASA rotorcraft lander destined for Saturn's moon Titan, launching in 2028.",
     properties: ASTRONOMICAL_DATA.dragonfly,

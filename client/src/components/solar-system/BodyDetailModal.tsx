@@ -80,6 +80,7 @@ export default function BodyDetailModal({ body, onClose, positions }: Props) {
           </div>
           <button
             onClick={onClose}
+            aria-label="Close details panel"
             className="flex h-8 w-8 items-center justify-center rounded-full border border-white/10 bg-white/5 text-sm text-white/60 transition hover:bg-white/10 hover:text-white"
           >
             \u2715
@@ -114,6 +115,7 @@ export default function BodyDetailModal({ body, onClose, positions }: Props) {
                           onClose();
                         }
                       }}
+                      aria-label={`Focus on ${match.name}`}
                       className="rounded-full border border-white/10 bg-white/5 px-2.5 py-0.5 text-[11px] text-white/70 transition hover:bg-white/10 hover:text-white"
                     >
                       {match.name}

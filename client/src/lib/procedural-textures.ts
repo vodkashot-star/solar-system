@@ -207,7 +207,7 @@ const COMET_DEF: PlanetTextureDef = {
   voronoiCells: 40,
 };
 
-function getDef(bodyId: string): PlanetTextureDef {
+function getDef(bodyId: string, type: string): PlanetTextureDef {
   if (TEXTURE_DEFS[bodyId]) return TEXTURE_DEFS[bodyId];
   const typeMap: Record<string, PlanetTextureDef> = {
     star: TEXTURE_DEFS.sun,
@@ -217,7 +217,7 @@ function getDef(bodyId: string): PlanetTextureDef {
     comet: COMET_DEF,
     interstellar: ASTEROID_DEF,
   };
-  return typeMap.dwarfPlanet;
+  return typeMap[type] ?? DWARF_DEF;
 }
 
 function uvSphereProject(u: number, v: number): { x: number; y: number; z: number } {
@@ -231,7 +231,7 @@ function uvSphereProject(u: number, v: number): { x: number; y: number; z: numbe
 }
 
 export function generateDiffuseMap(bodyId: string, type: string): THREE.CanvasTexture {
-  const def = TEXTURE_DEFS[bodyId] ?? getDef(bodyId);
+  const def = TEXTURE_DEFS[bodyId] ?? getDef(bodyId, type);
   const canvas = document.createElement("canvas");
   canvas.width = TEX_SIZE;
   canvas.height = TEX_SIZE / 2;
@@ -365,7 +365,7 @@ export function generateRoughnessMap(bodyId: string, type: string): THREE.Canvas
 }
 
 export function generateEmissiveMap(bodyId: string, type: string): THREE.CanvasTexture | null {
-  const def = TEXTURE_DEFS[bodyId] ?? getDef(bodyId);
+  const def = TEXTURE_DEFS[bodyId] ?? getDef(bodyId, type);
   if (!def.emissive) return null;
   const emColor = def.emissiveColor ?? [1, 0.5, 0.1];
   const canvas = document.createElement("canvas");
@@ -414,7 +414,7 @@ export function getCachedRoughness(bodyId: string, type: string): THREE.CanvasTe
 }
 
 export function getCachedEmissive(bodyId: string, type: string): THREE.CanvasTexture | null {
-  const def = TEXTURE_DEFS[bodyId] ?? getDef(bodyId);
+  const def = TEXTURE_DEFS[bodyId] ?? getDef(bodyId, type);
   if (!def.emissive) return null;
   const k = `emis:${bodyId}`;
   if (textureCache.has(k)) return textureCache.get(k)!;

@@ -1,4 +1,4 @@
-import { useRef, useMemo, Suspense, useCallback, useState, useEffect, useLayoutEffect, Component } from "react";
+import React, { useRef, useMemo, Suspense, useCallback, useState, useEffect, useLayoutEffect, Component } from "react";
 import { useFrame, type ThreeEvent } from "@react-three/fiber";
 import { useGLTF } from "@react-three/drei";
 import * as THREE from "three";
@@ -7,8 +7,24 @@ import { startLoad, finishLoad, failLoad } from "@/lib/load-debugger";
 import { useCameraFocus } from "@/stores/camera-focus";
 import { useCinematicMode } from "@/stores/cinematic-mode";
 import AtmosphereGlow from "./AtmosphereGlow";
+import RingSystem from "./RingSystem";
 import { applyProceduralMaterials, getCachedDiffuse, getCachedNormal, getCachedRoughness } from "@/lib/procedural-textures";
 import { getHeliocentricPosition, ASTRONOMY_BODIES } from "@/lib/astronomy-positions";
+import { solveKepler } from "@/lib/kepler";
+
+// ── Planet rendering constants ────────────────────────────────────────────────
+/** Minimum radius fraction kept at scale 0 so bodies never vanish completely. */
+const RADIUS_SCALE_MIN  = 0.3;
+/** Fraction of radius that scales with the scene scaleMultiplier. */
+const RADIUS_SCALE_WEIGHT = 0.7;
+/** Cinematic bob base amplitude (scene units). */
+const BOB_AMPLITUDE_BASE = 0.15;
+/** Cinematic bob amplitude grows slightly with effective radius. */
+const BOB_AMPLITUDE_RADIUS_FACTOR = 0.1;
+/** Cinematic bob base frequency (rad/s). */
+const BOB_FREQUENCY_BASE = 0.6;
+/** Bob frequency grows slightly with visual radius so large bodies bob slower. */
+const BOB_FREQUENCY_RADIUS_FACTOR = 0.08;
 
 type PlanetProps = {
   body: Body;
@@ -18,32 +34,6 @@ type PlanetProps = {
   onHover?: (bodyId: string | null) => void;
   speedMultiplier?: number;
 };
-
-function solveKeplerElliptic(M: number, e: number): number {
-  let E = M;
-  for (let i = 0; i < 12; i++) {
-    const dE = (M - E + e * Math.sin(E)) / (1 - e * Math.cos(E));
-    E += dE;
-    if (Math.abs(dE) < 1e-8) break;
-  }
-  return E;
-}
-
-function solveKeplerHyperbolic(M: number, e: number): number {
-  let H = M;
-  for (let i = 0; i < 20; i++) {
-    const dH = (M - e * Math.sinh(H) + H) / (e * Math.cosh(H) - 1);
-    H += dH;
-    if (Math.abs(dH) < 1e-8) break;
-  }
-  return H;
-}
-
-function solveKepler(M: number, e: number): number {
-  if (e < 1e-6) return M;
-  if (e > 1) return solveKeplerHyperbolic(M, e);
-  return solveKeplerElliptic(M, e);
-}
 
 const ATMOSPHERE_BODIES = new Set(["earth", "venus", "mars", "jupiter", "saturn", "neptune"]);
 
@@ -93,7 +83,22 @@ function GLBModel({ url, radius, body, onReady }: {
     box.getCenter(center);
     scene.position.sub(center);
 
-    if (body.type === "dwarfPlanet" || body.type === "asteroid" || body.type === "comet" || body.type === "interstellar") {
+    // Apply procedural materials only to rocky bodies whose GLB lacks a real
+    // diffuse map (e.g. the high-poly untextured dwarf-planet spheres). Bodies
+    // with real NASA textures (bennu, itokawa, eros, ceres, planets) keep their
+    // embedded maps. Spacecraft are never overridden.
+    const isRocky = body.type === "dwarfPlanet" || body.type === "asteroid" || body.type === "comet" || body.type === "interstellar";
+    let hasDiffuse = false;
+    if (isRocky) {
+      scene.traverse((obj) => {
+        const mesh = obj as THREE.Mesh;
+        if (mesh.isMesh) {
+          const mat = mesh.material as THREE.MeshStandardMaterial;
+          if (mat && mat.isMaterial && mat.map) hasDiffuse = true;
+        }
+      });
+    }
+    if (isRocky && !hasDiffuse) {
       applyProceduralMaterials(scene, body.id, body.type);
     }
 
@@ -139,7 +144,7 @@ class GLBLoadErrorBoundary extends Component<
   }
   render() {
     if (this.state.hasError) return this.props.fallback;
-    return <div key={this.state.retryKey}>{this.props.children}</div>;
+    return <React.Fragment key={this.state.retryKey}>{this.props.children}</React.Fragment>;
   }
 }
 
@@ -172,27 +177,6 @@ function FallbackSphere({ radius, color, emissive, bodyId, bodyType }: {
   );
 }
 
-const RING_GEOMETRY = new THREE.RingGeometry(2.4, 3.8, 64);
-const ringMaterial = new THREE.MeshBasicMaterial({
-  color: "#c8b88a",
-  side: THREE.DoubleSide,
-  transparent: true,
-  opacity: 0.6,
-  depthWrite: false,
-});
-
-function SaturnRings({ radius }: { radius: number }) {
-  return (
-    <mesh
-      rotation={[-Math.PI / 2.4, 0, 0]}
-      scale={radius * 1.2}
-      geometry={RING_GEOMETRY}
-      material={ringMaterial}
-      frustumCulled={false}
-    />
-  );
-}
-
 export default function Planet({ body, onPosition, scaleMultiplier = 1, onComputedRadius, onHover, speedMultiplier = 1 }: PlanetProps) {
   const pivot = useRef<THREE.Group>(null);
   const spin = useRef<THREE.Group>(null);
@@ -200,7 +184,7 @@ export default function Planet({ body, onPosition, scaleMultiplier = 1, onComput
   const [glbReady, setGlbReady] = useState(false);
 
   const effectiveOrbit = body.orbit * scaleMultiplier;
-  const effectiveRadius = body.visualRadius * (0.3 + 0.7 * scaleMultiplier);
+  const effectiveRadius = body.visualRadius * (RADIUS_SCALE_MIN + RADIUS_SCALE_WEIGHT * scaleMultiplier);
   const isStationary = body.orbitSpeed === 0;
   const e = body.properties.eccentricity;
   const inclRad = body.properties.inclination * Math.PI / 180;
@@ -255,8 +239,8 @@ export default function Planet({ body, onPosition, scaleMultiplier = 1, onComput
         }
       }
       if (cinematic) {
-        const bobAmplitude = 0.15 + effectiveRadius * 0.1;
-        const bobFrequency = 0.6 + body.visualRadius * 0.08;
+        const bobAmplitude = BOB_AMPLITUDE_BASE + effectiveRadius * BOB_AMPLITUDE_RADIUS_FACTOR;
+        const bobFrequency = BOB_FREQUENCY_BASE + body.visualRadius * BOB_FREQUENCY_RADIUS_FACTOR;
         p.position.y += Math.sin(state.clock.elapsedTime * bobFrequency + body.phase) * bobAmplitude;
       }
       if (onPosition) onPosition(p.position);
@@ -309,7 +293,7 @@ export default function Planet({ body, onPosition, scaleMultiplier = 1, onComput
           )}
         </Suspense>
         {hasAtmosphere && <AtmosphereGlow radius={effectiveRadius} bodyId={body.id} />}
-        {body.hasRings && <SaturnRings radius={effectiveRadius} />}
+        {body.hasRings && <RingSystem body={body} planetRadius={effectiveRadius} />}
       </group>
     </group>
   );

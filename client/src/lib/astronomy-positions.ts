@@ -1,4 +1,4 @@
-import { HelioVector, Ecliptic } from "astronomy-engine"
+import { HelioVector, Ecliptic, Body } from "astronomy-engine"
 
 export const ASTRONOMY_BODIES = new Set([
   "sun", "mercury", "venus", "earth", "mars",
@@ -27,7 +27,7 @@ export function getHeliocentricPosition(
   const days = elapsedSeconds * speedMultiplier * SIM_SPEED
   const date = new Date(REF_EPOCH.getTime() + days * SECONDS_PER_DAY * 1000)
 
-  const vec = HelioVector(BODY_MAP[bodyId] as any, date)
+  const vec = HelioVector(BODY_MAP[bodyId] as Body, date)
   const ecl = Ecliptic(vec)
 
   // Normalize the real ephemeris direction and scale to scene orbit radius.

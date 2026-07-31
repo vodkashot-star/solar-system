@@ -5,8 +5,8 @@ import type { BodyType } from "@/components/solar-system/bodies";
 const VALID_TYPES: BodyType[] = ["star", "planet", "dwarfPlanet", "asteroid", "comet", "interstellar", "spacecraft"];
 
 describe("BODIES data integrity", () => {
-  it("exports 39 bodies (29 celestial + 10 spacecraft)", () => {
-    expect(BODIES).toHaveLength(39);
+  it("exports 40 bodies (30 celestial + 10 spacecraft)", () => {
+    expect(BODIES).toHaveLength(40);
   });
 
   it.each(BODIES)("$name has valid type", (body) => {

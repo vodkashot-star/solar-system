@@ -2,20 +2,11 @@ import { useMemo } from "react";
 import * as THREE from "three";
 import { BODIES, BODY_TYPE_COLORS } from "./bodies";
 import { getHeliocentricPosition, ASTRONOMY_BODIES, SIM_SPEED } from "@/lib/astronomy-positions";
+import { solveKeplerElliptic } from "@/lib/kepler";
 
 const SEGMENTS = 128;
 
 type Props = { scaleMultiplier?: number };
-
-function solveKeplerElliptic(M: number, e: number): number {
-  let E = M;
-  for (let i = 0; i < 12; i++) {
-    const dE = (M - E + e * Math.sin(E)) / (1 - e * Math.cos(E));
-    E += dE;
-    if (Math.abs(dE) < 1e-8) break;
-  }
-  return E;
-}
 
 function sampleOrbitPoints(a: number, e: number, inclRad: number, segments: number): number[] {
   const pts: number[] = [];

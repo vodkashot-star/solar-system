@@ -1,13 +1,18 @@
 import { clsx, type ClassValue } from "clsx";
 import { twMerge } from "tailwind-merge";
 
-export function cn(...inputs: ClassValue[]) {
+export function cn(...inputs: ClassValue[]): string {
   return twMerge(clsx(inputs));
 }
 
-const getLocalStorage = (key: string): any =>
-  JSON.parse(window.localStorage.getItem(key) || "null");
-const setLocalStorage = (key: string, value: any): void =>
-  window.localStorage.setItem(key, JSON.stringify(value));
+export function getLocalStorage<T>(key: string): T | null {
+  try {
+    return JSON.parse(window.localStorage.getItem(key) ?? "null") as T | null;
+  } catch {
+    return null;
+  }
+}
 
-export { getLocalStorage, setLocalStorage };
+export function setLocalStorage<T>(key: string, value: T): void {
+  window.localStorage.setItem(key, JSON.stringify(value));
+}

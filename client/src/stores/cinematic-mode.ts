@@ -1,9 +1,11 @@
 import { create } from "zustand";
 
-export const useCinematicMode = create<{
+type CinematicState = {
   enabled: boolean;
-  setEnabled: (v: boolean) => void;
-}>((set) => ({
+  setEnabled: (enabled: boolean) => void;
+};
+
+export const useCinematicMode = create<CinematicState>((set) => ({
   enabled: false,
-  setEnabled: (v) => set({ enabled: v }),
+  setEnabled: (enabled) => set({ enabled }),
 }));

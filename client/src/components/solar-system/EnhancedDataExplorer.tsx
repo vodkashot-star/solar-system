@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Body } from "./bodies";
+import type { Body } from "./bodies";
 import AIClassificationPanel from "./AIClassificationPanel";
 
 type DataExplorerProps = {

@@ -3,7 +3,7 @@ import { Canvas } from "@react-three/fiber";
 import { OrbitControls } from "@react-three/drei";
 import { EffectComposer, Bloom } from "@react-three/postprocessing";
 import * as THREE from "three";
-import { BODIES, type Body, type AIAnalysis } from "./bodies";
+import { BODIES, type Body } from "./bodies";
 import Planet from "./Planet";
 import OrbitRings from "./OrbitRings";
 import InstancedStars from "./InstancedStars";
@@ -20,6 +20,23 @@ import BodySearch from "./BodySearch";
 import { useCameraFocus } from "@/stores/camera-focus";
 import { useCinematicMode } from "@/stores/cinematic-mode";
 import SpacecraftOrbit from "./SpacecraftOrbit";
+import MoonOrbit from "./MoonOrbit";
+import { useAIClassification } from "@/hooks/useAIClassification";
+import { useKeyboardNavigation } from "@/hooks/useKeyboardNavigation";
+
+// ── Scale multipliers for each view mode ─────────────────────────────────────
+const SCALE_VISUAL          = 1;
+const SCALE_HYBRID          = 0.6;
+const SCALE_REAL_SIZE       = 0.35;
+const SCALE_REAL_DISTANCE   = 0.25;
+
+// ── Camera clipping planes ────────────────────────────────────────────────────
+/** Near clip — small enough to avoid z-fighting at close approach. */
+const CAMERA_NEAR            = 0.01;
+/** Far clip used when scale is compressed (hybrid / realSize / realDistance). */
+const CAMERA_FAR_COMPRESSED  = 400;
+/** Far clip used for visual scale where orbits extend furthest. */
+const CAMERA_FAR_EXPANDED    = 1500;
 
 export default function SolarSystem() {
   const [tourOn, setTourOn] = useState(true);
@@ -27,7 +44,6 @@ export default function SolarSystem() {
   const [active, setActive] = useState<Body>(BODIES[0]);
   const [scaleMode, setScaleMode] = useState<ScaleMode>("visual");
   const [contextLost, setContextLost] = useState(false);
-  const [aiCache, setAiCache] = useState<Record<string, AIAnalysis>>({});
   const [hoveredBodyId, setHoveredBodyId] = useState<string | null>(null);
   const [detailBodyId, setDetailBodyId] = useState<string | null>(null);
   const [searchOpen, setSearchOpen] = useState(false);
@@ -39,6 +55,9 @@ export default function SolarSystem() {
   const isFocused = useCameraFocus((s) => s.isFocused);
   const setCinematic = useCinematicMode((s) => s.setEnabled);
 
+  // AI classification data for all bodies.
+  const aiCache = useAIClassification(active);
+
   useEffect(() => {
     if (isFocused) setOverview(false);
   }, [isFocused]);
@@ -47,83 +66,40 @@ export default function SolarSystem() {
     setCinematic(tourOn);
   }, [tourOn, setCinematic]);
 
-  useEffect(() => {
-    fetch("/api/ai/precomputed")
-      .then((r) => r.ok ? r.json() : null)
-      .then((data: Record<string, AIAnalysis> | null) => {
-        if (data) setAiCache(data);
-      })
-      .catch(() => {/* AI service offline — fail silently */});
-  }, []); // Empty deps intended - runs once on mount
-
-  useEffect(() => {
-    if (aiCache[active.id]) return;
-    const {
-      orbitalPeriod, axialTilt, mass, radius, eccentricity,
-      density, gravity, temperature, semiMajorAxis, inclination, rotationPeriod,
-    } = active.properties;
-    const params = new URLSearchParams({
-      orbital_period: String(orbitalPeriod),
-      axial_tilt: String(axialTilt),
-      mass: String(mass),
-      radius: String(radius),
-      eccentricity: String(eccentricity),
-      density: String(density),
-      gravity: String(gravity),
-      temperature: String(temperature),
-      semi_major_axis: String(semiMajorAxis),
-      inclination: String(inclination),
-      rotation_period: String(rotationPeriod),
-    });
-    fetch(`/api/ai/classify/${active.id}?${params}`)
-      .then((r) => r.ok ? r.json() : null)
-      .then((data: AIAnalysis | null) => {
-        if (data) setAiCache((c) => ({ ...c, [active.id]: data }));
-      })
-      .catch(() => {/* AI service offline — fail silently */});
-  }, [active.id, aiCache, active.properties]);
-
   const currentIndex = BODIES.findIndex((b) => b.id === active.id);
 
-  useEffect(() => {
-    function handleKey(e: KeyboardEvent) {
-      if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
-      if (e.key === " ") {
-        e.preventDefault();
-        setTourOn((v) => {
-          if (!v) clearFocus();
-          return !v;
-        });
-      } else if (e.key === "ArrowLeft") {
-        const prev = BODIES[(currentIndex - 1 + BODIES.length) % BODIES.length];
-        setTourOn(false);
-        focus(prev.id);
-      } else if (e.key === "ArrowRight") {
-        const next = BODIES[(currentIndex + 1) % BODIES.length];
-        setTourOn(false);
-        focus(next.id);
-      } else if (e.key === "Escape") {
-        // If a modal or search is open, close it only — don't also clear camera focus
-        if (detailBodyId) { setDetailBodyId(null); return; }
-        if (searchOpen) { setSearchOpen(false); return; }
-        clearFocus();
-      } else if (e.key === "/") {
-        e.preventDefault();
-        setSearchOpen(true);
-      }
-    }
-    window.addEventListener("keydown", handleKey);
-    return () => window.removeEventListener("keydown", handleKey);
-  }, [currentIndex, focus, clearFocus, detailBodyId, searchOpen]);
+  useKeyboardNavigation({
+    currentIndex,
+    detailOpen: detailBodyId !== null,
+    searchOpen,
+    onToggleTour: () => {
+      setTourOn((v) => {
+        if (!v) clearFocus();
+        return !v;
+      });
+    },
+    onPrevBody: (bodyId) => {
+      setTourOn(false);
+      focus(bodyId);
+    },
+    onNextBody: (bodyId) => {
+      setTourOn(false);
+      focus(bodyId);
+    },
+    onClearFocus: clearFocus,
+    onCloseDetail: () => setDetailBodyId(null),
+    onOpenSearch: () => setSearchOpen(true),
+    onCloseSearch: () => setSearchOpen(false),
+  });
 
   const scaleMultiplier =
-    scaleMode === "visual" ? 1 :
-    scaleMode === "hybrid" ? 0.6 :
-    scaleMode === "realSize" ? 0.35 :
-    0.25; // realDistance
+    scaleMode === "visual"       ? SCALE_VISUAL        :
+    scaleMode === "hybrid"       ? SCALE_HYBRID        :
+    scaleMode === "realSize"     ? SCALE_REAL_SIZE     :
+    SCALE_REAL_DISTANCE;
 
-  const nearPlane = 0.01;
-  const farPlane = scaleMultiplier < 0.5 ? 400 : 1500;
+  const nearPlane = CAMERA_NEAR;
+  const farPlane = scaleMultiplier < SCALE_HYBRID ? CAMERA_FAR_COMPRESSED : CAMERA_FAR_EXPANDED;
 
   const reportPosCallbacks = useMemo(() => {
     const map: Record<string, (p: THREE.Vector3) => void> = {};
@@ -186,10 +162,26 @@ export default function SolarSystem() {
 
           <OrbitRings scaleMultiplier={scaleMultiplier} />
 
-          {BODIES.filter((b) => b.type !== "spacecraft").map((b) => (
+          {/* Planets and dwarf planets (no parentBody) */}
+          {BODIES.filter((b) => b.type !== "spacecraft" && !b.parentBody).map((b) => (
             <Planet key={b.id} body={b} onPosition={reportPosCallbacks[b.id]} scaleMultiplier={scaleMultiplier} onComputedRadius={reportComputedRadius} onHover={handleHover} speedMultiplier={speedMultiplier} />
           ))}
 
+          {/* Moons (have parentBody) */}
+          {BODIES.filter((b) => b.parentBody).map((b) => (
+            <MoonOrbit
+              key={b.id}
+              body={b}
+              parentPositionRef={positions}
+              onPosition={reportPosCallbacks[b.id]}
+              scaleMultiplier={scaleMultiplier}
+              onComputedRadius={reportComputedRadius}
+              onHover={handleHover}
+              speedMultiplier={speedMultiplier}
+            />
+          ))}
+
+          {/* Spacecraft */}
           {BODIES.filter((b) => b.type === "spacecraft").map((b) => (
             <SpacecraftOrbit
               key={b.id}
@@ -208,7 +200,14 @@ export default function SolarSystem() {
           <CinematicTour enabled={tourOn} onActiveChange={setActive} onOverviewChange={setOverview} positions={positions} computedRadii={computedRadii} speedMultiplier={speedMultiplier} />
 
           {!tourOn && (
-            <OrbitControls enableDamping {...({ dampingFactor: 0.15, minDistance: 2, maxDistance: 200, zoomSpeed: 0.8, rotateSpeed: 0.6 } as any)} />
+            <OrbitControls
+              enableDamping
+              dampingFactor={0.15}
+              minDistance={2}
+              maxDistance={200}
+              zoomSpeed={0.8}
+              rotateSpeed={0.6}
+            />
           )}
 
           <EffectComposer>
@@ -224,6 +223,7 @@ export default function SolarSystem() {
           <p className="mt-1 text-xs text-white/40">Recovering...</p>
           <button
             onClick={() => window.location.reload()}
+            aria-label="Reload page to recover WebGL context"
             className="mt-6 rounded-lg border border-white/20 bg-white/5 px-6 py-2 text-xs font-medium text-white/70 transition hover:bg-white/10"
           >
             Reload page
@@ -240,6 +240,7 @@ export default function SolarSystem() {
             <button
               onClick={() => setSearchOpen(true)}
               className="rounded-full border border-white/15 bg-white/5 px-2 py-1 text-[10px] font-medium text-white/60 backdrop-blur transition hover:bg-white/10 hover:text-white"
+              aria-label="Search bodies (press /)"
               title="Search bodies (/)"
             >
               Search
@@ -256,6 +257,7 @@ export default function SolarSystem() {
                 step="0.1"
                 value={speedMultiplier}
                 onChange={(e) => setSpeedMultiplier(parseFloat(e.target.value))}
+                aria-label="Simulation speed"
                 className="h-2 w-10 cursor-pointer appearance-none rounded-full bg-white/20 accent-white sm:h-1 sm:w-16"
               />
               <span className="w-3 text-right text-[9px] font-medium text-white/70 sm:w-5 sm:text-[10px]">{speedMultiplier.toFixed(1)}x</span>
@@ -267,6 +269,7 @@ export default function SolarSystem() {
                   return !v;
                 });
               }}
+              aria-label={tourOn ? "Pause cinematic tour" : "Start cinematic tour"}
               className="rounded-full border border-white/15 bg-white/5 px-2 py-1 text-[10px] font-medium text-white/90 backdrop-blur-md transition hover:bg-white/10 sm:px-4 sm:py-1.5 sm:text-xs"
             >
               {tourOn ? "Pause" : "Tour"}
@@ -301,6 +304,7 @@ export default function SolarSystem() {
               </div>
               <button
                 onClick={() => setDetailBodyId(active.id)}
+                aria-label={`View details for ${active.name}`}
                 className="pointer-events-auto ml-2 mt-0.5 shrink-0 rounded-full border border-white/15 bg-white/5 px-2 py-0.5 text-[10px] font-medium text-white/70 backdrop-blur transition hover:bg-white/10 hover:text-white"
               >
                 Details

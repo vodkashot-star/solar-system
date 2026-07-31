@@ -11,6 +11,19 @@ const ATMOSPHERE_COLORS: Record<string, string> = {
   neptune: "#5b9bd5",
 };
 
+/**
+ * Convert a CSS hex colour string (e.g. `"#4fc3f7"`) to an
+ * `rgba(r, g, b, a)` string. Falls back to transparent white on parse error.
+ */
+function hexToRgba(hex: string, alpha: number): string {
+  const clean = hex.replace("#", "");
+  const r = parseInt(clean.slice(0, 2), 16);
+  const g = parseInt(clean.slice(2, 4), 16);
+  const b = parseInt(clean.slice(4, 6), 16);
+  if (isNaN(r) || isNaN(g) || isNaN(b)) return `rgba(255,255,255,${alpha})`;
+  return `rgba(${r},${g},${b},${alpha})`;
+}
+
 function makeGlowTexture(size: number, color: string): THREE.CanvasTexture {
   const canvas = document.createElement("canvas");
   canvas.width = size;
@@ -20,10 +33,10 @@ function makeGlowTexture(size: number, color: string): THREE.CanvasTexture {
   const cy = size / 2;
   const r = size / 2;
   const gradient = ctx.createRadialGradient(cx, cy, r * 0.1, cx, cy, r);
-  gradient.addColorStop(0, "rgba(0, 0, 0, 0)");
-  gradient.addColorStop(0.1, color.replace(")", ", 0.4)").replace("rgb", "rgba"));
-  gradient.addColorStop(0.5, color.replace(")", ", 0.12)").replace("rgb", "rgba"));
-  gradient.addColorStop(1, "rgba(0, 0, 0, 0)");
+  gradient.addColorStop(0, "rgba(0,0,0,0)");
+  gradient.addColorStop(0.1, hexToRgba(color, 0.4));
+  gradient.addColorStop(0.5, hexToRgba(color, 0.12));
+  gradient.addColorStop(1, "rgba(0,0,0,0)");
   ctx.fillStyle = gradient;
   ctx.fillRect(0, 0, size, size);
   const tex = new THREE.CanvasTexture(canvas);
