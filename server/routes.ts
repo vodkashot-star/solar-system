@@ -9,6 +9,76 @@ import { eq, sql } from "drizzle-orm";
 const SPACEAI_URL      = process.env.SPACEAI_URL ?? "http://127.0.0.1:8000";
 const PROXY_TIMEOUT_MS = 10_000;
 
+// ── File-based cache fallback ──────────────────────────────────────────────
+// FastAPI's precompute step writes spaceAI/data/ai_cache.json. Load it once at
+// startup so classification endpoints work even when both Postgres and
+// FastAPI (:8000) are offline.
+const FILE_CACHE_PATH = path.resolve(process.cwd(), "spaceAI/data/ai_cache.json");
+
+function loadFileCache(): Record<string, unknown> {
+  try {
+    const raw = fs.readFileSync(FILE_CACHE_PATH, "utf-8");
+    const parsed = JSON.parse(raw);
+    if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) {
+      console.warn(`[cache] Unexpected shape in ${FILE_CACHE_PATH}`);
+      return {};
+    }
+    return parsed as Record<string, unknown>;
+  } catch (err) {
+    const code = (err as NodeJS.ErrnoException).code;
+    if (code !== "ENOENT") {
+      console.error(`[cache] Failed to load ${FILE_CACHE_PATH}:`, err);
+    }
+    return {};
+  }
+}
+
+const FILE_CACHE = loadFileCache();
+const FILE_CACHE_COUNT = Object.keys(FILE_CACHE).length;
+if (FILE_CACHE_COUNT > 0) {
+  console.log(`[cache] Loaded ${FILE_CACHE_COUNT} classifications from ${FILE_CACHE_PATH}`);
+}
+
+// ── Pending corrections queue ──────────────────────────────────────────────
+// Corrections are forwarded to FastAPI so retrain can use them. When FastAPI
+// is offline the correction is queued to disk; FastAPI drains the queue on
+// startup, so no correction is ever orphaned in Postgres only.
+const PENDING_CORRECTIONS_PATH = path.resolve(
+  process.cwd(),
+  "spaceAI/data/pending_corrections.json",
+);
+
+function queuePendingCorrection(bodyId: string, body: Record<string, unknown>): void {
+  try {
+    let pending: Array<Record<string, unknown>> = [];
+    if (fs.existsSync(PENDING_CORRECTIONS_PATH)) {
+      const raw = fs.readFileSync(PENDING_CORRECTIONS_PATH, "utf-8");
+      const parsed = JSON.parse(raw);
+      if (Array.isArray(parsed)) pending = parsed;
+    }
+    pending.push({ body_id: bodyId, ...body, queued_at: new Date().toISOString() });
+    fs.writeFileSync(
+      PENDING_CORRECTIONS_PATH,
+      JSON.stringify(pending, null, 2) + "\n",
+      "utf-8",
+    );
+    console.log(`[corrections] FastAPI offline — queued correction for ${bodyId}`);
+  } catch (err) {
+    console.error("[corrections] Failed to queue pending correction:", err);
+  }
+}
+
+function mergeCacheSources(...sources: Array<Record<string, unknown> | null>): Record<string, unknown> {
+  const merged: Record<string, unknown> = {};
+  for (const source of sources) {
+    if (!source) continue;
+    for (const [bodyId, entry] of Object.entries(source)) {
+      if (!(bodyId in merged)) merged[bodyId] = entry;
+    }
+  }
+  return merged;
+}
+
 // ── Taxonomy auto-sync ──────────────────────────────────────────────────────
 
 const TAXONOMY_PATH = path.resolve(process.cwd(), "spaceAI/data/solar_system.json");
@@ -92,65 +162,65 @@ const STATIC_CLASSIFICATIONS: Record<string, {
   similarObjects: { bodyId: string; similarity: number }[];
 }> = {
   "apollo-lm": {
-    classification: "Lunar Module",
+    classification: "Spacecraft",
     confidence: 0.92,
-    alternatives: [{ type: "Spacecraft", score: 0.08 }],
+    alternatives: [{ type: "Lander", score: 0.08 }],
     features: [{ name: "type", value: 1, importance: 1.0 }],
     similarObjects: [{ bodyId: "huygens", similarity: 0.65 }],
   },
   "new-horizons": {
-    classification: "Space Probe",
+    classification: "Spacecraft",
     confidence: 0.95,
     alternatives: [{ type: "Flyby Spacecraft", score: 0.05 }],
     features: [{ name: "type", value: 1, importance: 1.0 }],
-    similarObjects: [{ bodyId: "voyager-1", similarity: 0.82 }],
+    similarObjects: [{ bodyId: "voyager", similarity: 0.82 }],
   },
   "juno-spacecraft": {
-    classification: "Space Probe",
+    classification: "Spacecraft",
     confidence: 0.93,
     alternatives: [{ type: "Orbiter", score: 0.07 }],
     features: [{ name: "type", value: 1, importance: 1.0 }],
     similarObjects: [{ bodyId: "cassini", similarity: 0.78 }],
   },
-  "voyager-1": {
-    classification: "Interstellar Probe",
+  "voyager": {
+    classification: "Spacecraft",
     confidence: 0.97,
-    alternatives: [{ type: "Space Probe", score: 0.03 }],
+    alternatives: [{ type: "Interstellar Probe", score: 0.03 }],
     features: [{ name: "type", value: 1, importance: 1.0 }],
     similarObjects: [{ bodyId: "voyager-2", similarity: 0.95 }],
   },
   "voyager-2": {
-    classification: "Interstellar Probe",
+    classification: "Spacecraft",
     confidence: 0.97,
-    alternatives: [{ type: "Space Probe", score: 0.03 }],
+    alternatives: [{ type: "Interstellar Probe", score: 0.03 }],
     features: [{ name: "type", value: 1, importance: 1.0 }],
-    similarObjects: [{ bodyId: "voyager-1", similarity: 0.95 }],
+    similarObjects: [{ bodyId: "voyager", similarity: 0.95 }],
   },
   "cassini": {
-    classification: "Orbiter",
+    classification: "Spacecraft",
     confidence: 0.94,
-    alternatives: [{ type: "Space Probe", score: 0.06 }],
+    alternatives: [{ type: "Orbiter", score: 0.06 }],
     features: [{ name: "type", value: 1, importance: 1.0 }],
     similarObjects: [{ bodyId: "juno-spacecraft", similarity: 0.78 }],
   },
   "huygens": {
-    classification: "Atmospheric Probe",
+    classification: "Spacecraft",
     confidence: 0.91,
-    alternatives: [{ type: "Lander", score: 0.09 }],
+    alternatives: [{ type: "Atmospheric Probe", score: 0.09 }],
     features: [{ name: "type", value: 1, importance: 1.0 }],
     similarObjects: [{ bodyId: "apollo-lm", similarity: 0.65 }],
   },
   "perseverance": {
-    classification: "Mars Rover",
+    classification: "Spacecraft",
     confidence: 0.96,
-    alternatives: [{ type: "Lander", score: 0.04 }],
+    alternatives: [{ type: "Rover", score: 0.04 }],
     features: [{ name: "type", value: 1, importance: 1.0 }],
     similarObjects: [{ bodyId: "curiosity", similarity: 0.88 }],
   },
   "curiosity": {
-    classification: "Mars Rover",
+    classification: "Spacecraft",
     confidence: 0.96,
-    alternatives: [{ type: "Lander", score: 0.04 }],
+    alternatives: [{ type: "Rover", score: 0.04 }],
     features: [{ name: "type", value: 1, importance: 1.0 }],
     similarObjects: [{ bodyId: "perseverance", similarity: 0.88 }],
   },
@@ -217,15 +287,18 @@ async function handleCorrection(
   // Auto-sync the corrected type to solar_system.json
   syncTaxonomyToJson(bodyId, corrected_type as string);
 
-  // Forward to FastAPI so retrain incorporates it — fail silently if offline
+  // Forward to FastAPI so retrain incorporates it — queue to disk if offline
   try {
-    await fetch(`${SPACEAI_URL}/classify/${bodyId}/correct`, {
+    const upstream = await fetch(`${SPACEAI_URL}/classify/${bodyId}/correct`, {
       method:  "POST",
       headers: { "Content-Type": "application/json" },
       body:    JSON.stringify(body),
       signal:  AbortSignal.timeout(PROXY_TIMEOUT_MS),
     });
-  } catch { /* FastAPI may be offline */ }
+    if (!upstream.ok) queuePendingCorrection(bodyId, body);
+  } catch {
+    queuePendingCorrection(bodyId, body);
+  }
 
   res.json({ status: "ok" });
 }
@@ -237,16 +310,17 @@ export function registerRoutes(app: Express): Server {
   app.get("/api/health", async (_req, res) => {
     try {
       const [{ count }] = await db.select({ count: sql<number>`count(*)::int` }).from(aiCache);
-      res.json({ status: "ok", cached_bodies: count ?? 0 });
+      res.json({ status: "ok", cached_bodies: (count ?? 0) + FILE_CACHE_COUNT });
     } catch {
-      res.json({ status: "ok", cached_bodies: 0 });
+      res.json({ status: "ok", cached_bodies: FILE_CACHE_COUNT });
     }
   });
 
   app.get("/api/ai/precomputed", async (req, res) => {
     const cached = await getAICache();
-    // Merge static fallback entries so known spacecraft always appear
-    const merged = { ...cached };
+    // Merge DB → file cache → static fallbacks so known spacecraft always
+    // appear and the bulk endpoint works with FastAPI offline.
+    const merged = mergeCacheSources(cached, FILE_CACHE);
     for (const [bodyId, entry] of Object.entries(STATIC_CLASSIFICATIONS)) {
       if (!(bodyId in (merged ?? {}))) {
         (merged as Record<string, unknown>)[bodyId] = {
@@ -259,10 +333,10 @@ export function registerRoutes(app: Express): Server {
         };
       }
     }
-    if (merged && Object.keys(merged).length > 0) {
+    if (Object.keys(merged).length > 0) {
       res.json(merged);
     } else {
-      // No DB cache — proxy directly to FastAPI
+      // No cache anywhere — proxy directly to FastAPI
       await proxyToFastAI(req, res, "/precomputed");
     }
   });
@@ -278,6 +352,12 @@ export function registerRoutes(app: Express): Server {
         return;
       }
     } catch { /* fall through to static or proxy */ }
+
+    // File cache fallback (precompute output) when DB has no entry
+    if (bodyId in FILE_CACHE) {
+      res.json({ bodyId, ...FILE_CACHE[bodyId] as object });
+      return;
+    }
 
     // Static fallback for known spacecraft when DB has no entry
     if (bodyId in STATIC_CLASSIFICATIONS) {

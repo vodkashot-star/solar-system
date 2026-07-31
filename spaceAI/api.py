@@ -8,6 +8,7 @@ Returns AIAnalysis JSON matching the TypeScript AIAnalysis type.
 from contextlib import asynccontextmanager
 from pathlib import Path
 from typing import Dict, List
+import json
 import numpy as np
 import pandas as pd
 from fastapi import FastAPI, HTTPException, Query
@@ -19,6 +20,27 @@ sys.path.insert(0, str(Path(__file__).parent / "src"))
 from predict import CelestialPredictor, FEATURES
 
 DATA_PATH = Path(__file__).parent / "data" / "celestial_objects.csv"
+
+# CSV names → frontend body ids (bodies.ts). CSV rows use display names that
+# don't match the app's kebab-case ids, which breaks "Similar bodies" clicks.
+CSV_NAME_TO_BODY_ID = {
+    "apollo lunar module": "apollo-lm",
+    "apollolm": "apollo-lm",
+    "newhorizons": "new-horizons",
+    "junospacecraft": "juno-spacecraft",
+    "voyager2": "voyager-2",
+    "voyager": "voyager",
+    "1i/'oumuamua": "oumuamua",
+    "2i/borisov": "borisov",
+    "67p/churyumov-gerasimenko": "churyumov",
+    "9p/tempel 1": "tempel1",
+    "81p/wild 2": "wild2",
+}
+
+
+def _csv_name_to_body_id(name: str) -> str:
+    key = name.lower().replace(" ", "")
+    return CSV_NAME_TO_BODY_ID.get(key, name.lower().replace(" ", "_"))
 
 
 class Alternative(BaseModel):
@@ -68,10 +90,57 @@ def _load_regressor(target: str):
     return joblib.load(str(path))
 
 
+PENDING_CORRECTIONS_PATH = Path(__file__).parent / "data" / "pending_corrections.json"
+
+
+def _drain_pending_corrections():
+    """Import corrections queued by Express while this service was offline.
+
+    Express writes Postgres (durable) and, when :8000 is unreachable, appends
+    the correction to pending_corrections.json. Draining here keeps the SQLite
+    retrain source in sync so no correction is orphaned.
+    """
+    if not PENDING_CORRECTIONS_PATH.exists():
+        return
+    try:
+        pending = json.loads(PENDING_CORRECTIONS_PATH.read_text("utf-8"))
+    except (json.JSONDecodeError, OSError) as err:
+        print(f"[corrections] Failed to read pending corrections: {err}")
+        return
+    if not isinstance(pending, list) or not pending:
+        return
+    from src.database import Correction as CorrectionModel, get_session, init_db
+    init_db()
+    imported = 0
+    with get_session() as session:
+        for entry in pending:
+            if not isinstance(entry, dict) or not entry.get("body_id"):
+                continue
+            session.add(
+                CorrectionModel(
+                    body_id=entry["body_id"],
+                    predicted_type=entry.get("predicted_type", ""),
+                    corrected_type=entry.get("corrected_type", ""),
+                    features=entry.get("features", []),
+                    uncertainty=entry.get("uncertainty", 0.0) or 0.0,
+                    source="user",
+                )
+            )
+            imported += 1
+        session.commit()
+    if imported:
+        try:
+            PENDING_CORRECTIONS_PATH.unlink()
+        except OSError:
+            pass
+        print(f"[corrections] Imported {imported} queued corrections from Express")
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     from src.database import init_db
     init_db()
+    _drain_pending_corrections()
     # precompute_all is CPU-bound — run in a thread executor so we don't block
     # the event loop during startup
     import asyncio
@@ -233,7 +302,7 @@ def classify(
 
     query_vec = np.array(values, dtype=float)
     sims = [
-        (_names[i].lower().replace(" ", "_"), _cosine_sim(query_vec, _feature_matrix[i]))
+        (_csv_name_to_body_id(_names[i]), _cosine_sim(query_vec, _feature_matrix[i]))
         for i in range(len(_names))
         if _names[i].lower() != body_id.lower()
     ]

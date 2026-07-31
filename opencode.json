@@ -1,0 +1,27 @@
+{
+  "$schema": "https://opencode.ai/config.json",
+  "instructions": ["AGENTS.md"],
+  "model": "opencode/deepseek-v4-flash-free",
+  "small_model": "opencode/north-mini-code-free",
+  "agent": {
+    "plan": {
+      "model": "opencode/nemotron-3-ultra-free"
+    }
+  },
+  "skills": {
+    "paths": [".opencode/skills"]
+  },
+  "permission": {
+    "bash": {
+      "npm run check": "allow",
+      "npm test": "allow",
+      "npm run validate": "allow",
+      "npm run models:*": "allow",
+      "npm run ai:*": "allow",
+      "git status": "allow",
+      "git diff": "allow",
+      "git log": "allow",
+      "*": "ask"
+    }
+  }
+}
