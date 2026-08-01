@@ -31,6 +31,8 @@ type SpacecraftOrbitProps = {
   onComputedRadius?: (bodyId: string, radius: number) => void;
   onHover?: (bodyId: string | null) => void;
   speedMultiplier?: number;
+  /** Lazy-load gate, forwarded to the inner Planet. */
+  isWanted?: boolean;
 };
 
 // Scratch vectors — reused every frame to avoid allocations.
@@ -46,6 +48,7 @@ export default function SpacecraftOrbit({
   onComputedRadius,
   onHover,
   speedMultiplier = 1,
+  isWanted = true,
 }: SpacecraftOrbitProps) {
   const groupRef = useRef<THREE.Group>(null);
 
@@ -104,6 +107,7 @@ export default function SpacecraftOrbit({
         onComputedRadius={onComputedRadius}
         onHover={onHover}
         speedMultiplier={speedMultiplier}
+        isWanted={isWanted}
       />
     </group>
   );

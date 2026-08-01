@@ -33,6 +33,9 @@ type PlanetProps = {
   onComputedRadius?: (bodyId: string, radius: number) => void;
   onHover?: (bodyId: string | null) => void;
   speedMultiplier?: number;
+  /** Lazy-load gate: when false the GLB stays unmounted and a cheap
+   *  procedural sphere renders instead (no download, no Draco decode). */
+  isWanted?: boolean;
 };
 
 const ATMOSPHERE_BODIES = new Set(["earth", "venus", "mars", "jupiter", "saturn", "neptune"]);
@@ -177,11 +180,18 @@ function FallbackSphere({ radius, color, emissive, bodyId, bodyType }: {
   );
 }
 
-export default function Planet({ body, onPosition, scaleMultiplier = 1, onComputedRadius, onHover, speedMultiplier = 1 }: PlanetProps) {
+export default function Planet({ body, onPosition, scaleMultiplier = 1, onComputedRadius, onHover, speedMultiplier = 1, isWanted = true }: PlanetProps) {
   const pivot = useRef<THREE.Group>(null);
   const spin = useRef<THREE.Group>(null);
   const focus = useCameraFocus((s) => s.focus);
   const [glbReady, setGlbReady] = useState(false);
+  // Once a model has been wanted (and thus loaded/cached) keep it mounted so
+  // it never pops back to the procedural sphere when the tour moves on.
+  const [everWanted, setEverWanted] = useState(isWanted);
+
+  useEffect(() => {
+    if (isWanted) setEverWanted(true);
+  }, [isWanted]);
 
   const effectiveOrbit = body.orbit * scaleMultiplier;
   const effectiveRadius = body.visualRadius * (RADIUS_SCALE_MIN + RADIUS_SCALE_WEIGHT * scaleMultiplier);
@@ -276,7 +286,7 @@ export default function Planet({ body, onPosition, scaleMultiplier = 1, onComput
     <group ref={pivot}>
       <group ref={spin} rotation={[0, 0, body.tilt]}>
         <Suspense fallback={<FallbackSphere radius={effectiveRadius} color={body.color} emissive={isSun} bodyId={body.id} bodyType={body.type} />}>
-          {body.glbUrl ? (
+          {body.glbUrl && everWanted ? (
             <GLBLoadErrorBoundary bodyId={body.id} bodyName={body.name} fallback={
               <group onClick={handleClick} onPointerOver={handlePointerOver} onPointerOut={handlePointerOut}>
                 <FallbackSphere radius={effectiveRadius} color={body.color} emissive={isSun} bodyId={body.id} bodyType={body.type} />

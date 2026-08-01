@@ -1,6 +1,6 @@
 import { useRef, useState, useMemo, useCallback, useEffect } from "react";
 import { Canvas } from "@react-three/fiber";
-import { OrbitControls } from "@react-three/drei";
+import { OrbitControls, useGLTF } from "@react-three/drei";
 import { EffectComposer, Bloom } from "@react-three/postprocessing";
 import * as THREE from "three";
 import { BODIES, type Body } from "./bodies";
@@ -53,7 +53,40 @@ export default function SolarSystem() {
   const clearFocus = useCameraFocus((s) => s.clear);
   const focus = useCameraFocus((s) => s.focus);
   const isFocused = useCameraFocus((s) => s.isFocused);
+  const focusTarget = useCameraFocus((s) => s.targetBodyId);
   const setCinematic = useCinematicMode((s) => s.setEnabled);
+
+  // Bodies that need their real GLB mounted right now: the tour/focus target,
+  // hovered body, and the body in the detail modal. Everything else renders the
+  // cheap procedural sphere until it becomes wanted (lazy GLB loading).
+  const wantedIds = useMemo(() => {
+    const ids = new Set<string>();
+    if (tourOn && active) ids.add(active.id);
+    if (isFocused && focusTarget) ids.add(focusTarget);
+    if (hoveredBodyId) ids.add(hoveredBodyId);
+    if (detailBodyId) ids.add(detailBodyId);
+    return ids;
+  }, [tourOn, active, isFocused, focusTarget, hoveredBodyId, detailBodyId]);
+
+  // Prefetch the next few tour bodies in idle time so the tour never stalls
+  // on a model download (useGLTF cache makes revisits instant).
+  useEffect(() => {
+    if (!tourOn || !active) return;
+    const idx = BODIES.findIndex((b) => b.id === active.id);
+    if (idx < 0) return;
+    const urls: string[] = [];
+    for (let i = 1; i <= 3 && urls.length < 3; i++) {
+      const b = BODIES[(idx + i) % BODIES.length];
+      if (b.glbUrl) urls.push(b.glbUrl);
+    }
+    const prefetch = () => urls.forEach((u) => useGLTF.preload(u));
+    if (typeof requestIdleCallback === "function") {
+      const id = requestIdleCallback(prefetch, { timeout: 2000 });
+      return () => cancelIdleCallback(id);
+    }
+    const t = window.setTimeout(prefetch, 500);
+    return () => window.clearTimeout(t);
+  }, [tourOn, active]);
 
   // AI classification data for all bodies.
   const aiCache = useAIClassification(active);
@@ -164,7 +197,7 @@ export default function SolarSystem() {
 
           {/* Planets and dwarf planets (no parentBody) */}
           {BODIES.filter((b) => b.type !== "spacecraft" && !b.parentBody).map((b) => (
-            <Planet key={b.id} body={b} onPosition={reportPosCallbacks[b.id]} scaleMultiplier={scaleMultiplier} onComputedRadius={reportComputedRadius} onHover={handleHover} speedMultiplier={speedMultiplier} />
+            <Planet key={b.id} body={b} onPosition={reportPosCallbacks[b.id]} scaleMultiplier={scaleMultiplier} onComputedRadius={reportComputedRadius} onHover={handleHover} speedMultiplier={speedMultiplier} isWanted={wantedIds.has(b.id)} />
           ))}
 
           {/* Moons (have parentBody) */}
@@ -178,6 +211,7 @@ export default function SolarSystem() {
               onComputedRadius={reportComputedRadius}
               onHover={handleHover}
               speedMultiplier={speedMultiplier}
+              isWanted={wantedIds.has(b.id)}
             />
           ))}
 
@@ -193,6 +227,7 @@ export default function SolarSystem() {
               onComputedRadius={reportComputedRadius}
               onHover={handleHover}
               speedMultiplier={speedMultiplier}
+              isWanted={wantedIds.has(b.id)}
             />
           ))}
 
@@ -210,9 +245,11 @@ export default function SolarSystem() {
             />
           )}
 
-          <EffectComposer>
-            <Bloom intensity={tourOn ? 0.9 : 0} luminanceThreshold={0.6} luminanceSmoothing={0.2} mipmapBlur />
-          </EffectComposer>
+          {(tourOn || isFocused) && (
+            <EffectComposer>
+              <Bloom intensity={tourOn ? 0.9 : 0} luminanceThreshold={0.6} luminanceSmoothing={0.2} mipmapBlur />
+            </EffectComposer>
+          )}
         </Canvas>
       </div>
 

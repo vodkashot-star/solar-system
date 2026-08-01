@@ -38,7 +38,7 @@
 - **Asset manifests**: `client/src/assets/solar/<name>.glb.asset.json` — pointer: `{"url":"/models/<name>.glb"}`. CDN swap = edit JSON only. **Never hardcode `/models/` URLs.**
 - **Draco WASM**: `scripts/copy-draco.sh` copies `node_modules/three/examples/jsm/libs/draco/*` → `client/public/draco/` and `dist/draco/`. Runs automatically in `dev`/`build`/`build:cf` (first command in the npm script).
 - **Real GLBs**: planets/moons from `assets.science.nasa.gov` + `svs.gsfc.nasa.gov`; spacecraft/`juno-spacecraft` from `github.com/nasa/NASA-3D-Resources`; asteroids `bennu`/`itokawa`/`eros` from `assets.science.nasa.gov`
-- **External textures**: `cassini.glb`/`curiosity.glb`/`hubble.glb` reference loose image files in `client/public/models/` (`baseColor_*.webp/png`, `cassini.glb_*.png`, `hubble.glb_*.png`, `normal_1.png`) via GLB `uri` — **never delete those files**; `validate_glb.sh` flags GLBs with external refs (warning)
+- **All GLBs self-contained**: textures are embedded (bufferView) — `validate_glb.sh` warns ("external texture ref(s)") if any GLB references loose image files
 - **No NASA model exists** for `dragonfly` and the minor asteroids (`vesta`, `pallas`, `juno`, `hygiea`, `astraea`, `apophis`, `psyche`, `varda`, `oumuamua`, `halley`) — they render procedural textured spheres (`FallbackSphere`), no `glbUrl`
 - **Validation**: `scripts/validate_glb.sh` validates GLB headers (via Python), asset JSONs, Draco compression, and file sizes. Run with `npm run models:validate`. Auto-fix with `npm run models:validate:fix`.
 

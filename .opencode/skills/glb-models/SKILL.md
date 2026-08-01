@@ -33,5 +33,5 @@ description: Use when adding, converting, validating, or fixing GLB models, or w
 
 - Draco WASM is copied automatically by `dev`/`build`/`build:cf` (first command in the npm scripts); if models fail to load anyway, run `bash scripts/copy-draco.sh` manually
 - Corrupt GLBs (wrong JSON-chunk padding) are caught by `scripts/validate_glb.sh` — fix with `npm run models:validate:fix`
-- **`cassini.glb`/`curiosity.glb`/`hubble.glb` use external textures** — loose files in `client/public/models/` (`baseColor_*.webp/png`, `cassini.glb_*.png`, `hubble.glb_*.png`, `normal_1.png`) referenced via GLB `uri`. They render white without them. `validate_glb.sh` warns ("external texture ref(s)") — the warning is expected for those 3 and must NOT be "fixed" by deleting the files
+- All GLBs must be self-contained — textures embedded (bufferView), no `uri` refs to loose files. If `validate_glb.sh` reports "external texture ref(s)", embed them (re-run the converter with the texture on disk) — never commit loose image files in `client/public/models/`
 - No NASA model exists for `dragonfly` or the minor asteroids (`vesta`, `pallas`, `juno`, `hygiea`, `astraea`, `apophis`, `psyche`, `varda`, `oumuamua`, `halley`) — they use `FallbackSphere` (procedural textures), no `glbUrl`

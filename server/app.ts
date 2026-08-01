@@ -1,6 +1,7 @@
 import { type Server } from "node:http";
 
 import cors from "cors";
+import compression from "compression";
 import express, {
   type Express,
   type Request,
@@ -31,6 +32,17 @@ app.use(cors({
 
 app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
+
+// Gzip/brotli for text assets (JS/CSS/JSON/HTML). GLBs are already
+// Draco+JPEG compressed so the filter skips them.
+app.use(compression({
+  threshold: 1024,
+  filter: (req, res) => {
+    const type = (res.getHeader("Content-Type") as string) ?? "";
+    if (type.includes("model/gltf") || type.includes("image/")) return false;
+    return compression.filter(req, res);
+  },
+}));
 
 app.use((req, res, next) => {
   const start = Date.now();

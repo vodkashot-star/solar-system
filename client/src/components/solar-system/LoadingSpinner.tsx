@@ -12,15 +12,17 @@ export default function LoadingSpinner() {
   const loadedCount = entries.filter((e) => e.status === "loaded").length;
   const loadingCount = entries.filter((e) => e.status === "loading").length;
   const errorCount = entries.filter((e) => e.status === "error").length;
-  const allDone = loadedCount + errorCount >= TOTAL_BODIES;
+  const anyBodyReady = loadedCount + errorCount >= 1;
   const [timedOut, setTimedOut] = useState(false);
 
   useEffect(() => {
-    const id = setTimeout(() => setTimedOut(true), 15_000);
+    const id = setTimeout(() => setTimedOut(true), 5000);
     return () => clearTimeout(id);
   }, []);
 
-  if (allDone || timedOut) return null;
+  // Never block the scene: hide as soon as the first body is ready (lazy
+  // loading means the rest stream in on demand) or after a short cap.
+  if (anyBodyReady || timedOut) return null;
 
   return (
     <div className="pointer-events-none fixed inset-0 z-50 flex flex-col items-center justify-center bg-black/70 backdrop-blur-sm transition-opacity duration-700">

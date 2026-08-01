@@ -22,6 +22,8 @@ type MoonOrbitProps = {
   onComputedRadius?: (bodyId: string, radius: number) => void;
   onHover?: (bodyId: string | null) => void;
   speedMultiplier?: number;
+  /** Lazy-load gate, forwarded to the inner Planet. */
+  isWanted?: boolean;
 };
 
 // Scratch vectors — reused every frame to avoid allocations.
@@ -36,6 +38,7 @@ export default function MoonOrbit({
   onComputedRadius,
   onHover,
   speedMultiplier = 1,
+  isWanted = true,
 }: MoonOrbitProps) {
   const groupRef = useRef<THREE.Group>(null);
 
@@ -91,6 +94,7 @@ export default function MoonOrbit({
         onComputedRadius={onComputedRadius}
         onHover={onHover}
         speedMultiplier={speedMultiplier}
+        isWanted={isWanted}
       />
     </group>
   );

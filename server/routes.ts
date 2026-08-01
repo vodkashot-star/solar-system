@@ -4,7 +4,7 @@ import fs from "fs";
 import path from "path";
 import { db } from "./db";
 import { aiCache, corrections, celestialBodies } from "../shared/schema";
-import { eq, sql } from "drizzle-orm";
+import { eq } from "drizzle-orm";
 
 const SPACEAI_URL      = process.env.SPACEAI_URL ?? "http://127.0.0.1:8000";
 const PROXY_TIMEOUT_MS = 10_000;
@@ -228,13 +228,40 @@ const STATIC_CLASSIFICATIONS: Record<string, {
 
 // ── Helpers ────────────────────────────────────────────────────────────────
 
-async function getAICache(): Promise<Record<string, unknown> | null> {
+// ── In-memory merged AI cache ──────────────────────────────────────────────
+// DB rows are only re-read on a 60s TTL or after a correction is submitted, so
+// the AI endpoints never pay Neon connect latency (1-2s) per request. Falls
+// back to the file cache (loaded at startup) when Postgres is slow or offline.
+const AI_CACHE_TTL_MS = 60_000;
+let mergedAICache: Record<string, unknown> | null = null;
+let mergedAICacheLoadedAt = 0;
+let lastDBCount = 0;
+
+async function getMergedAICache(force = false): Promise<Record<string, unknown>> {
+  const now = Date.now();
+  if (!force && mergedAICache !== null && now - mergedAICacheLoadedAt < AI_CACHE_TTL_MS) {
+    return mergedAICache;
+  }
+
+  const merge = (dbRows: Record<string, unknown> | null): Record<string, unknown> => {
+    const merged = mergeCacheSources(dbRows, FILE_CACHE);
+    for (const [bodyId, entry] of Object.entries(STATIC_CLASSIFICATIONS)) {
+      if (!(bodyId in merged)) {
+        merged[bodyId] = { bodyId, ...entry };
+      }
+    }
+    return merged;
+  };
+
   try {
     const rows = await db.select().from(aiCache);
-    return Object.fromEntries(rows.map((r) => [r.bodyId, r]));
+    lastDBCount = rows.length;
+    mergedAICache = merge(Object.fromEntries(rows.map((r) => [r.bodyId, r])));
   } catch {
-    return null;
+    mergedAICache = merge(null);
   }
+  mergedAICacheLoadedAt = now;
+  return mergedAICache;
 }
 
 async function proxyToFastAI(req: Request, res: Response, endpoint: string): Promise<void> {
@@ -280,6 +307,8 @@ async function handleCorrection(
       uncertainty:   (uncertainty as number) ?? null,
       source:        "user",
     });
+    // Corrections must surface immediately — force a fresh merge next read.
+    mergedAICache = null;
   } catch (err) {
     console.error("[db] failed to save correction:", err);
   }
@@ -309,30 +338,17 @@ export function registerRoutes(app: Express): Server {
 
   app.get("/api/health", async (_req, res) => {
     try {
-      const [{ count }] = await db.select({ count: sql<number>`count(*)::int` }).from(aiCache);
-      res.json({ status: "ok", cached_bodies: (count ?? 0) + FILE_CACHE_COUNT });
+      await getMergedAICache();
+      res.json({ status: "ok", cached_bodies: lastDBCount + FILE_CACHE_COUNT });
     } catch {
       res.json({ status: "ok", cached_bodies: FILE_CACHE_COUNT });
     }
   });
 
   app.get("/api/ai/precomputed", async (req, res) => {
-    const cached = await getAICache();
-    // Merge DB → file cache → static fallbacks so known spacecraft always
-    // appear and the bulk endpoint works with FastAPI offline.
-    const merged = mergeCacheSources(cached, FILE_CACHE);
-    for (const [bodyId, entry] of Object.entries(STATIC_CLASSIFICATIONS)) {
-      if (!(bodyId in (merged ?? {}))) {
-        (merged as Record<string, unknown>)[bodyId] = {
-          bodyId,
-          classification: entry.classification,
-          confidence: entry.confidence,
-          alternatives: entry.alternatives,
-          features: entry.features,
-          similarObjects: entry.similarObjects,
-        };
-      }
-    }
+    // Browsers skip revalidation for a minute — no 304 round-trip per boot.
+    res.setHeader("Cache-Control", "public, max-age=60");
+    const merged = await getMergedAICache();
     if (Object.keys(merged).length > 0) {
       res.json(merged);
     } else {
@@ -343,33 +359,11 @@ export function registerRoutes(app: Express): Server {
 
   app.get("/api/ai/classify/:bodyId", async (req, res) => {
     const bodyId = req.params.bodyId;
-    try {
-      const rows = await db.select().from(aiCache)
-        .where(eq(aiCache.bodyId, bodyId))
-        .limit(1);
-      if (rows.length > 0) {
-        res.json(rows[0]);
-        return;
-      }
-    } catch { /* fall through to static or proxy */ }
-
-    // File cache fallback (precompute output) when DB has no entry
-    if (bodyId in FILE_CACHE) {
-      res.json({ bodyId, ...FILE_CACHE[bodyId] as object });
-      return;
-    }
-
-    // Static fallback for known spacecraft when DB has no entry
-    if (bodyId in STATIC_CLASSIFICATIONS) {
-      const entry = STATIC_CLASSIFICATIONS[bodyId];
-      res.json({
-        bodyId,
-        classification: entry.classification,
-        confidence: entry.confidence,
-        alternatives: entry.alternatives,
-        features: entry.features,
-        similarObjects: entry.similarObjects,
-      });
+    res.setHeader("Cache-Control", "public, max-age=60");
+    const merged = await getMergedAICache();
+    const entry = merged[bodyId] as Record<string, unknown> | undefined;
+    if (entry) {
+      res.json((entry as { bodyId?: string }).bodyId ? entry : { bodyId, ...entry });
       return;
     }
 
