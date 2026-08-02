@@ -78,8 +78,15 @@ export default function DebugPanel() {
               {entries.map((e) => (
                 <tr key={e.bodyId} className="border-t border-white/5">
                   <td className="pr-3 pt-0.5 text-white/80">{e.bodyName}</td>
-                  <td className="max-w-[180px] overflow-hidden pr-3 pt-0.5 text-ellipsis whitespace-nowrap text-white/40" title={e.url}>
-                    {e.url.replace("/models/", "")}
+                  <td className="max-w-[180px] overflow-hidden pr-3 pt-0.5 text-ellipsis whitespace-nowrap" title={e.url}>
+                    <a
+                      href={`?model=${encodeURIComponent(e.bodyId)}`}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="text-white/40 underline-offset-2 transition hover:text-indigo-300 hover:underline"
+                    >
+                      {e.url.replace("/models/", "")}
+                    </a>
                   </td>
                   <td className="pr-3 pt-0.5 text-right tabular-nums text-white/50">
                     {e.endTime ? formatTime(e.endTime - e.startTime) : "\u2014"}

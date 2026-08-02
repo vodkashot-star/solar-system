@@ -78,13 +78,25 @@ export default function BodyDetailModal({ body, onClose, positions }: Props) {
             </div>
             <div className="text-xl font-light text-white">{body.name}</div>
           </div>
-          <button
-            onClick={onClose}
-            aria-label="Close details panel"
-            className="flex h-8 w-8 items-center justify-center rounded-full border border-white/10 bg-white/5 text-sm text-white/60 transition hover:bg-white/10 hover:text-white"
-          >
-            \u2715
-          </button>
+          <div className="flex items-center gap-2">
+            {body.glbUrl && (
+              <a
+                href={`?model=${encodeURIComponent(body.id)}`}
+                aria-label={`Inspect the 3D model of ${body.name}`}
+                title="Open the raw GLB model in the 3D studio"
+                className="rounded-full border border-white/10 bg-white/5 px-3 py-1.5 text-[11px] font-medium text-white/70 transition hover:bg-white/10 hover:text-white"
+              >
+                View 3D model
+              </a>
+            )}
+            <button
+              onClick={onClose}
+              aria-label="Close details panel"
+              className="flex h-8 w-8 items-center justify-center rounded-full border border-white/10 bg-white/5 text-sm text-white/60 transition hover:bg-white/10 hover:text-white"
+            >
+              \u2715
+            </button>
+          </div>
         </div>
 
         <div className="px-5 py-4">
