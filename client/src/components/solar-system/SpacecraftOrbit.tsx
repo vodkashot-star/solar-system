@@ -14,7 +14,7 @@
  * Calls state.invalidate() every frame — required for frameloop="demand".
  */
 
-import { useRef } from "react";
+import React, { useRef, useMemo, useCallback } from "react";
 import { useFrame } from "@react-three/fiber";
 import * as THREE from "three";
 import type { Body } from "./bodies";
@@ -39,7 +39,7 @@ type SpacecraftOrbitProps = {
 const _parentPos = new THREE.Vector3();
 const _reportedPos = new THREE.Vector3();
 
-export default function SpacecraftOrbit({
+export default React.memo(function SpacecraftOrbit({
   body,
   parentPositionRef,
   orbitRadius = 1.8,
@@ -57,12 +57,15 @@ export default function SpacecraftOrbit({
    * SpacecraftOrbit will translate the whole group to parentPosition, so
    * Planet just needs to think it's orbiting origin at orbitRadius.
    */
-  const localBody: Body = {
-    ...body,
-    orbit: orbitRadius,
-    // Keep the spacecraft's own orbitSpeed so it visibly circles the parent.
-    // The phase offset makes each spacecraft start at a different angle.
-  };
+  const localBody: Body = useMemo(
+    () => ({
+      ...body,
+      orbit: orbitRadius,
+      // Keep the spacecraft's own orbitSpeed so it visibly circles the parent.
+      // The phase offset makes each spacecraft start at a different angle.
+    }),
+    [body, orbitRadius],
+  );
 
   useFrame((state) => {
     const group = groupRef.current;
@@ -92,11 +95,14 @@ export default function SpacecraftOrbit({
    * (relative to group origin, which equals parentPosition). We add the
    * group's current world translation to get the true world position.
    */
-  const handlePosition = (localPos: THREE.Vector3) => {
-    if (!groupRef.current) return;
-    _reportedPos.copy(localPos).add(groupRef.current.position);
-    onPosition?.(_reportedPos);
-  };
+  const handlePosition = useCallback(
+    (localPos: THREE.Vector3) => {
+      if (!groupRef.current) return;
+      _reportedPos.copy(localPos).add(groupRef.current.position);
+      onPosition?.(_reportedPos);
+    },
+    [onPosition],
+  );
 
   return (
     <group ref={groupRef}>
@@ -111,4 +117,4 @@ export default function SpacecraftOrbit({
       />
     </group>
   );
-}
+});

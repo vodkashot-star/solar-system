@@ -180,7 +180,7 @@ function FallbackSphere({ radius, color, emissive, bodyId, bodyType }: {
   );
 }
 
-export default function Planet({ body, onPosition, scaleMultiplier = 1, onComputedRadius, onHover, speedMultiplier = 1, isWanted = true }: PlanetProps) {
+export default React.memo(function Planet({ body, onPosition, scaleMultiplier = 1, onComputedRadius, onHover, speedMultiplier = 1, isWanted = true }: PlanetProps) {
   const pivot = useRef<THREE.Group>(null);
   const spin = useRef<THREE.Group>(null);
   const focus = useCameraFocus((s) => s.focus);
@@ -307,4 +307,4 @@ export default function Planet({ body, onPosition, scaleMultiplier = 1, onComput
       </group>
     </group>
   );
-}
+});

@@ -41,6 +41,19 @@ export async function serveStatic(app: Express, _server: Server) {
     const ext = path.extname(resolved);
     const contentType = mime[ext as keyof typeof mime] || "application/octet-stream";
     res.setHeader("Content-Type", contentType);
+
+    // Vite content-hashes build assets, so they can be cached immutably —
+    // repeat visits skip re-downloading the whole bundle.
+    if (req.path.startsWith("/assets/") && (ext === ".js" || ext === ".css")) {
+      res.setHeader("Cache-Control", "public, max-age=31536000, immutable");
+    } else if (req.path.startsWith("/models/") || req.path.startsWith("/draco/")) {
+      // GLBs/Draco are stable between deploys but not hashed — a short
+      // revalidate keeps deploys from serving stale models for a week.
+      res.setHeader("Cache-Control", "public, max-age=3600");
+    } else {
+      res.setHeader("Cache-Control", "no-cache");
+    }
+
     const content = fs.readFileSync(resolved);
     res.end(content);
   });
@@ -56,6 +69,7 @@ export async function serveStatic(app: Express, _server: Server) {
     const indexPath = path.join(distPath, "index.html");
     const content = fs.readFileSync(indexPath);
     res.setHeader("Content-Type", "text/html; charset=utf-8");
+    res.setHeader("Cache-Control", "no-cache");
     res.end(content);
   });
 }

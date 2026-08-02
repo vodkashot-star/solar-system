@@ -236,32 +236,66 @@ const AI_CACHE_TTL_MS = 60_000;
 let mergedAICache: Record<string, unknown> | null = null;
 let mergedAICacheLoadedAt = 0;
 let lastDBCount = 0;
+let aiCacheRefreshing: Promise<void> | null = null;
 
-async function getMergedAICache(force = false): Promise<Record<string, unknown>> {
-  const now = Date.now();
-  if (!force && mergedAICache !== null && now - mergedAICacheLoadedAt < AI_CACHE_TTL_MS) {
-    return mergedAICache;
-  }
-
-  const merge = (dbRows: Record<string, unknown> | null): Record<string, unknown> => {
-    const merged = mergeCacheSources(dbRows, FILE_CACHE);
-    for (const [bodyId, entry] of Object.entries(STATIC_CLASSIFICATIONS)) {
-      if (!(bodyId in merged)) {
-        merged[bodyId] = { bodyId, ...entry };
-      }
+// Order: DB rows win, then the file cache fills gaps, then the static
+// classifications (spacecraft with no upstream model) fill the rest.
+function mergeAllCacheSources(dbRows: Record<string, unknown> | null): Record<string, unknown> {
+  const merged = mergeCacheSources(dbRows, FILE_CACHE);
+  for (const [bodyId, entry] of Object.entries(STATIC_CLASSIFICATIONS)) {
+    if (!(bodyId in merged)) {
+      merged[bodyId] = { bodyId, ...entry };
     }
-    return merged;
-  };
+  }
+  return merged;
+}
+
+// Seed from the cache file at boot so the very first request serves instantly
+// instead of blocking ~1.8s on the Neon query. The background refresh replaces
+// it as soon as Postgres answers.
+mergedAICache = mergeAllCacheSources(null);
+mergedAICacheLoadedAt = 0;
+
+async function refreshMergedAICache(): Promise<Record<string, unknown>> {
+  const now = Date.now();
 
   try {
     const rows = await db.select().from(aiCache);
     lastDBCount = rows.length;
-    mergedAICache = merge(Object.fromEntries(rows.map((r) => [r.bodyId, r])));
+    mergedAICache = mergeAllCacheSources(
+      Object.fromEntries(rows.map((r) => [r.bodyId, r])),
+    );
   } catch {
-    mergedAICache = merge(null);
+    mergedAICache = mergeAllCacheSources(null);
   }
   mergedAICacheLoadedAt = now;
   return mergedAICache;
+}
+
+async function getMergedAICache(force = false): Promise<Record<string, unknown>> {
+  // Fresh cache — serve instantly.
+  if (!force && mergedAICache !== null && Date.now() - mergedAICacheLoadedAt < AI_CACHE_TTL_MS) {
+    return mergedAICache;
+  }
+
+  // Expired but non-null — stale-while-revalidate: serve the cached snapshot
+  // immediately and refresh from Postgres in the background (single-flight),
+  // so a cold cache never blocks boot on Neon's 1-2s connect latency.
+  if (!force && mergedAICache !== null) {
+    if (!aiCacheRefreshing) {
+      aiCacheRefreshing = refreshMergedAICache().then(
+        () => {
+          aiCacheRefreshing = null;
+        },
+        () => {
+          aiCacheRefreshing = null;
+        },
+      );
+    }
+    return mergedAICache;
+  }
+
+  return refreshMergedAICache();
 }
 
 async function proxyToFastAI(req: Request, res: Response, endpoint: string): Promise<void> {

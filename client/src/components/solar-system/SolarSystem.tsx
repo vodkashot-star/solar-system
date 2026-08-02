@@ -153,6 +153,14 @@ export default function SolarSystem() {
     setHoveredBodyId(bodyId);
   }, []);
 
+  // Static groupings — rebuilt once so every active-change re-render skips
+  // the filter pass and passes referentially stable arrays.
+  const { primaryBodies, moons, spacecraft } = useMemo(() => ({
+    primaryBodies: BODIES.filter((b) => b.type !== "spacecraft" && !b.parentBody),
+    moons: BODIES.filter((b) => b.parentBody),
+    spacecraft: BODIES.filter((b) => b.type === "spacecraft"),
+  }), []);
+
   return (
     <div className="relative h-screen w-screen overflow-hidden bg-black">
       <div className="absolute inset-0" style={{ zIndex: 0, isolation: "isolate" }}>
@@ -196,12 +204,12 @@ export default function SolarSystem() {
           <OrbitRings scaleMultiplier={scaleMultiplier} />
 
           {/* Planets and dwarf planets (no parentBody) */}
-          {BODIES.filter((b) => b.type !== "spacecraft" && !b.parentBody).map((b) => (
+          {primaryBodies.map((b) => (
             <Planet key={b.id} body={b} onPosition={reportPosCallbacks[b.id]} scaleMultiplier={scaleMultiplier} onComputedRadius={reportComputedRadius} onHover={handleHover} speedMultiplier={speedMultiplier} isWanted={wantedIds.has(b.id)} />
           ))}
 
           {/* Moons (have parentBody) */}
-          {BODIES.filter((b) => b.parentBody).map((b) => (
+          {moons.map((b) => (
             <MoonOrbit
               key={b.id}
               body={b}
@@ -216,7 +224,7 @@ export default function SolarSystem() {
           ))}
 
           {/* Spacecraft */}
-          {BODIES.filter((b) => b.type === "spacecraft").map((b) => (
+          {spacecraft.map((b) => (
             <SpacecraftOrbit
               key={b.id}
               body={b}
