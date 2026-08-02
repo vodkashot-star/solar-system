@@ -18,8 +18,8 @@ description: Use when adding, converting, validating, or fixing GLB models, or w
 | `npm run models:fetch` | Fetch NASA models |
 | `npm run models:convert` | obj2gltf → Draco compress → texture resize |
 | `npm run models:validate` | Validate GLB headers, asset JSONs, Draco, sizes |
-| `npm run models:validate:fix` | Auto-fix (Draco compress) |
-| `npm run models:check` | Python-side validation script |
+| `npm run models:validate -- --fix` | Auto-fix (Draco compress) |
+| `npm run ai:check` | Python-side validation script |
 
 ## Adding a new model
 
@@ -32,6 +32,6 @@ description: Use when adding, converting, validating, or fixing GLB models, or w
 ## Known pitfalls
 
 - Draco WASM is copied automatically by `dev`/`build`/`build:cf` (first command in the npm scripts); if models fail to load anyway, run `bash scripts/copy-draco.sh` manually
-- Corrupt GLBs (wrong JSON-chunk padding) are caught by `scripts/validate_glb.sh` — fix with `npm run models:validate:fix`
+- Corrupt GLBs (wrong JSON-chunk padding) are caught by `scripts/validate_glb.sh` — fix with `npm run models:validate -- --fix`
 - All GLBs must be self-contained — textures embedded (bufferView), no `uri` refs to loose files. If `validate_glb.sh` reports "external texture ref(s)", embed them (re-run the converter with the texture on disk) — never commit loose image files in `client/public/models/`
 - No NASA model exists for `dragonfly` or the minor asteroids (`vesta`, `pallas`, `juno`, `hygiea`, `astraea`, `apophis`, `psyche`, `varda`, `oumuamua`, `halley`) — they use `FallbackSphere` (procedural textures), no `glbUrl`

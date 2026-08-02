@@ -5,20 +5,21 @@
 | Command | Action |
 |---------|--------|
 | `npm run dev` | `copy-draco.sh` + Express :5000 (`tsx`) + FastAPI :8000 (`run.py serve` → uvicorn) |
-| `npm run check` | `tsc` — 0 errors expected |
+| `npm run typecheck` | `tsc` — 0 errors expected |
 | `npm test` | `vitest run` — `client/src/**/*.test.{ts,tsx}` (happy-dom) |
 | `npm run build` | `copy-draco.sh && vite build && esbuild server` → `dist/` |
 | `npm run build:cf` | Static SPA (no server) for Netlify/Cloudflare |
 | `npm start` | Production: Express `dist/index-prod.js` :5000 **+ FastAPI :8000** (concurrently) |
-| `npm run validate` | `tsc && vitest run` |
-| `npm run models:validate` | Validate all GLB models (header, asset JSON, Draco, size); `--fix` auto-compresses, `-- --json` for CI |
-| `npm run models:check` | Validate GLBs against the trained classifier (`scripts/validate_models.py` — uses `spaceAI/venv`, plain python3 has no numpy) |
+| `npm run validate` | `typecheck && vitest run` (game-path gate) |
+| `npm run models:validate` | Validate all GLB models (header, asset JSON, Draco, size); `-- --fix` auto-compresses, `-- --json` for CI |
+| `npm run ai:check` | Validate GLBs against the trained classifier (`scripts/validate_models.py` — uses `spaceAI/venv`, plain python3 has no numpy) |
 | `npm run models:convert` / `models:fetch` | GLB conversion / NASA model download |
 | `npm run db:migrate` | `drizzle-kit generate && push` (generate may need TTY workaround, see Known Issues) |
-| `npm run ai:train` | Train classifier — uses `spaceAI/venv`, plain `python` has **no numpy** |
+| `npm run ai:train` | Train classifier (untuned RF) — uses `spaceAI/venv`, plain `python` has **no numpy** |
+| `npm run ai:tune` | Train classifier with GridSearchCV tuning (`train --tune`) — better CV, slower |
 | `npm run ai:serve` | FastAPI :8000 — `./venv/bin/python run.py serve` (add `-- --reload` for hot reload) |
 | `npm run ai:train-regression` | Train mass + temperature regressors |
-| `npm run ai:retrain` | Retrain with corrections from DB |
+| `npm run ai:retrain` | Retrain with corrections from DB
 | `npm run ai:cv` | Cross-validation of saved model |
 | `npm run ai:test` | `spaceAI/venv` pytest — 50 tests in `spaceAI/tests/` |
 
@@ -42,7 +43,7 @@
 - **Real GLBs**: planets/moons from `assets.science.nasa.gov` + `svs.gsfc.nasa.gov`; spacecraft/`juno-spacecraft` from `github.com/nasa/NASA-3D-Resources`; asteroids `bennu`/`itokawa`/`eros` from `assets.science.nasa.gov`
 - **All GLBs self-contained**: textures are embedded (bufferView) — `validate_glb.sh` warns ("external texture ref(s)") if any GLB references loose image files
 - **No NASA model exists** for `dragonfly` and the minor asteroids (`vesta`, `pallas`, `juno`, `hygiea`, `astraea`, `apophis`, `psyche`, `varda`, `oumuamua`, `halley`) — they render procedural textured spheres (`FallbackSphere`), no `glbUrl`
-- **Validation**: `scripts/validate_glb.sh` validates GLB headers (via Python), asset JSONs, Draco compression, and file sizes. Run with `npm run models:validate`. Auto-fix with `npm run models:validate:fix`.
+- **Validation**: `scripts/validate_glb.sh` validates GLB headers (via Python), asset JSONs, Draco compression, and file sizes. Run with `npm run models:validate`. Auto-fix with `npm run models:validate -- --fix`.
 
 ## Spacecraft
 

@@ -9,6 +9,6 @@ jobs:
         with: { node-version: '20', cache: 'npm' }
       - run: npm ci
       - run: npm run models:validate
-      - run: npm run check
+      - run: npm run typecheck
       - run: npm test
       - run: npm run ai:test

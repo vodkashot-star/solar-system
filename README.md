@@ -103,9 +103,9 @@ Pipeline: `obj2gltf` → Draco compression + 1024px texture resize → validatio
 ### GLB Validation
 
 ```bash
-npm run models:validate          # Validate all GLB models
-npm run models:validate:fix      # Validate and auto-fix (add Draco compression)
-npm run models:validate -- --json   # JSON output for CI
+npm run models:validate            # Validate all GLB models
+npm run models:validate -- --fix   # Validate and auto-fix (add Draco compression)
+npm run models:validate -- --json  # JSON output for CI
 ```
 
 Pipeline validates: GLB binary header, asset JSON pointers, Draco compression, file size limits.
@@ -116,13 +116,16 @@ Pipeline validates: GLB binary header, asset JSON pointers, Draco compression, f
 
 ```bash
 npm install
-npm run dev               # Vite dev server (:5000)
-npm test                  # tsc + vitest (172 tests)
+npm run dev               # Vite dev server (:5000) + FastAPI (:8000)
+npm test                  # vitest (176 tests)
+npm run validate          # typecheck + tests
 npm run build             # Production build → dist/
 npm run build:cf          # CF Pages build (Draco → Vite)
 npm run models:convert    # Convert a NASA OBJ model to GLB (see above)
-npm run models:validate   # Validate GLBs against ML classifier
-npm run ai:train          # Train spaceAI classifier (see spaceAI/README.md)
+npm run models:validate   # Validate GLB structure (headers, Draco, sizes)
+npm run ai:check          # Validate GLBs against the ML classifier
+npm run ai:train          # Train classifier — add --tune (via npm run ai:tune) for GridSearch
+npm run ai:tune           # Train classifier with GridSearchCV tuning
 ```
 
 ---

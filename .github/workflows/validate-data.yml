@@ -53,7 +53,7 @@ jobs:
         working-directory: .
 
       - name: TypeScript check
-        run: npm run check
+        run: npm run typecheck
         working-directory: .
 
       - name: Client test suite

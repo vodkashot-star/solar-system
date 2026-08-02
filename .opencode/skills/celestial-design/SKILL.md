@@ -99,7 +99,7 @@ radius pair (must stay > 1.0 or they clip the planet).
 2. Add `TEXTURE_DEFS[bodyId]` if you want a distinct procedural look; otherwise type-default is used.
 3. If a NASA model exists: convert → Draco → `npm run models:validate` (see `glb-models`), add `.glb.asset.json` pointer, set `glbUrl`.
 4. If rings: add `RING_PARAMETERS[bodyId]` and `hasRings: true`.
-5. Verify: `npm run check`, `npm test` (bodies.test.ts asserts catalog invariants), `npm run models:validate` if GLB added.
+5. Verify: `npm run typecheck`, `npm test` (bodies.test.ts asserts catalog invariants), `npm run models:validate` if GLB added.
 
 ## Quality checklist
 

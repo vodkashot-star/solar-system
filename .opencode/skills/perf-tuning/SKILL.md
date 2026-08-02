@@ -64,6 +64,6 @@ make the app faster, first **measure**, then apply the levers below.
 
 ## Regression gates
 
-After any perf change: `npm run check` (tsc 0 errors), `npm test` (176),
+After any perf change: `npm run typecheck` (tsc 0 errors), `npm test` (176),
 `npm run models:validate` (29/29 valid), and a curl timing pass on
 `/api/ai/precomputed` (<100ms) + one cold `classify` after TTL expiry.

@@ -17,4 +17,4 @@ Focus: `client/src/` — `assets/bodies.ts`, components under `client/src/compon
 - Canvas runs `frameloop="demand"` — every `useFrame` must call `state.invalidate()` or the scene freezes
 - Model URLs come from `*.glb.asset.json` pointer files — never hardcode `/models/` URLs
 - Tests: `client/src/**/*.test.{ts,tsx}` run under vitest + happy-dom (`npm test`)
-- Verify with `npm run check` (tsc) after changes
+- Verify with `npm run typecheck` (tsc) after changes

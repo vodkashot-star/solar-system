@@ -22,4 +22,4 @@ Endpoints: `/api/health`, `/api/ai/precomputed`, `/api/ai/classify/:bodyId`, `/a
 
 - `server/index-prod.ts` serves static files manually with `fs.readFileSync` + MIME lookup — esbuild bundles `.js`/`.css` with wrong MIME, so don't switch to express.static blindly
 - DB schema changes need `drizzle-kit generate` (TTY workaround: `script -q -c "echo 4 | npx drizzle-kit generate" /dev/null`)
-- Verify with `npm run check` (tsc) after changes
+- Verify with `npm run typecheck` (tsc) after changes
