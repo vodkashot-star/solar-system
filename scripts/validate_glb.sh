@@ -3,12 +3,13 @@
 #
 # Usage:
 #   npm run models:validate
-#   ./scripts/validate_glb.sh [--fix] [--json] [--quiet]
+#   ./scripts/validate_glb.sh [--fix] [--json] [--quiet] [--file <name>]
 #
 # Options:
 #   --fix     Attempt to re-compress and fix invalid GLBs using gltf-transform
 #   --json    Output results as JSON
 #   --quiet   Suppress per-file output, only show summary
+#   --file    Validate a single model only (by name, no extension)
 
 set -euo pipefail
 
@@ -22,13 +23,15 @@ VALIDATE_PY="$SCRIPT_DIR/validate_glb_files.py"
 FIX_MODE=false
 JSON_OUTPUT=false
 QUIET=false
+ONLY_FILE=""
 
-for arg in "$@"; do
-  case "$arg" in
-    --fix) FIX_MODE=true ;;
-    --json) JSON_OUTPUT=true ;;
-    --quiet) QUIET=true ;;
-    *) echo "Unknown option: $arg"; exit 1 ;;
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    --fix) FIX_MODE=true; shift ;;
+    --json) JSON_OUTPUT=true; shift ;;
+    --quiet) QUIET=true; shift ;;
+    --file) ONLY_FILE="${2:-}"; shift 2 ;;
+    *) echo "Unknown option: $1"; exit 1 ;;
   esac
 done
 
@@ -65,14 +68,16 @@ VALID=0
 INVALID=0
 MISSING=0
 
-while IFS= read -r line; do
-  if [[ "$line" =~ ^Total:\ ([0-9]+)\ valid,\ ([0-9]+)\ invalid,\ ([0-9]+)\ missing ]]; then
-    VALID="${BASH_REMATCH[1]}"
-    INVALID="${BASH_REMATCH[2]}"
-    MISSING="${BASH_REMATCH[3]}"
-    TOTAL=$((VALID + INVALID + MISSING))
-  fi
-done <<< "$PY_OUTPUT"
+if [[ -z "$ONLY_FILE" ]]; then
+  while IFS= read -r line; do
+    if [[ "$line" =~ ^Total:\ ([0-9]+)\ valid,\ ([0-9]+)\ invalid,\ ([0-9]+)\ missing ]]; then
+      VALID="${BASH_REMATCH[1]}"
+      INVALID="${BASH_REMATCH[2]}"
+      MISSING="${BASH_REMATCH[3]}"
+      TOTAL=$((VALID + INVALID + MISSING))
+    fi
+  done <<< "$PY_OUTPUT"
+fi
 
 # Now do detailed per-model checks with glTF inspect
 declare -a RESULTS=()
@@ -81,8 +86,14 @@ MISSING_Draco=0
 EXTERNAL_TEXTURES=0
 FIXED=0
 
-for glb in "$MODELS_DIR"/*.glb; do
-  [[ -f "$glb" ]] || continue
+if [[ -n "$ONLY_FILE" ]]; then
+  GLBS=("$MODELS_DIR/$ONLY_FILE.glb")
+else
+  GLBS=("$MODELS_DIR"/*.glb)
+fi
+
+for glb in "${GLBS[@]}"; do
+  [[ -f "$glb" ]] || { echo "ERROR: Model not found: $glb"; exit 1; }
   name="$(basename "$glb" .glb)"
   asset_json="$ASSETS_DIR/${name}.glb.asset.json"
   
@@ -188,21 +199,30 @@ while off < len(d):
   fi
 done
 
-# Check for asset JSONs without GLB files
-for asset in "$ASSETS_DIR"/*.glb.asset.json; do
-  [[ -f "$asset" ]] || continue
-  name=$(basename "$asset" .glb.asset.json)
-  if [[ ! -f "$MODELS_DIR/${name}.glb" ]]; then
-    if [[ "$QUIET" != "true" ]]; then
-      printf "  ✗ %-20s MISSING    ✗ NOT FOUND   Missing GLB file\n" "$name"
+# Check for asset JSONs without GLB files (full-mode only; Python already counted these)
+if [[ -z "$ONLY_FILE" ]]; then
+  for asset in "$ASSETS_DIR"/*.glb.asset.json; do
+    [[ -f "$asset" ]] || continue
+    name=$(basename "$asset" .glb.asset.json)
+    if [[ ! -f "$MODELS_DIR/${name}.glb" ]]; then
+      if [[ "$QUIET" != "true" ]]; then
+        printf "  ✗ %-20s MISSING    ✗ NOT FOUND   Missing GLB file\n" "$name"
+      fi
+      MISSING_ASSET=$((MISSING_ASSET + 1))
+      result_json=$(jq -n --arg name "$name" --arg status "invalid" --argjson size 0 --argjson has_draco false --arg issues "Missing GLB file" '{name: $name, status: $status, size_bytes: $size, has_draco: $has_draco, issues: ($issues | split("; ") | map(select(. != "")))}')
+      RESULTS+=("$result_json")
     fi
-    TOTAL=$((TOTAL + 1))
-    INVALID=$((INVALID + 1))
-    MISSING_ASSET=$((MISSING_ASSET + 1))
-    result_json=$(jq -n --arg name "$name" --arg status "invalid" --argjson size 0 --argjson has_draco false --arg issues "Missing GLB file" '{name: $name, status: $status, size_bytes: $size, has_draco: $has_draco, issues: ($issues | split("; ") | map(select(. != "")))}')
-    RESULTS+=("$result_json")
+  done
+fi
+
+if [[ -n "$ONLY_FILE" ]]; then
+  TOTAL=1
+  if [[ "$status" == "valid" || "$status" == "fixed" ]]; then
+    VALID=1
+  else
+    INVALID=1
   fi
-done
+fi
 
 # Summary
 echo ""
@@ -231,6 +251,9 @@ if [[ "$JSON_OUTPUT" == "true" ]]; then
 fi
 
 if (( INVALID > 0 )); then
+  exit 1
+fi
+if [[ -n "$ONLY_FILE" && "$status" == "invalid" ]]; then
   exit 1
 fi
 exit 0

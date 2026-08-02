@@ -58,13 +58,13 @@ def validate_glb(filepath):
     except Exception as e:
         return False, str(e)
 
-def format_size(bytes):
+def format_size(size):
     """Format file size in human-readable form."""
     for unit in ["B", "KB", "MB"]:
-        if bytes < 1024:
-            return f"{bytes:.1f} {unit}"
-        bytes /= 1024
-    return f"{bytes:.1f} GB"
+        if size < 1024:
+            return f"{size:.1f} {unit}"
+        size /= 1024
+    return f"{size:.1f} GB"
 
 def main():
     print("GLB File Validation")

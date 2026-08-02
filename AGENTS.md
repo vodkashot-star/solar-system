@@ -4,21 +4,23 @@
 
 | Command | Action |
 |---------|--------|
-| `npm run dev` | Express :5000 + FastAPI :8000 (concurrently via `tsx` + `uvicorn`) |
+| `npm run dev` | `copy-draco.sh` + Express :5000 (`tsx`) + FastAPI :8000 (`run.py serve` → uvicorn) |
 | `npm run check` | `tsc` — 0 errors expected |
 | `npm test` | `vitest run` — `client/src/**/*.test.{ts,tsx}` (happy-dom) |
-| `npm run build` | `scripts/copy-draco.sh && vite build && esbuild server` → `dist/` |
+| `npm run build` | `copy-draco.sh && vite build && esbuild server` → `dist/` |
 | `npm run build:cf` | Static SPA (no server) for Netlify/Cloudflare |
-| `npm start` | Production: `node dist/index-prod.js` on :5000 |
+| `npm start` | Production: Express `dist/index-prod.js` :5000 **+ FastAPI :8000** (concurrently) |
 | `npm run validate` | `tsc && vitest run` |
-| `npm run models:validate` | Validate all GLB models (header, asset JSON, Draco, size) |
-| `npm run models:validate:fix` | Validate + auto-fix (Draco compress) |
-| `npm run models:validate -- --json` | JSON output for CI |
-| `npm run models:convert` | `obj2gltf` → Draco + texture resize → validate |
-| `npm run ai:train` | `cd spaceAI && python run.py train` |
-| `npm run ai:serve` | `cd spaceAI && python run.py serve` |
-| `npm run ai:test` | `cd spaceAI && python -m pytest tests/ -v` |
+| `npm run models:validate` | Validate all GLB models (header, asset JSON, Draco, size); `--fix` auto-compresses, `-- --json` for CI |
+| `npm run models:check` | Validate GLBs against the trained classifier (`scripts/validate_models.py` — uses `spaceAI/venv`, plain python3 has no numpy) |
+| `npm run models:convert` / `models:fetch` | GLB conversion / NASA model download |
+| `npm run db:migrate` | `drizzle-kit generate && push` (generate may need TTY workaround, see Known Issues) |
+| `npm run ai:train` | Train classifier — uses `spaceAI/venv`, plain `python` has **no numpy** |
+| `npm run ai:serve` | FastAPI :8000 — `./venv/bin/python run.py serve` (add `-- --reload` for hot reload) |
+| `npm run ai:train-regression` | Train mass + temperature regressors |
 | `npm run ai:retrain` | Retrain with corrections from DB |
+| `npm run ai:cv` | Cross-validation of saved model |
+| `npm run ai:test` | `spaceAI/venv` pytest — 50 tests in `spaceAI/tests/` |
 
 ## Architecture
 
@@ -71,6 +73,7 @@ All in `server/routes.ts`. Request cascade: Drizzle DB → `spaceAI/data/ai_cach
 | `/api/ai/precomputed` | GET | All precomputed classifications |
 | `/api/ai/classify/:bodyId` | GET | Classify single body (query: 11 feature params) |
 | `/api/ai/correct` | POST | Submit correction (Postgres + FastAPI SQLite) |
+| `/api/classify/:bodyId/correct` | POST | Correction mirroring FastAPI's path (`routes.ts:385`) |
 | `/api/bodies` | GET/POST | CRUD for `celestial_bodies` table |
 | `/api/bodies/:id` | GET/PATCH/DELETE | Single body CRUD |
 
@@ -78,6 +81,7 @@ All in `server/routes.ts`. Request cascade: Drizzle DB → `spaceAI/data/ai_cach
 
 - `spaceAI/src/predict.py` — `CelestialPredictor` class: 11 features, RF/SVC/LogisticRegression/Ensemble
 - **Training quirk**: `train_model.py` calls `pipe.fit(X, y)` on full dataset _after_ evaluation split so rare classes appear in `pipeline.classes_` — never remove this
+- **Dashboard**: `GET /` on :8000 (`api.py:462`) returns a self-contained HTML page (inline `_DASHBOARD_TEMPLATE`) — precomputed classifications, live corrections, dataset stats, `/docs` links
 - Express loads `data/ai_cache.json` at startup — no FastAPI runtime needed in production
 - Corrections: Express writes Postgres + forwards to FastAPI; if :8000 is offline it queues to `spaceAI/data/pending_corrections.json`, drained by FastAPI on startup (retrain source stays in sync)
 - Corrections: `POST /classify/{body_id}/correct` and `GET /corrections` for user feedback loop
@@ -85,7 +89,6 @@ All in `server/routes.ts`. Request cascade: Drizzle DB → `spaceAI/data/ai_cach
 ## Known Issues
 
 - **`drizzle-kit generate` may need TTY workaround**: `script -q -c "echo 4 | npx drizzle-kit generate" /dev/null`
-- **Draco must be copied before dev**: `scripts/copy-draco.sh` runs as part of `build`/`build:cf` but NOT `dev` — if models fail to load, run it manually
 - **GLB validation**: `scripts/validate_glb.sh` must run before dev if models were added/changed (not part of `dev` script)
 - `stats.html` is a build artifact from rollup-plugin-visualizer — gitignored
 - `.env*` gitignored; set `DATABASE_URL` for DB features, `SPACEAI_URL` for FastAPI proxy

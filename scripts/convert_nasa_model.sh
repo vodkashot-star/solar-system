@@ -147,8 +147,10 @@ mkdir -p "$OUTPUT_DIR"
 echo "      Final size: $(du -sh "$OUTPUT_GLB" | cut -f1)"
 
 # ── Step 3: Validate ──────────────────────────────────────────────────────
-echo "[3/4] Validating..."
-"$PROJECT_ROOT/scripts/validate_glb.sh" --quiet 2>&1 | tail -8 || true
+echo "[3/4] Validating ${OUTPUT_NAME}..."
+"$PROJECT_ROOT/scripts/validate_glb.sh" --quiet --file "$OUTPUT_NAME" || {
+  echo "WARN: validation flagged issues (see above) — review before committing"
+}
 
 # ── Step 4: Create asset JSON pointer ────────────────────────────────────
 echo "[4/4] Writing asset JSON..."

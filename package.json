@@ -16,7 +16,7 @@
     "models:fetch": "bash scripts/fetch-nasa-planets.sh",
     "models:validate": "bash scripts/validate_glb.sh",
     "models:validate:fix": "bash scripts/validate_glb.sh --fix",
-    "models:check": "python3 scripts/validate_models.py",
+    "models:check": "spaceAI/venv/bin/python scripts/validate_models.py",
     "db:generate": "drizzle-kit generate",
     "db:push": "drizzle-kit push",
     "db:migrate": "npm run db:generate && npm run db:push",

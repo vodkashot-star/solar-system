@@ -28,17 +28,23 @@ ONLY=""
 DRY_RUN=false
 
 # Parse args
-for arg in "$@"; do
-  case $arg in
+while [[ $# -gt 0 ]]; do
+  case "$1" in
     --only=*)
-      ONLY="${arg#*=}"
+      ONLY="${1#*=}"
+      shift
+      ;;
+    --only)
+      ONLY="${2:-}"
+      shift 2
       ;;
     --dry-run)
       DRY_RUN=true
+      shift
       ;;
     *)
-      echo "Unknown arg: $arg"
-      echo "Usage: $0 [--only=earth,moon] [--dry-run]"
+      echo "Unknown arg: $1"
+      echo "Usage: $0 [--only earth,moon] [--dry-run]"
       exit 1
       ;;
   esac
