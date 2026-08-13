@@ -77,17 +77,22 @@ async def handle_chat(update: Update, context: ContextTypes.DEFAULT_TYPE):
             ],
             max_tokens=150,
         )
-        reply_text = response.choices[0].message.content or "(no response)"
-    except Exception as e:  # network / model errors must not kill the handler
-        await update.message.reply_text(f"⚠️ Station uplink degraded: {e}")
-        return
+        reply = response.choices[0].message.content.strip()
+    except Exception as e:
+        if "429" in str(e) or "FreeUsageLimitError" in str(e):
+            reply = (
+                f"⚠️ *[{station['name']} Relay Busy]*: High sub-space chatter detected. "
+                "Systems calibrating... Please repeat your message in a few seconds."
+            )
+        else:
+            reply = f"*[Signal lost with {station['name']}... Error: {e}]*"
 
     # Markdown can crash on invalid entities from model output — fall back to
     # plain text if Telegram rejects the styled reply.
     try:
-        await update.message.reply_text(f"📡 *{station['name']}*:\n{reply_text}", parse_mode="Markdown")
+        await update.message.reply_text(f"📡 *{station['name']}*:\n{reply}", parse_mode="Markdown")
     except Exception:
-        await update.message.reply_text(f"📡 {station['name']}:\n{reply_text}")
+        await update.message.reply_text(f"📡 {station['name']}:\n{reply}")
 
 
 def main():

@@ -10,8 +10,17 @@ All notable changes. Unreleased entries are uncommitted work in progress.
 - `npm run ai:bot` script added (`cd spaceAI && ./venv/bin/python telegram_bot.py` — venv python, since plain `python` has no deps)
 - IPv4-first `socket.getaddrinfo` patch in the bot: box has no IPv6 route but DNS prefers AAAA — without it Telegram rejects the (valid) token
 - `.env.example` template added (placeholder values — committable; real secrets stay in gitignored `.env`)
+- Bot error handling reworked: rate-limit/429 failures reply "Relay Busy" flavor text; other failures reply "*Signal lost with {station}... Error:*" instead of crashing the handler
 - DB schema: `player_characters` + `chat_logs` tables (FK to `celestial_bodies.id` — typed `integer`, text FK would not match the serial PK) in `shared/schema.ts`, migration `drizzle/0004_mushy_kylun.sql` pushed to Neon
 - Branch: `feature/telegram-bot` (unpushed)
+
+### Docs: full markdown refresh
+- README.md: Telegram bot section, custom bodies + cinematic grade + real-orbit features, ai:* script list (185 tests), corrected tree (Postgres drizzle migrations 0000–0004, `telegram_bot.py`, venv, no `functions/`/alembic), setuptools stack (Poetry/Alembic removed)
+- AGENTS.md: DB table list gained `player_characters` + `chat_logs`; new "Telegram Bot (SOLARIS Network)" section (stations, model, .env, IPv4 patch, daemon + pgrep footgun)
+- spaceAI/README.md: venv-first quick start + npm wrappers (ai:cv, ai:bot, ai:check), Postgres/queue corrections flow, new Telegram Bot section, `telegram_bot.py` in components
+- spaceAI/docs/troubleshooting.md: corrections persistence + Telegram bot section (Invalid token = missing .env, IPv4, Relay Busy, daemon restart)
+- `thoughts/`: AUDIT.md counts + last-updated bumped; shipped plans (`astronomy-engine`, `spaceai-v2`, `spaceai-ensemble-active-learning`) get Status headers; perf docs get status notes
+- `.opencode/techstack.md` + `agent/ml.md`: Poetry → setuptools/venv, bot stack added
 
 ### Feature: cinematic visual grade
 - New `FilmGrainOverlay` (pure CSS DOM overlay): animated SVG-noise film grain (`mix-blend-mode: overlay`, `steps()` shimmer) + soft radial vignette — zero GPU cost, sits under the UI (`client/src/components/solar-system/FilmGrainOverlay.tsx`, `index.css`)
