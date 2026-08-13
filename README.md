@@ -44,7 +44,14 @@ Fiber, Drei, and Three.js.
 - **Saturn rings** — procedurally generated ring geometry on Saturn
 - **HUD overlay** — current body name and a short fact, fades in on each
   transition
-- **Orbit rings** — merged single-draw-call orbit guides for all planets
+- **Orbit rings** — merged single-draw-call fat-line orbit guides
+  (`LineSegments2`), with a bright animated dashed highlight on the tour/focus
+  body's orbit
+- **Adaptive quality** — `PerformanceMonitor` samples real FPS and scales the
+  renderer DPR (1.75 → 1.0) on slow devices, recovering when frames improve
+- **Cinematic grade** — ACES filmic tone mapping, god-ray sun glow, instanced
+  nebula background, and a film-grain overlay for the "cinematic" look; bloom
+  auto-disables while paused to save GPU
 - **Real orbits** — planet positions from the `astronomy-engine` ephemeris
   (`lib/astronomy-positions.ts`) instead of hand-tuned Keplerian orbits
 - **Cinematic grade** — god-ray sun glow, instanced nebula background, and a
@@ -72,6 +79,64 @@ Fiber, Drei, and Three.js.
 ## Architecture
 
 See `AGENTS.md` for the full agent-oriented reference. Key modules:
+
+```mermaid
+flowchart TB
+    subgraph Client["Web Client — React Three Fiber SPA"]
+        Scene["SolarSystem.tsx<br/>Canvas · frameloop=demand"]
+        Planet["Planet / OrbitalBody<br/>lazy GLB · LOD · Kepler orbits"]
+        Quality["AdaptiveQuality<br/>FPS-monitored DPR scaling"]
+        Rings["OrbitRings<br/>fat-line orbit guides + active dash"]
+        Movements["usePlayerMovements<br/>Telegram ↔ web sync"]
+        Scene --> Planet
+        Scene --> Quality
+        Scene --> Rings
+        Scene --> Movements
+    end
+
+    subgraph CDN["jsDelivr CDN"]
+        Models["29 GLB models<br/>immutable commit-SHA URLs"]
+    end
+
+    subgraph Express["Express :5000 (Render web)"]
+        API1["/api/bodies CRUD"]
+        API2["/api/ai/precomputed · classify"]
+        API3["/api/player/:id/location"]
+        Static["Static SPA + draco wasm"]
+    end
+
+    subgraph FastAPI["FastAPI :8000 (optional ML)"]
+        ML["/classify · /correct · dashboard"]
+    end
+
+    DB[("PostgreSQL — Neon<br/>bodies · ai_cache · players · chat_logs")]
+
+    subgraph Bot["Telegram worker (Render)"]
+        Bot1["python-telegram-bot<br/>@SolarisCommandBot"]
+        Bot2["Station AI<br/>OpenCode Zen"]
+        Bot1 --> Bot2
+    end
+
+    Planet -->|useGLTF| Models
+    Scene -->|fetch /api/*| Express
+    API2 -->|cache miss proxy| FastAPI
+    API1 --> DB
+    API2 --> DB
+    API3 --> DB
+    Bot1 -->|PATCH /api/player/:id/location| API3
+    Bot1 -->|psycopg2| DB
+```
+
+```mermaid
+flowchart LR
+    A["GET /api/ai/classify/:bodyId"] --> B{ai_cache.json<br/>loaded at boot?}
+    B -->|yes| C["serve cached"]
+    B -->|no| D{"Postgres<br/>ai_cache?"}
+    D -->|yes| E["serve DB row<br/>60s TTL"]
+    D -->|no| F{"known spacecraft?"}
+    F -->|yes| G["static fallback"]
+    F -->|no| H["proxy FastAPI :8000"]
+```
 
 ```
 client/src/components/solar-system/
@@ -116,13 +181,18 @@ client/src/components/solar-system/
 
 ### Asset Pointers (`.glb.asset.json`)
 
-Each `.glb.asset.json` file is a JSON object with a single `url` key:
+Each `.glb.asset.json` file is a JSON object with a single `url` key pointing
+to the **jsDelivr CDN** (immutable commit-SHA URL, CORS-enabled, correct
+`model/gltf-binary` MIME):
 
 ```json
-{ "url": "/models/curiosity.glb" }
+{ "url": "https://cdn.jsdelivr.net/gh/vodkashot-star/solar-system@<commit-sha>/client/public/models/curiosity.glb" }
 ```
 
-Points to `public/models/`. To switch to an external CDN, update the `url` field.
+Never hardcode `/models/` URLs — to switch hosts, update the `url` field only.
+Publish a new model set: commit the GLBs, then bump the SHA in all 29 pointers
+(script: iterate `client/src/assets/solar/*.glb.asset.json`,
+`json.dump({"url": BASE + name})`). Draco WASM stays self-hosted (small files).
 
 ### NASA Model Conversion Pipeline
 
@@ -169,7 +239,7 @@ npm run db:migrate        # Drizzle generate + push (Postgres migrations)
 
 ### Production Deployment (Render)
 
-Live: **https://solar-system-0mqx.onrender.com**
+Live: **https://solar-system-api-ohxd.onrender.com**
 
 `render.yaml` defines three free-tier services:
 
@@ -181,9 +251,11 @@ Live: **https://solar-system-0mqx.onrender.com**
 
 Set `DATABASE_URL`, `TELEGRAM_BOT_TOKEN`, `OPENCODE_API_KEY`, `SENTRY_DSN` as
 secret env vars in the Render dashboard (marked `sync: false` in the config).
-The bot uses `SOLARIS_API_URL` (defaults to the Render URL) for `/travel`
-location sync. Static hosting (PWA build only) lives on Surge:
-`npm run deploy:surge` → **https://solar-system-3d.surge.sh**
+`SPACEAI_URL` points at the ML service URL (Render services are separate
+containers — `localhost` never reaches it). The bot uses `SOLARIS_API_URL`
+(defaults to the Render URL) for `/travel` location sync. Static hosting (PWA
+build only) lives on Surge: `npm run deploy:surge` →
+**https://solar-system-3d.surge.sh**
 
 ### Remote Access (localhost.run tunnel)
 
@@ -257,7 +329,8 @@ upcoming.
 | Technology | Purpose |
 |------------|---------|
 | **PostgreSQL** (Neon) | Primary database |
-| **Render** | Production hosting — web + FastAPI + Telegram bot (https://solar-system-0mqx.onrender.com) |
+| **Render** | Production hosting — web + FastAPI + Telegram bot (https://solar-system-api-ohxd.onrender.com) |
+| **jsDelivr** | Global CDN for the 29 GLB models (GitHub-backed, commit-SHA pinned) |
 | **GitHub Actions** | CI/CD |
 | **Surge** | Static hosting (https://solar-system-3d.surge.sh) |
 | **Vitest** | Unit testing |
@@ -380,15 +453,17 @@ solar-system/
 │   │   │       ├── CinematicTour.tsx
 │   │   │       ├── OrbitalBody.tsx  # Parent-relative moon/spacecraft positioning
 │   │   │       ├── FocusCamera.tsx
-│   │   │       ├── OrbitRings.tsx
+│   │   │       ├── OrbitRings.tsx   # Fat-line orbit guides (LineSegments2)
+│   │   │       ├── AdaptiveQuality.tsx  # FPS-monitored DPR scaling
 │   │   │       ├── InstancedStars.tsx
 │   │   │       ├── PerformanceMonitor.tsx        # DOM overlay (reads store)
 │   │   │       ├── PerformanceMetricsProbe.tsx   # R3F probe (writes store)
 │   │   │       ├── KeyboardShortcutsModal.tsx
 │   │   │       └── bodies.ts        # Body configuration data
-│   │   ├── assets/solar/            # .glb.asset.json pointers (one per model)
+│   │   ├── assets/solar/            # .glb.asset.json CDN pointers (one per model)
 │   │   ├── hooks/                   # useAIClassification, useCustomBodies,
-│   │   │                            # useKeyboardNavigation, usePerformance (R3F-only)
+│   │   │                            # useKeyboardNavigation, usePlayerMovements,
+│   │   │                            # usePerformance (R3F-only)
 │   │   ├── lib/                     # astronomy-positions, kepler, lod-manager,
 │   │   │                            # custom-bodies, procedural-textures, glow-textures,
 │   │   │                            # draco-setup, sentry, web-vitals, utils, config
@@ -447,8 +522,9 @@ solar-system/
 │   ├── validate_glb.sh
 │   ├── validate_glb_files.py
 │   └── validate_models.py
-├── .github/workflows/               # CI/CD (4 workflows: validate, validate-data, deploy, opencode)
-├── thoughts/                        # Research & planning docs
+├── .github/workflows/               # CI/CD (validate, deploy, opencode)
+├── docs/
+│   └── archive/                     # Completed improvement reports & old plans
 ├── package.json
 ├── tsconfig.json
 ├── vite.config.ts

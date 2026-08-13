@@ -2,6 +2,34 @@
 
 All notable changes. Unreleased entries are uncommitted work in progress.
 
+## [Unreleased] — 2026-08-14
+
+### Scene: rendering upgrades
+- **Adaptive quality** — new `AdaptiveQuality.tsx` (inside Canvas): drei `PerformanceMonitor` samples real FPS and drives `setDpr` (1.75 → 1.0) on decline, recovering on incline; demand-loop safe (samples only rendered frames)
+- **Tone mapping** — Canvas `gl` now uses `ACESFilmicToneMapping` + exposure 1.1 (flows into the postprocessing final pass)
+- **Orbit rings** — rebuilt on `LineSegments2`/`LineMaterial` (three-stdlib): WebGL ignores `linewidth > 1`, so the old rings were aliased 1px hairlines; now crisp 1.5px lines, still one merged geometry. Active tour/focus body gets a bright 3px dashed ring in its body color with a slowly scrolling dash (frozen on pause)
+- `InstancedStars`: star rotation gated behind `speed > 0 || cinematic` (pause-freeze airtight)
+
+### CDN: GLB models → jsDelivr
+- All 29 `*.glb.asset.json` pointers now serve `https://cdn.jsdelivr.net/gh/vodkashot-star/solar-system@<commit-sha>/client/public/models/*.glb` — immutable commit-SHA URLs (tags/branches lag up to 12h on jsDelivr), CORS `*`, `model/gltf-binary` MIME, 7-day client cache; Express no longer serves the ~15 MB of GLBs
+- Validators CDN-tolerant: `validate_glb.sh` + `validate_glb_files.py` accept any URL and check the basename (`models:validate` still 29/29)
+- `ModelPreview`/`DebugPanel` display model names via `url.split("/").pop()` instead of `/models/` prefix stripping
+- Draco WASM stays self-hosted; PWA CacheFirst 30-day GLB caching unchanged (new URL = new cache key)
+
+### Models: recompressed (7 GLBs, Draco)
+- cassini, ceres, curiosity, eros, hubble, itokawa, new-horizons recompressed: 15 MB → 7 MB (see `docs/archive/MODEL_OPTIMIZATION_AUDIT.md`); CDN SHA bumped in all pointers
+- `client/public/models-backup/` dropped from the repo (gitignored — recoverable from history)
+
+### Deploy: Render blueprint fixes
+- `render.yaml`: build command now `npm install --include=dev && npm run build` (env `NODE_ENV=production` made npm skip devDependencies → `vite: not found` on every blueprint-created build)
+- `SPACEAI_URL` → `https://solar-system-ml.onrender.com` (Render services are separate containers; `localhost:8000` never resolved)
+- Blueprint sync created `solar-system-api` (+ml/bot); live: **https://solar-system-api-ohxd.onrender.com** — health, DB, AI cache, and ML proxy all green
+- Old duplicate `solar-system` service retired/suspended
+
+### Docs: reorganization
+- Completed improvement reports + stale plans moved to `docs/archive/`: ARCHITECTURE_IMPROVEMENTS, MODEL_OPTIMIZATION_AUDIT, PERFORMANCE_AUDIT, PWA_IMPLEMENTATION, RESPONSIVE_IMPROVEMENTS, WEBGL_PERFORMANCE_IMPROVEMENTS, PLAN_CONTEXT (contained outdated claims — SSE/model-rotation marked done), `thoughts/` (research + plans), `responsive-test.html`
+- README: mermaid architecture + AI-cascade diagrams, CDN asset-pointer docs, current Render URL/service table, AdaptiveQuality/OrbitRings structure entries
+
 ## [Unreleased] — 2026-08-13
 
 ### Visualization: orbit motion + smooth cinematic tour
