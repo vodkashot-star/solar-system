@@ -165,7 +165,7 @@ export default function ModelPreview({ id }: { id?: string }) {
             </div>
             <div className="mt-0.5 text-sm font-medium text-white">{body.name}</div>
             <div className="mt-1 truncate text-[10px] text-white/35" title={body.glbUrl}>
-              {body.glbUrl?.replace("/models/", "")}
+              {body.glbUrl?.split("/").pop()}
             </div>
             {stats && (
               <div className="mt-1.5 flex gap-2 border-t border-white/10 pt-1.5 text-[10px] text-white/45">

@@ -26,8 +26,9 @@ def get_expected_models():
         with open(asset_file) as f:
             data = json.load(f)
             url = data.get("url", "")
-            if url.startswith("/models/"):
-                model_name = url.replace("/models/", "").replace(".glb", "")
+            # Local (/models/x.glb) or CDN (https://cdn.jsdelivr.net/.../x.glb)
+            model_name = url.rsplit("/", 1)[-1].replace(".glb", "")
+            if model_name:
                 models.append(model_name)
     return models
 

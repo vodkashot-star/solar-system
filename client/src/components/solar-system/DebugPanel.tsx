@@ -85,7 +85,7 @@ export default function DebugPanel() {
                       rel="noreferrer"
                       className="text-white/40 underline-offset-2 transition hover:text-indigo-300 hover:underline"
                     >
-                      {e.url.replace("/models/", "")}
+                      {e.url.split("/").pop()}
                     </a>
                   </td>
                   <td className="pr-3 pt-0.5 text-right tabular-nums text-white/50">

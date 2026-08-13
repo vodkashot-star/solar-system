@@ -46,7 +46,8 @@
 ## GLB Assets
 
 - **GLB files**: `client/public/models/<name>.glb` — 29 binary files (public domain NASA models)
-- **Asset manifests**: `client/src/assets/solar/<name>.glb.asset.json` — pointer: `{"url":"/models/<name>.glb"}`. CDN swap = edit JSON only. **Never hardcode `/models/` URLs.**
+- **Asset manifests**: `client/src/assets/solar/<name>.glb.asset.json` — pointer: `{"url":"..."}`. **Never hardcode `/models/` URLs.**
+- **CDN (jsDelivr)**: all 29 pointers now serve from GitHub via jsDelivr: `https://cdn.jsdelivr.net/gh/vodkashot-star/solar-system@<commit-sha>/client/public/models/<name>.glb` (CORS `*`, `model/gltf-binary` MIME, 7-day client cache). **Use a full commit SHA, not a branch** (`@main` is stale-prone: jsDelivr's tag/branch index lags up to 12h; SHA serves instantly and is immutable). PWA still caches GLBs CacheFirst 30 days → old clients keep working after a model swap. To publish new models: commit them, then bump the SHA in all 29 JSONs (script: iterate `client/src/assets/solar/*.glb.asset.json`, `json.dump({"url": BASE+name})`). Draco stays self-hosted (small files).
 - **Draco WASM**: `scripts/copy-draco.sh` copies `node_modules/three/examples/jsm/libs/draco/*` → `client/public/draco/` and `dist/draco/`. Runs automatically in `dev`/`build`/`build:cf` (first command in the npm script).
 - **Real GLBs**: planets/moons from `assets.science.nasa.gov` + `svs.gsfc.nasa.gov`; spacecraft/`juno-spacecraft` from `github.com/nasa/NASA-3D-Resources`; asteroids `bennu`/`itokawa`/`eros` from `assets.science.nasa.gov`
 - **All GLBs self-contained**: textures are embedded (bufferView) — `validate_glb.sh` warns ("external texture ref(s)") if any GLB references loose image files

@@ -113,8 +113,8 @@ for glb in "${GLBS[@]}"; do
     MISSING_ASSET=$((MISSING_ASSET + 1))
   else
     asset_url=$(jq -r '.url // empty' "$asset_json" 2>/dev/null || echo "")
-    if [[ -n "$asset_url" && "$asset_url" != "/models/${name}.glb" ]]; then
-      issues+=("Asset JSON URL mismatch: expected /models/${name}.glb, got $asset_url")
+    if [[ -n "$asset_url" && "$(basename "$asset_url")" != "${name}.glb" ]]; then
+      issues+=("Asset JSON URL mismatch: expected ${name}.glb, got $asset_url")
     fi
   fi
   
