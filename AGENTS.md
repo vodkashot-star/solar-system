@@ -37,6 +37,11 @@
 - **Path aliases**: `@/*` → `client/src/*`, `@shared/*` → `shared/*`
 - **Vite root**: `client/`, outDir `dist/`
 - **Chunk splitting**: `vendor_react` (react/react-dom/scheduler), `vendor_three_core`/`vendor_three_addons`/`vendor_three_stdlib`/`vendor_three_react` (three + R3F), `vendor_fx` (postprocessing), `vendor_animation` (maath/react-spring), `vendor_state` (zustand), `vendor_shared` (everything else). `preloadThreeChunk` Vite plugin injects `<link rel="modulepreload">` for the hashed `vendor_three_*` assets into built `index.html`
+- **PWA service worker** (`vite-plugin-pwa`, `registerSW` in `main.tsx`, auto-update): GLBs cached `CacheFirst` 30 days, `draco/*.wasm` 1 year, `/api` `NetworkFirst` 5 min, fonts 1 year — deploy a new GLB/API fix and old clients keep serving cached versions
+- **Docker**: `Dockerfile.app` + `docker-compose.yml` run **Express prod only** (`node dist/index-prod.js`, port 5000) — no FastAPI, no DB; the ML API and Postgres are not containerized
+- **Production host is Render** (`render.yaml`): 3 services — Express web `node dist/index-prod.js`, FastAPI ML (`run.py serve`), Telegram bot worker. Live: https://solar-system-0mqx.onrender.com. Env: `ALLOWED_ORIGIN` → Render URL, bot worker uses `SOLARIS_API_URL` (Render services are separate — `localhost:5000` wouldn't reach the web service)
+- **CI (GitHub Actions, `.github/workflows/`)**: `validate.yml` runs the gate — `models:validate` + `typecheck` + `vitest` + `ai:test`; `deploy.yml` ships `build:cf` to Cloudflare Pages; both trigger on branch **`Master`** (capital M — local default is `main`, pushes must target `Master`)
+- **Sentry**: sourcemap upload only when `SENTRY_AUTH_TOKEN` set + `NODE_ENV=production` (`SENTRY_ORG`/`SENTRY_PROJECT`/`SENTRY_RELEASE`)
 
 ## GLB Assets
 
@@ -121,7 +126,7 @@ All in `server/routes.ts`. Request cascade: Drizzle DB → `spaceAI/data/ai_cach
 - `stats.html` is a build artifact from rollup-plugin-visualizer — gitignored
 - `.env*` gitignored; set `DATABASE_URL` for DB features, `SPACEAI_URL` for FastAPI proxy
 - **`npm audit` shows 6 vulns (4 moderate, 2 high) — unfixable without breaking deps, dev-only, do not `audit fix --force`**: (1) `esbuild ≤0.24.2` nested via `drizzle-kit → @esbuild-kit/esm-loader` (abandoned pkg, no fixed release); (2) `sharp <0.35.0` pinned by `@gltf-transform/cli@4.4.2` (`~0.34.5`). Neither ships in the prod bundle — sharp runs only in local GLB conversion, @esbuild-kit's esbuild only in drizzle-kit config loading (Vite/Express use esbuild 0.25, unaffected). Re-check with `npm audit`
-- `.opencode` is tracked (agents, commands, skills, config); `.zencode` is the legacy copy — keep in sync
+- `.opencode` is tracked (agents, commands, skills, config) — `.zencode` legacy copy was deleted in the 2026-08 cleanup, do not resurrect it
 - opencode config: `opencode.json` + `.opencode/` — restart opencode after changes
 
 ## Public Tunnel (localhost.run)

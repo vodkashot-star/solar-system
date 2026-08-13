@@ -27,7 +27,7 @@ parallel:
 
 ```
 # Example: "add a new celestial body with ML classification"
-task frontend-agent: update bodies.ts, create GLB asset
-task backend-agent:    add DB migration, update API route
-task ml-agent:         retrain model, update taxonomy
+task frontend:  update bodies.ts, create GLB asset
+task backend:   add DB migration, update API route
+task ml:        retrain model, update taxonomy
 ```

@@ -25,7 +25,7 @@ ml_framework: scikit-learn
 - **Zustand** — state management
 - **Tailwind CSS** — styling
 - **Vite** — build tool / dev server
-- **GLSL** — custom shaders (via `vite-plugin-glsl`)
+- **GLSL** — custom shaders (built-in WebGL, no plugin — `vite-plugin-glsl` is NOT a dependency)
 
 ## Backend
 
@@ -52,6 +52,7 @@ ml_framework: scikit-learn
 
 ## Infrastructure
 
-- **PostgreSQL** — primary database
-- **Docker** — containerized deployment (app + spaceAI)
-- **GitHub Actions** — CI/CD
+- **PostgreSQL** — primary database (Neon via `DATABASE_URL`)
+- **Docker** — Express app container only (`Dockerfile.app`, port 5000); FastAPI/Postgres run outside containers
+- **Render** — production host (`render.yaml`: Express web + FastAPI ML + Telegram bot worker)
+- **GitHub Actions** — CI (`validate.yml` gate + Cloudflare Pages `deploy.yml`, branch `Master`)

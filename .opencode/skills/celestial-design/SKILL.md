@@ -24,7 +24,7 @@ Per-body design fields:
 | `visualRadius` | Scene radius (logarithmic scale, NOT real sizes) |
 | `color` | Fallback color if no GLB; also used when procedural textures are absent |
 | `tilt` | Axial tilt (radians) — set `tilt` + `spinSpeed` for realistic rotation |
-| `hasRings` | Renders `RingSystem` — Saturn/Jupiter/Uranus/Neptune/Haumea |
+| `hasRings` | Renders `RingSystem` — currently only Saturn/Uranus/Neptune set it; Jupiter/Haumea have dormant `RING_PARAMETERS` defs without the flag |
 | `glbUrl` | Optional — if absent the body renders a `FallbackSphere` |
 | `parentBody` | Spacecraft/moons orbit this body instead of the Sun |
 | `missionInfo` | Spacecraft metadata for the detail modal |

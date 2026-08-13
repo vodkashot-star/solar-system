@@ -17,9 +17,9 @@ make the app faster, first **measure**, then apply the levers below.
    `curl -s -o /dev/null -w "%{time_total}s\n" http://localhost:5000/api/ai/precomputed`
    Expect <100ms. A ~1.5s response = TTL expiry mid-merge (acceptable, one-off)
    or a regression (cache bypass).
-2. **GLB payloads** — 29 GLBs in `client/public/models/`. Total budget now
-   ~<15MB after the slim pass. Big models: sun/uranus (textured), cassini,
-   curiosity, hubble (textures embedded). See `glb-models` skill for slimming.
+2. **GLB payloads** — 29 GLBs in `client/public/models/` (~26 MB on disk after
+   the slim pass). Big models: sun/uranus (textured), cassini, curiosity,
+   hubble (textures embedded). See `glb-models` skill for slimming.
 3. **Draco** — every GLB must be Draco-compressed (validate: `npm run models:validate`).
    Missing Draco wasm = models fail to load: run `scripts/copy-draco.sh` before dev.
 
@@ -59,7 +59,10 @@ make the app faster, first **measure**, then apply the levers below.
 - Network payload: browser DevTools Network tab, filter `glb` — count MB
 - Bundle: `stats.html` is a rollup-plugin-visualizer artifact (gitignored);
   rebuild with `npm run build` and open it. Chunks: `vendor_react`,
-  `vendor_shared`.
+  `vendor_three_core`/`vendor_three_addons`/`vendor_three_stdlib`/
+  `vendor_three_react` (three + R3F), `vendor_fx` (postprocessing),
+  `vendor_animation`, `vendor_state`, `vendor_shared` (see `vite.config.ts`
+  manualChunks).
 - FPS: only meaningful with bloom active (tour/focus) on the target device.
 
 ## Regression gates
