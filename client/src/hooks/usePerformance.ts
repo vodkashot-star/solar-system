@@ -3,8 +3,9 @@
  * Tracks FPS, draw calls, memory usage, and provides adaptive quality suggestions
  */
 
-import { useState, useEffect, useRef } from "react";
+import { useRef } from "react";
 import { useFrame, useThree } from "@react-three/fiber";
+import { usePerformanceStore } from "@/stores/performance";
 
 export type PerformanceMetrics = {
   fps: number;
@@ -26,19 +27,15 @@ export type PerformanceSuggestions = {
 };
 
 /**
- * Hook to monitor WebGL performance metrics
+ * R3F-only hook to monitor WebGL performance metrics.
+ *
+ * MUST be called inside a Canvas (uses useThree/useFrame) — call it from
+ * PerformanceMetricsProbe, never from the DOM overlay. Metrics are published to
+ * the performance store; the overlay subscribes there.
  */
 export function usePerformanceMonitor(enabled: boolean = true) {
   const { gl } = useThree();
-  const [metrics, setMetrics] = useState<PerformanceMetrics>({
-    fps: 60,
-    frameTime: 16.67,
-    drawCalls: 0,
-    triangles: 0,
-    geometries: 0,
-    textures: 0,
-    programs: 0,
-  });
+  const setMetrics = usePerformanceStore((s) => s.setMetrics);
 
   const frameCountRef = useRef(0);
   const lastTimeRef = useRef(performance.now());
@@ -76,8 +73,6 @@ export function usePerformanceMonitor(enabled: boolean = true) {
       frameTimes.current = [];
     }
   });
-
-  return metrics;
 }
 
 /**

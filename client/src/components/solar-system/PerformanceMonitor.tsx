@@ -6,12 +6,14 @@
  */
 
 import { useState, useEffect } from "react";
-import { usePerformanceMonitor, analyzePerformance, detectDeviceCapabilities } from "@/hooks/usePerformance";
+import { analyzePerformance, detectDeviceCapabilities } from "@/hooks/usePerformance";
+import { usePerformanceStore } from "@/stores/performance";
 
 export default function PerformanceMonitor() {
   const [visible, setVisible] = useState(false);
   const [expanded, setExpanded] = useState(false);
-  const metrics = usePerformanceMonitor(visible);
+  const metrics = usePerformanceStore((s) => s.metrics);
+  const setEnabled = usePerformanceStore((s) => s.setEnabled);
   const analysis = analyzePerformance(metrics);
   const deviceInfo = detectDeviceCapabilities();
 
@@ -20,7 +22,10 @@ export default function PerformanceMonitor() {
       // Toggle with Shift+P
       if (e.shiftKey && e.key === 'P') {
         e.preventDefault();
-        setVisible((v) => !v);
+        setVisible((v) => {
+          setEnabled(!v);
+          return !v;
+        });
       }
       // Expand with Shift+E when visible
       if (visible && e.shiftKey && e.key === 'E') {
@@ -31,7 +36,7 @@ export default function PerformanceMonitor() {
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [visible]);
+  }, [visible, setEnabled]);
 
   if (!visible) return null;
 

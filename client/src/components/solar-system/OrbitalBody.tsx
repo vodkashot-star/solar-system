@@ -22,6 +22,7 @@ import { useFrame } from "@react-three/fiber";
 import * as THREE from "three";
 import type { Body } from "./bodies";
 import Planet from "./Planet";
+import { useSimulation } from "@/stores/simulation";
 
 type OrbitalBodyProps = {
   body: Body;
@@ -55,6 +56,7 @@ export default React.memo(function OrbitalBody({
   isWanted = true,
 }: OrbitalBodyProps) {
   const groupRef = useRef<THREE.Group>(null);
+  const speed = useSimulation((s) => s.speed);
 
   /**
    * Build a modified body that orbits at the desired radius around origin.
@@ -91,7 +93,11 @@ export default React.memo(function OrbitalBody({
     _parentPos.copy(parentPos);
     group.position.copy(_parentPos);
 
-    state.invalidate();
+    // Skip when paused — the parent's own invalidate() (or the next unpause)
+    // picks the group translation up on the next rendered frame anyway.
+    if (speed > 0) {
+      state.invalidate();
+    }
   });
 
   /**

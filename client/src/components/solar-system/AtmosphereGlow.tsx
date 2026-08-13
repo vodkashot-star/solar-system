@@ -2,6 +2,8 @@ import { useMemo, useRef } from "react";
 import { useFrame } from "@react-three/fiber";
 import * as THREE from "three";
 import { hexToRgba, makeGlowTexture } from "@/lib/glow-textures";
+import { useCinematicMode } from "@/stores/cinematic-mode";
+import { useSimulation } from "@/stores/simulation";
 
 const ATMOSPHERE_COLORS: Record<string, string> = {
   earth: "#4fc3f7",
@@ -19,6 +21,8 @@ type Props = {
 
 export default function AtmosphereGlow({ radius, bodyId }: Props) {
   const ref = useRef<THREE.Sprite>(null);
+  const cinematic = useCinematicMode((s) => s.enabled);
+  const speed = useSimulation((s) => s.speed);
   const color = ATMOSPHERE_COLORS[bodyId] ?? "#ffffff";
   const tex = useMemo(
     () =>
@@ -36,7 +40,10 @@ export default function AtmosphereGlow({ radius, bodyId }: Props) {
       const pulse = 1 + 0.02 * Math.sin(clock.elapsedTime * 0.5 + bodyId.charCodeAt(0));
       ref.current.scale.setScalar(radius * 3.2 * pulse);
     }
-    invalidate();
+    // Paused (speed 0, no tour) → planets don't invalidate either; freeze.
+    if (speed > 0 || cinematic) {
+      invalidate();
+    }
   });
 
   return (

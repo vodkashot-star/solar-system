@@ -1,6 +1,8 @@
 import { useMemo, useRef, useCallback } from "react";
 import { useFrame } from "@react-three/fiber";
 import * as THREE from "three";
+import { useCinematicMode } from "@/stores/cinematic-mode";
+import { useSimulation } from "@/stores/simulation";
 
 type Props = {
   count?: number;
@@ -79,6 +81,8 @@ export default function InstancedStars({
 }: Props) {
   const meshRef = useRef<THREE.Points>(null);
   const materialRef = useRef<THREE.PointsMaterial>(null);
+  const cinematic = useCinematicMode((s) => s.enabled);
+  const speed = useSimulation((s) => s.speed);
 
   // Reduce star count on mobile devices (lower DPR = lower-end device)
   const devicePixelRatio = typeof window !== 'undefined' ? window.devicePixelRatio : 1;
@@ -121,7 +125,10 @@ export default function InstancedStars({
   useFrame((state, delta) => {
     uniformsRef.current.uTime.value += delta;
     if (meshRef.current) meshRef.current.rotation.y += delta * 0.001;
-    state.invalidate();
+    // Paused (speed 0, no tour) → nothing else invalidates either; freeze.
+    if (speed > 0 || cinematic) {
+      state.invalidate();
+    }
   });
 
   const onBeforeCompile = useCallback((shader: { uniforms: Record<string, { value: unknown }>; vertexShader: string }, _renderer: unknown) => {

@@ -3,12 +3,14 @@ import { useFrame } from "@react-three/fiber";
 import * as THREE from "three";
 import { makeGlowTexture } from "@/lib/glow-textures";
 import { useCinematicMode } from "@/stores/cinematic-mode";
+import { useSimulation } from "@/stores/simulation";
 
 export default function SunGlow() {
   const glowRef = useRef<THREE.Sprite>(null);
   const coronaRef = useRef<THREE.Sprite>(null);
   const raysRef = useRef<THREE.Sprite>(null);
   const cinematic = useCinematicMode((s) => s.enabled);
+  const speed = useSimulation((s) => s.speed);
 
   const glowTex = useMemo(
     () =>
@@ -62,7 +64,10 @@ export default function SunGlow() {
       raysRef.current.rotation.z = -0.28 + wobble;
       raysRef.current.material.opacity = 0.16 + 0.04 * Math.sin(clock.elapsedTime * 0.9);
     }
-    invalidate();
+    // Paused (speed 0, no tour) → planets don't invalidate either; freeze.
+    if (speed > 0 || cinematic) {
+      invalidate();
+    }
   });
 
   return (

@@ -16,6 +16,7 @@ import SunGlow from "./SunGlow";
 import LoadingSpinner from "./LoadingSpinner";
 import DebugPanel from "./DebugPanel";
 import PerformanceMonitor from "./PerformanceMonitor";
+import PerformanceMetricsProbe from "./PerformanceMetricsProbe";
 import AIClassificationPanel from "./AIClassificationPanel";
 import ScaleControl, { type ScaleMode } from "./ScaleControl";
 import BodySearch from "./BodySearch";
@@ -23,6 +24,7 @@ import KeyboardShortcutsModal from "./KeyboardShortcutsModal";
 import FilmGrainOverlay from "./FilmGrainOverlay";
 import { useCameraFocus } from "@/stores/camera-focus";
 import { useCinematicMode } from "@/stores/cinematic-mode";
+import { useSimulation } from "@/stores/simulation";
 import OrbitalBody from "./OrbitalBody";
 import { useAIClassification } from "@/hooks/useAIClassification";
 import { useKeyboardNavigation } from "@/hooks/useKeyboardNavigation";
@@ -114,6 +116,13 @@ export default function SolarSystem() {
   useEffect(() => {
     setCinematic(tourOn);
   }, [tourOn, setCinematic]);
+
+  // Mirror the speed slider into the simulation store so Canvas children can
+  // skip invalidate() when paused (true freeze under frameloop="demand").
+  const setSimSpeed = useSimulation((s) => s.setSpeed);
+  useEffect(() => {
+    setSimSpeed(speedMultiplier);
+  }, [speedMultiplier, setSimSpeed]);
 
   const currentIndex = allBodies.findIndex((b) => b.id === active.id);
 
@@ -269,6 +278,7 @@ export default function SolarSystem() {
 
           <FocusCamera positions={positions} computedRadii={computedRadii} bodies={allBodies} />
           <CinematicTour enabled={tourOn} onActiveChange={setActive} onOverviewChange={setOverview} positions={positions} computedRadii={computedRadii} speedMultiplier={speedMultiplier} bodies={allBodies} />
+          <PerformanceMetricsProbe />
 
           {!tourOn && !fitAll && (
             <OrbitControls
