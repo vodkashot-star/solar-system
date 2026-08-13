@@ -19,7 +19,7 @@ services:
       - key: ALLOWED_ORIGIN
         value: https://solar-system-0mqx.onrender.com
       - key: SPACEAI_URL
-        value: http://localhost:8000
+        value: https://solar-system-ml.onrender.com
       - key: LOG_LEVEL
         value: info
       - key: SENTRY_DSN
