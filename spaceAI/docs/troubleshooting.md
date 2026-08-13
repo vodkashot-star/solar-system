@@ -85,9 +85,24 @@ This box has no IPv6 route but DNS returns AAAA records first. The bot patches
 
 ### "Relay Busy" replies
 
-The OpenCode Zen free tier rate-limits (HTTP 429). The bot replies with
-"Relay Busy" flavor text and recovers automatically — no action needed. If it
+The OpenCode Zen free tier rate-limits (HTTP 429). The bot retries once with
+`nemotron-3-ultra-free` (override via `OPENCODE_FALLBACK_MODEL`) before
+replying "Relay Busy" — it recovers automatically, no action needed. If it
 persists, check your usage/quota on the OpenCode Zen dashboard.
+
+### Players/location/chat logs not persisting
+
+The bot needs `DATABASE_URL` in the root `.env`; without it everything still
+works but nothing is stored and every player is routed to Earth. The bot uses
+a shared psycopg2 connection (reconnect-once) and is deliberately **fail-silent**
+— check the daemon log for a one-time `⚠ DB unavailable` warning per error type:
+
+```bash
+grep "DB unavailable" /tmp/aibot.log
+```
+
+If you see it with a valid `DATABASE_URL`, verify the migrations are applied:
+`npm run db:migrate` (or check `player_characters` / `chat_logs` exist in Neon).
 
 ### Restarting the daemon
 

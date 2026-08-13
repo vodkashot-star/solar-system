@@ -3,15 +3,17 @@ import react from "@vitejs/plugin-react";
 import path, { dirname } from "path";
 import { fileURLToPath } from "url";
 import { visualizer } from "rollup-plugin-visualizer";
+import { sentryVitePlugin } from "@sentry/vite-plugin";
+import { VitePWA } from "vite-plugin-pwa";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
 /**
- * Preload the three.js vendor chunk from the HTML parse phase, before the
- * lazy SolarSystem chunk that imports it has even been requested. three
- * (~600KB min) is the single largest module in the graph — fetching it in
- * parallel with the entry bundles shaves 1 round-trip off scene boot.
+ * Preload the three.js vendor chunks from the HTML parse phase, before the
+ * lazy SolarSystem chunk that imports them has even been requested. three
+ * (~600KB min split across chunks) is the largest module in the graph — 
+ * fetching it in parallel with the entry bundles shaves 1 round-trip off scene boot.
  */
 function preloadThreeChunk(): Plugin {
   return {
@@ -20,17 +22,19 @@ function preloadThreeChunk(): Plugin {
     transformIndexHtml(_html, ctx) {
       const bundle = (ctx as { bundle?: Record<string, { fileName?: string }> }).bundle;
       if (!bundle) return undefined;
-      const entry = Object.keys(bundle).find(
-        (k) => k.startsWith("vendor_three-") && k.endsWith(".js"),
+      
+      // Preload three.js core and react integration chunks
+      const chunks = Object.keys(bundle).filter(
+        (k) => (k.startsWith("vendor_three_") && k.endsWith(".js"))
       );
-      if (!entry) return undefined;
-      return [
-        {
-          tag: "link",
-          attrs: { rel: "modulepreload", href: `/assets/${entry}` },
-          injectTo: "head-prepend",
-        },
-      ];
+      
+      if (chunks.length === 0) return undefined;
+      
+      return chunks.map(entry => ({
+        tag: "link",
+        attrs: { rel: "modulepreload", href: `/assets/${entry}` },
+        injectTo: "head-prepend" as const,
+      }));
     },
   };
 }
@@ -40,7 +44,153 @@ export default defineConfig({
     react(),
     preloadThreeChunk(),
     visualizer({ filename: "stats.html", open: false }),
-  ],
+    
+    // PWA with offline support
+    VitePWA({
+      registerType: 'autoUpdate',
+      includeAssets: ['favicon.ico', 'favicon-96x96.png', 'icons/*.png', 'draco/*.wasm'],
+      
+      manifest: {
+        name: 'Solar System · Cinematic 3D Tour',
+        short_name: 'Solar System',
+        description: 'An interactive 3D solar system with cinematic camera tour through 29+ celestial bodies and NASA spacecraft',
+        theme_color: '#070814',
+        background_color: '#02030a',
+        display: 'standalone',
+        orientation: 'any',
+        scope: '/',
+        start_url: '/',
+        icons: [
+          {
+            src: '/icons/pwa-192x192.png',
+            sizes: '192x192',
+            type: 'image/png',
+            purpose: 'any'
+          },
+          {
+            src: '/icons/pwa-512x512.png',
+            sizes: '512x512',
+            type: 'image/png',
+            purpose: 'any'
+          },
+          {
+            src: '/icons/pwa-maskable-192x192.png',
+            sizes: '192x192',
+            type: 'image/png',
+            purpose: 'maskable'
+          },
+          {
+            src: '/icons/pwa-maskable-512x512.png',
+            sizes: '512x512',
+            type: 'image/png',
+            purpose: 'maskable'
+          }
+        ],
+        categories: ['education', 'entertainment', 'science'],
+        screenshots: []
+      },
+      
+      workbox: {
+        // Precache all static assets
+        globPatterns: ['**/*.{js,css,html,woff,woff2}'],
+        
+        // Cache GLB models and Draco WASM files separately
+        runtimeCaching: [
+          {
+            urlPattern: /^https:\/\/fonts\.googleapis\.com\/.*/i,
+            handler: 'CacheFirst',
+            options: {
+              cacheName: 'google-fonts-cache',
+              expiration: {
+                maxEntries: 10,
+                maxAgeSeconds: 60 * 60 * 24 * 365 // 1 year
+              },
+              cacheableResponse: {
+                statuses: [0, 200]
+              }
+            }
+          },
+          {
+            urlPattern: /^https:\/\/fonts\.gstatic\.com\/.*/i,
+            handler: 'CacheFirst',
+            options: {
+              cacheName: 'gstatic-fonts-cache',
+              expiration: {
+                maxEntries: 10,
+                maxAgeSeconds: 60 * 60 * 24 * 365 // 1 year
+              },
+              cacheableResponse: {
+                statuses: [0, 200]
+              }
+            }
+          },
+          {
+            urlPattern: /\/models\/.*\.glb$/,
+            handler: 'CacheFirst',
+            options: {
+              cacheName: 'glb-models',
+              expiration: {
+                maxEntries: 50,
+                maxAgeSeconds: 60 * 60 * 24 * 30 // 30 days
+              },
+              cacheableResponse: {
+                statuses: [0, 200]
+              }
+            }
+          },
+          {
+            urlPattern: /\/draco\/.*\.wasm$/,
+            handler: 'CacheFirst',
+            options: {
+              cacheName: 'draco-decoder',
+              expiration: {
+                maxEntries: 10,
+                maxAgeSeconds: 60 * 60 * 24 * 365 // 1 year
+              },
+              cacheableResponse: {
+                statuses: [0, 200]
+              }
+            }
+          },
+          {
+            urlPattern: /\/api\/.*/i,
+            handler: 'NetworkFirst',
+            options: {
+              cacheName: 'api-cache',
+              expiration: {
+                maxEntries: 50,
+                maxAgeSeconds: 60 * 5 // 5 minutes
+              },
+              networkTimeoutSeconds: 10
+            }
+          }
+        ],
+        
+        // Don't cache source maps in production
+        navigateFallback: null
+      },
+      
+      devOptions: {
+        enabled: false // Disable in dev to avoid conflicts with Vite HMR
+      }
+    }),
+    
+    // Sentry source maps upload (only in production builds with auth token)
+    process.env.SENTRY_AUTH_TOKEN && process.env.NODE_ENV === 'production'
+      ? sentryVitePlugin({
+          org: process.env.SENTRY_ORG,
+          project: process.env.SENTRY_PROJECT,
+          authToken: process.env.SENTRY_AUTH_TOKEN,
+          sourcemaps: {
+            assets: './dist/assets/**',
+            ignore: ['node_modules'],
+          },
+          release: {
+            name: process.env.SENTRY_RELEASE || `solar-system@${Date.now()}`,
+          },
+        })
+      : undefined,
+  ].filter(Boolean),
   server: {
     watch: {
       ignored: ["**/node_modules/**", "**/dist/**", "**/.git/**", "**/venv/**", "**/__pycache__/**"],
@@ -60,19 +210,36 @@ export default defineConfig({
     outDir: path.resolve(__dirname, "dist"),
     emptyOutDir: true,
     chunkSizeWarningLimit: 1000,
+    sourcemap: true, // Enable source maps for Sentry
     rollupOptions: {
       output: {
         manualChunks: (id) => {
           if (id.includes('node_modules')) {
-            // Only the real react packages — `id.includes('react')` would also
-            // catch @react-three/* and react-spring, pulling three into
-            // vendor_react and creating a vendor_react <-> vendor_shared
-            // circular chunk (breaks react-dom hook init at runtime).
+            // React core packages
             if (/node_modules[\\/](react|react-dom|scheduler)[\\/]/.test(id)) return 'vendor_react';
-            // three + its stdlib go to their own chunk (one-way dependency —
-            // drei/fiber only ever import FROM three, never the reverse, so
-            // the chunk graph stays acyclic). Preloaded via modulepreload.
-            if (/node_modules[\\/](three|three-stdlib)[\\/]/.test(id)) return 'vendor_three';
+            
+            // Three.js core - split into smaller chunks
+            if (/node_modules[\\/]three[\\/]/.test(id)) {
+              // Separate three.js main from addons
+              if (id.includes('three/examples/jsm')) return 'vendor_three_addons';
+              return 'vendor_three_core';
+            }
+            
+            // Three.js ecosystem
+            if (/node_modules[\\/]three-stdlib[\\/]/.test(id)) return 'vendor_three_stdlib';
+            if (/node_modules[\\/]@react-three[\\/](fiber|drei)/.test(id)) return 'vendor_three_react';
+            
+            // Postprocessing effects
+            if (/node_modules[\\/]@react-three[\\/]postprocessing/.test(id)) return 'vendor_fx';
+            if (/node_modules[\\/]postprocessing[\\/]/.test(id)) return 'vendor_fx';
+            
+            // Animation libraries
+            if (/node_modules[\\/](maath|@react-spring)/.test(id)) return 'vendor_animation';
+            
+            // State management
+            if (/node_modules[\\/]zustand[\\/]/.test(id)) return 'vendor_state';
+            
+            // Everything else
             return 'vendor_shared';
           }
         },

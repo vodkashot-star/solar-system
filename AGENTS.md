@@ -90,6 +90,8 @@ All in `server/routes.ts`. Request cascade: Drizzle DB → `spaceAI/data/ai_cach
 | `/api/classify/:bodyId/correct` | POST | Correction mirroring FastAPI's path (`POST /classify/{body_id}/correct`) |
 | `/api/bodies` | GET/POST | CRUD for `celestial_bodies` table |
 | `/api/bodies/:id` | GET/PATCH/DELETE | Single body CRUD |
+| `/api/player/:telegramUserId` | GET | Player row (`player_characters`) or 404 |
+| `/api/player/:telegramUserId/location` | PATCH | Upsert player location via `{bodyId}` or `{bodyName}` (case-insensitive; 404 if body missing) |
 
 ## spaceAI (Python ML on :8000)
 
@@ -103,11 +105,12 @@ All in `server/routes.ts`. Request cascade: Drizzle DB → `spaceAI/data/ai_cach
 ## Telegram Bot (SOLARIS Network)
 
 - `spaceAI/telegram_bot.py` — python-telegram-bot polling bot @SolarisCommandBot; `/start` + free-text chat routed to a station AI (`STATION_AIS`: earth → A.R.E.S. Flight Command, moon → Dr. Vance/Lunar Gateway, makemake → Deep-Space Drone 09, Kuiper Belt)
-- Brain: OpenCode Zen `deepseek-v4-flash-free` via `AsyncOpenAI` (base_url `https://opencode.ai/zen/v1`, `max_tokens=150`); 429/`FreeUsageLimitError` → "Relay Busy" flavor text; other model errors → "*Signal lost with {station}...*"; Telegram Markdown rejection → plain-text fallback
-- Needs `TELEGRAM_BOT_TOKEN` + `OPENCODE_API_KEY` in root `.env`; bot runs with cwd=`spaceAI/` and loads `../.env` via python-dotenv (missing .env = placeholder token = "Invalid token" — not a token problem)
+- Brain: OpenCode Zen `deepseek-v4-flash-free` via `AsyncOpenAI` (base_url `https://opencode.ai/zen/v1`, `max_tokens=150`); **rate-limit failover** to `nemotron-3-ultra-free` (env override `OPENCODE_FALLBACK_MODEL`) before "Relay Busy" flavor text; other model errors → "*Signal lost with {station}...*"; Telegram Markdown rejection → plain-text fallback
+- **DB wired (psycopg2, already in venv)**: `/start` auto-registers the player (`player_characters`, stationed at Earth — row auto-seeded if missing); station routing reads `current_body_id` → `celestial_bodies.name`; every user message + AI reply persists to `chat_logs` (`is_ai` flag, station body FK, character-name sender). Shared sync connection + reconnect-once on `OperationalError`, calls hop over `asyncio.to_thread`; **fail-silent** — no `DATABASE_URL` or DB outage crashes the bot (routes to Earth, skips logging)
+- Needs `TELEGRAM_BOT_TOKEN` + `OPENCODE_API_KEY` (+ `DATABASE_URL` for persistence) in root `.env`; bot runs with cwd=`spaceAI/` and loads `../.env` via python-dotenv (missing .env = placeholder token = "Invalid token" — not a token problem)
 - IPv4-first `socket.getaddrinfo` patch (box has no IPv6 route; DNS prefers AAAA for api.telegram.org/opencode.ai — direct `curl` calls need `-4`)
 - Run: `npm run ai:bot` (uses `spaceAI/venv` — plain python has no deps). Daemon: `setsid nohup npm run ai:bot > /tmp/aibot.log 2>&1 &`; health-check with `ps -eo pid,etime,cmd | grep "telegram_bot[.]py"` (escape the dot or pkill matches its own shell)
-- TODO: station routing from `player_characters.current_body_id`; `chat_logs` persistence not wired yet
+- **`/travel` command (web↔Telegram location sync)**: `/travel <body name>` resolves against `celestial_bodies` (exact case-insensitive name, else LIKE closest matches for the ambiguity error); moves the player via `PATCH /api/player/<id>/location` (Express is the single source of truth — the bot and web app share the same Postgres), falling back to a direct psycopg2 upsert of `current_body_id` if Express is unreachable. Arrivals at `STATION_AIS` keys (earth/moon/makemake) announce the station character; generic bodies get "You have arrived at <name>." DB/API down → "*Signal lost with SOLARIS Network...*". Express resolves `bodyName` case-insensitively and returns the player row plus `bodyName`. Chat memory summarization is still upcoming.
 
 ## Known Issues
 

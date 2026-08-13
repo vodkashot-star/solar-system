@@ -3,8 +3,9 @@ import { createServer, type Server } from "http";
 import fs from "fs";
 import path from "path";
 import { db } from "./db";
-import { aiCache, corrections, celestialBodies } from "../shared/schema";
-import { eq } from "drizzle-orm";
+import { aiCache, corrections, celestialBodies, playerCharacters } from "../shared/schema";
+import { eq, sql } from "drizzle-orm";
+import { logger } from "./logger";
 
 const SPACEAI_URL      = process.env.SPACEAI_URL ?? "http://127.0.0.1:8000";
 const PROXY_TIMEOUT_MS = 10_000;
@@ -20,14 +21,14 @@ function loadFileCache(): Record<string, unknown> {
     const raw = fs.readFileSync(FILE_CACHE_PATH, "utf-8");
     const parsed = JSON.parse(raw);
     if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) {
-      console.warn(`[cache] Unexpected shape in ${FILE_CACHE_PATH}`);
+      logger.warn({ path: FILE_CACHE_PATH }, 'Unexpected shape in AI cache file');
       return {};
     }
     return parsed as Record<string, unknown>;
   } catch (err) {
     const code = (err as NodeJS.ErrnoException).code;
     if (code !== "ENOENT") {
-      console.error(`[cache] Failed to load ${FILE_CACHE_PATH}:`, err);
+      logger.error({ err, path: FILE_CACHE_PATH }, 'Failed to load AI cache file');
     }
     return {};
   }
@@ -36,7 +37,7 @@ function loadFileCache(): Record<string, unknown> {
 const FILE_CACHE = loadFileCache();
 const FILE_CACHE_COUNT = Object.keys(FILE_CACHE).length;
 if (FILE_CACHE_COUNT > 0) {
-  console.log(`[cache] Loaded ${FILE_CACHE_COUNT} classifications from ${FILE_CACHE_PATH}`);
+  logger.info({ count: FILE_CACHE_COUNT, path: FILE_CACHE_PATH }, 'Loaded AI classifications from file cache');
 }
 
 // ── Pending corrections queue ──────────────────────────────────────────────
@@ -62,9 +63,9 @@ function queuePendingCorrection(bodyId: string, body: Record<string, unknown>): 
       JSON.stringify(pending, null, 2) + "\n",
       "utf-8",
     );
-    console.log(`[corrections] FastAPI offline — queued correction for ${bodyId}`);
+    logger.info({ bodyId, path: PENDING_CORRECTIONS_PATH }, 'FastAPI offline — queued correction');
   } catch (err) {
-    console.error("[corrections] Failed to queue pending correction:", err);
+    logger.error({ err, bodyId }, 'Failed to queue pending correction');
   }
 }
 
@@ -370,13 +371,97 @@ async function handleCorrection(
 
 export function registerRoutes(app: Express): Server {
 
-  app.get("/api/health", async (_req, res) => {
+  app.get("/api/health", async (req, res) => {
+    const startTime = Date.now();
+    const checks: Record<string, any> = {
+      status: "ok",
+      timestamp: new Date().toISOString(),
+      uptime: process.uptime(),
+      environment: process.env.NODE_ENV || 'development',
+    };
+
+    // Database check
     try {
-      await getMergedAICache();
-      res.json({ status: "ok", cached_bodies: lastDBCount + FILE_CACHE_COUNT });
-    } catch {
-      res.json({ status: "ok", cached_bodies: FILE_CACHE_COUNT });
+      const dbStart = Date.now();
+      await db.select().from(celestialBodies).limit(1);
+      checks.database = {
+        status: "ok",
+        responseTime: Date.now() - dbStart,
+      };
+    } catch (err) {
+      checks.database = {
+        status: "error",
+        error: err instanceof Error ? err.message : 'Unknown error',
+      };
+      checks.status = "degraded";
     }
+
+    // AI Cache check
+    try {
+      const cacheStart = Date.now();
+      const merged = await getMergedAICache();
+      checks.aiCache = {
+        status: "ok",
+        cachedBodies: Object.keys(merged).length,
+        sources: {
+          database: lastDBCount,
+          fileCache: FILE_CACHE_COUNT,
+        },
+        responseTime: Date.now() - cacheStart,
+      };
+    } catch (err) {
+      checks.aiCache = {
+        status: "error",
+        error: err instanceof Error ? err.message : 'Unknown error',
+        cachedBodies: FILE_CACHE_COUNT,
+      };
+      // AI cache is optional, don't degrade overall status
+    }
+
+    // ML Service check (optional)
+    try {
+      const mlStart = Date.now();
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 3000);
+      
+      const mlResponse = await fetch(`${SPACEAI_URL}/health`, {
+        signal: controller.signal,
+      });
+      clearTimeout(timeoutId);
+      
+      checks.mlService = {
+        status: mlResponse.ok ? "ok" : "error",
+        url: SPACEAI_URL,
+        responseTime: Date.now() - mlStart,
+      };
+    } catch (err) {
+      checks.mlService = {
+        status: "unavailable",
+        url: SPACEAI_URL,
+        note: "ML service is optional - precomputed cache available",
+      };
+      // ML service is optional in production
+    }
+
+    // Memory usage
+    const mem = process.memoryUsage();
+    checks.memory = {
+      heapUsed: Math.round(mem.heapUsed / 1024 / 1024),
+      heapTotal: Math.round(mem.heapTotal / 1024 / 1024),
+      rss: Math.round(mem.rss / 1024 / 1024),
+      unit: "MB",
+    };
+
+    checks.responseTime = Date.now() - startTime;
+
+    // Return 503 if critical services are down, 200 otherwise
+    const statusCode = checks.status === "ok" ? 200 : 503;
+    
+    if (req.log) {
+      req.log.info({ health: checks }, 'Health check completed');
+    }
+    
+    res.status(statusCode).json(checks);
   });
 
   app.get("/api/ai/precomputed", async (req, res) => {
@@ -503,6 +588,96 @@ export function registerRoutes(app: Express): Server {
     } catch (err) {
       console.error("[db] failed to delete celestial body:", err);
       res.status(500).json({ error: "Failed to delete celestial body" });
+    }
+  });
+
+  // ── Player location sync (Telegram ↔ web) ────────────────────────────────
+  // Telegram user ids are 64-bit ints — reject anything non-numeric up front.
+  const parseTelegramUserId = (raw: string): number | null => {
+    const id = Number(raw);
+    return Number.isInteger(id) && id > 0 ? id : null;
+  };
+
+  app.get("/api/player/:telegramUserId", async (req, res) => {
+    const tgId = parseTelegramUserId(req.params.telegramUserId);
+    if (tgId === null) {
+      res.status(400).json({ error: "Invalid telegram user id" });
+      return;
+    }
+    try {
+      const rows = await db.select().from(playerCharacters)
+        .where(eq(playerCharacters.telegramUserId, tgId)).limit(1);
+      if (rows.length > 0) {
+        res.json(rows[0]);
+      } else {
+        res.status(404).json({ error: "Player not found" });
+      }
+    } catch (err) {
+      logger.error({ err, telegramUserId: tgId }, 'DB unavailable — failed to fetch player');
+      res.status(503).json({ error: "Database unavailable" });
+    }
+  });
+
+  app.patch("/api/player/:telegramUserId/location", async (req, res) => {
+    const tgId = parseTelegramUserId(req.params.telegramUserId);
+    if (tgId === null) {
+      res.status(400).json({ error: "Invalid telegram user id" });
+      return;
+    }
+    const { bodyId, bodyName, name } = (req.body ?? {}) as Record<string, unknown>;
+    if (bodyId === undefined && bodyName === undefined) {
+      res.status(400).json({ error: "bodyId or bodyName required" });
+      return;
+    }
+    try {
+      // Resolve the destination body (must exist in the catalog).
+      let destId: number;
+      let destName: string;
+      if (bodyId !== undefined) {
+        const id = Number(bodyId);
+        if (!Number.isInteger(id) || id <= 0) {
+          res.status(400).json({ error: "Invalid bodyId" });
+          return;
+        }
+        const body = await db.select({ name: celestialBodies.name })
+          .from(celestialBodies).where(eq(celestialBodies.id, id)).limit(1);
+        if (body.length === 0) {
+          res.status(404).json({ error: "Body not found" });
+          return;
+        }
+        destId = id;
+        destName = body[0].name;
+      } else {
+        const q = String(bodyName).trim().toLowerCase();
+        if (!q) {
+          res.status(400).json({ error: "bodyName required" });
+          return;
+        }
+        const body = await db.select()
+          .from(celestialBodies)
+          .where(sql`lower(${celestialBodies.name}) = ${q}`).limit(1);
+        if (body.length === 0) {
+          res.status(404).json({ error: "Body not found" });
+          return;
+        }
+        destId = body[0].id;
+        destName = body[0].name;
+      }
+
+      // Upsert the player at the destination (single atomic statement).
+      const playerName =
+        typeof name === "string" && name.trim() ? String(name).trim() : "Traveler";
+      const rows = await db.insert(playerCharacters)
+        .values({ telegramUserId: tgId, name: playerName, currentBodyId: destId })
+        .onConflictDoUpdate({
+          target: playerCharacters.telegramUserId,
+          set: { currentBodyId: destId },
+        })
+        .returning();
+      res.json({ ...rows[0], bodyName: destName });
+    } catch (err) {
+      logger.error({ err, telegramUserId: tgId }, 'DB unavailable — failed to update player location');
+      res.status(503).json({ error: "Database unavailable" });
     }
   });
 

@@ -56,6 +56,16 @@ Fiber, Drei, and Three.js.
   (@SolarisCommandBot): A.R.E.S. Flight Command (Earth), Dr. Vance (Lunar
   Gateway), Deep-Space Drone 09 (Kuiper Belt). Runs on OpenCode Zen with
   `npm run ai:bot`
+- **Progressive Web App (PWA)** — installable on desktop and mobile with
+  offline support. Service worker precaches static assets (~2 MB) and caches
+  GLB models (30 days), Draco WASM (1 year), and API calls (NetworkFirst, 5
+  min) for fast repeat visits. Chrome/Edge show install prompt; iOS/Android
+  support "Add to Home Screen". Standalone app experience with custom splash
+  screen and theme color.
+- **Web Vitals tracking** — Core Web Vitals (CLS, LCP, INP, TTFB, FCP)
+  monitored via `web-vitals` library and sent to Sentry. Poor ratings trigger
+  warning events for performance monitoring. Rating thresholds follow web.dev
+  standards.
 
 ---
 

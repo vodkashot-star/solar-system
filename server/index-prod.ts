@@ -4,6 +4,9 @@ import { type Server } from "node:http";
 
 import { type Express } from "express";
 import runApp from "./app";
+import { validateEnv } from "./config";
+import { logger } from "./logger";
+import { initSentry } from "./sentry";
 
 export async function serveStatic(app: Express, _server: Server) {
   const distPath = path.resolve("dist");
@@ -24,6 +27,7 @@ export async function serveStatic(app: Express, _server: Server) {
     ".svg": "image/svg+xml",
     ".wasm": "application/wasm",
     ".json": "application/json",
+    ".webmanifest": "application/manifest+json",
   };
 
   app.use((req, res, next) => {
@@ -75,5 +79,17 @@ export async function serveStatic(app: Express, _server: Server) {
 }
 
 (async () => {
-  await runApp(serveStatic);
+  try {
+    // Initialize Sentry error tracking
+    initSentry();
+    
+    // Validate environment configuration before starting server
+    validateEnv();
+    logger.info('Environment validation passed');
+    
+    await runApp(serveStatic);
+  } catch (err) {
+    logger.fatal({ err }, 'Failed to start server');
+    process.exit(1);
+  }
 })();

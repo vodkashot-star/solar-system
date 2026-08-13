@@ -1,6 +1,12 @@
 import { lazy, Suspense, useEffect, useMemo } from "react";
+import * as Sentry from "@sentry/react";
 import { initDracoDecoder } from "./lib/draco-setup";
+import { initSentry } from "./lib/sentry";
+import { reportWebVitals } from "./lib/web-vitals";
 import ModelPreview from "./components/ModelPreview";
+
+// Initialize Sentry before any other code
+initSentry();
 
 const SolarSystem = lazy(() => import("@/components/solar-system/SolarSystem"));
 
@@ -26,6 +32,7 @@ function getPreviewModelId(): string | null {
 function App() {
   useEffect(() => {
     initDracoDecoder();
+    reportWebVitals();
   }, []);
 
   const previewModelId = useMemo(getPreviewModelId, []);
@@ -35,37 +42,79 @@ function App() {
   }
 
   return (
-    <div
-      style={{
-        width: "100vw",
-        height: "100dvh",
-        position: "relative",
-        overflow: "hidden",
-        background: "#02030a",
-      }}
-    >
-      <Suspense
-        fallback={
-          <div
+    <Sentry.ErrorBoundary
+      fallback={({ error, resetError }) => (
+        <div
+          style={{
+            width: "100vw",
+            height: "100dvh",
+            display: "flex",
+            flexDirection: "column",
+            alignItems: "center",
+            justifyContent: "center",
+            background: "#02030a",
+            color: "#ffffff",
+            padding: "2rem",
+            textAlign: "center",
+          }}
+        >
+          <div style={{ fontSize: "3rem", marginBottom: "1rem" }}>⚠️</div>
+          <h1 style={{ fontSize: "1.5rem", marginBottom: "0.5rem" }}>
+            Something went wrong
+          </h1>
+          <p style={{ opacity: 0.7, marginBottom: "2rem", maxWidth: "500px" }}>
+            {(error as Error)?.message || "An unexpected error occurred"}
+          </p>
+          <button
+            onClick={resetError}
             style={{
-              width: "100%",
-              height: "100%",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              background: "#02030a",
-              color: "#ffffff",
-              fontSize: "0.9rem",
-              opacity: 0.5,
+              background: "#C49A3C",
+              color: "#02030a",
+              border: "none",
+              padding: "0.75rem 2rem",
+              borderRadius: "0.5rem",
+              fontSize: "1rem",
+              cursor: "pointer",
+              fontWeight: 600,
             }}
           >
-            Loading scene…
-          </div>
-        }
+            Reload Scene
+          </button>
+        </div>
+      )}
+    >
+      <div
+        style={{
+          width: "100vw",
+          height: "100dvh",
+          position: "relative",
+          overflow: "hidden",
+          background: "#02030a",
+        }}
       >
-        <SolarSystem />
-      </Suspense>
-    </div>
+        <Suspense
+          fallback={
+            <div
+              style={{
+                width: "100%",
+                height: "100%",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                background: "#02030a",
+                color: "#ffffff",
+                fontSize: "0.9rem",
+                opacity: 0.5,
+              }}
+            >
+              Loading scene…
+            </div>
+          }
+        >
+          <SolarSystem />
+        </Suspense>
+      </div>
+    </Sentry.ErrorBoundary>
   );
 }
 

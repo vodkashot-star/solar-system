@@ -1,4 +1,4 @@
-import { useRef, useState, useMemo, useCallback, useEffect } from "react";
+import { useRef, useState, useMemo, useCallback, useEffect, lazy, Suspense } from "react";
 import { Canvas } from "@react-three/fiber";
 import { OrbitControls, useGLTF } from "@react-three/drei";
 import { EffectComposer, Bloom } from "@react-three/postprocessing";
@@ -17,16 +17,19 @@ import LoadingSpinner from "./LoadingSpinner";
 import DebugPanel from "./DebugPanel";
 import PerformanceMonitor from "./PerformanceMonitor";
 import AIClassificationPanel from "./AIClassificationPanel";
-import BodyDetailModal from "./BodyDetailModal";
 import ScaleControl, { type ScaleMode } from "./ScaleControl";
 import BodySearch from "./BodySearch";
-import CustomBodyModal from "./CustomBodyModal";
+import KeyboardShortcutsModal from "./KeyboardShortcutsModal";
 import FilmGrainOverlay from "./FilmGrainOverlay";
 import { useCameraFocus } from "@/stores/camera-focus";
 import { useCinematicMode } from "@/stores/cinematic-mode";
 import OrbitalBody from "./OrbitalBody";
 import { useAIClassification } from "@/hooks/useAIClassification";
 import { useKeyboardNavigation } from "@/hooks/useKeyboardNavigation";
+
+// Lazy load heavy modal components to reduce initial bundle size
+const BodyDetailModal = lazy(() => import("./BodyDetailModal"));
+const CustomBodyModal = lazy(() => import("./CustomBodyModal"));
 
 // ── Scale multipliers for each view mode ─────────────────────────────────────
 const SCALE_VISUAL          = 1;
@@ -52,6 +55,7 @@ export default function SolarSystem() {
   const [detailBodyId, setDetailBodyId] = useState<string | null>(null);
   const [searchOpen, setSearchOpen] = useState(false);
   const [customBodyOpen, setCustomBodyOpen] = useState(false);
+  const [shortcutsOpen, setShortcutsOpen] = useState(false);
   const [speedMultiplier, setSpeedMultiplier] = useState(1);
   const positions = useRef<Record<string, THREE.Vector3>>({});
   const computedRadii = useRef<Record<string, number>>({});
@@ -118,6 +122,7 @@ export default function SolarSystem() {
     currentIndex,
     detailOpen: detailBodyId !== null,
     searchOpen,
+    shortcutsOpen,
     onToggleTour: () => {
       setTourOn((v) => {
         if (!v) clearFocus();
@@ -136,6 +141,7 @@ export default function SolarSystem() {
     onCloseDetail: () => setDetailBodyId(null),
     onOpenSearch: () => setSearchOpen(true),
     onCloseSearch: () => setSearchOpen(false),
+    onOpenShortcuts: () => setShortcutsOpen(true),
   });
 
   const scaleMultiplier =
@@ -298,7 +304,7 @@ export default function SolarSystem() {
         </div>
       )}
 
-      <div className="pointer-events-none absolute inset-x-0 top-0 z-20 flex flex-col gap-2 p-2 sm:p-4">
+      <div className="pointer-events-none absolute inset-x-0 top-0 z-20 flex flex-col gap-2 p-2 pt-[max(env(safe-area-inset-top),0.5rem)] sm:p-4 sm:pt-[max(env(safe-area-inset-top),1rem)]">
         <div className="flex items-start justify-between gap-2">
           <div className="pointer-events-auto flex flex-wrap items-center gap-2">
             <h1 className="hidden text-xs font-semibold tracking-[0.2em] text-white/80 uppercase xs:inline sm:text-sm">
@@ -321,6 +327,14 @@ export default function SolarSystem() {
             >
               <span className="hidden xs:inline">+ Add</span>
               <span className="xs:hidden">+</span>
+            </button>
+            <button
+              onClick={() => setShortcutsOpen(true)}
+              className="min-h-[44px] min-w-[44px] rounded-full border border-white/15 bg-white/5 px-3 py-2 text-[10px] font-medium text-white/60 backdrop-blur-md transition-all duration-200 hover:bg-white/10 hover:text-white hover:scale-105 active:scale-95 sm:text-xs"
+              aria-label="Show keyboard shortcuts (?)"
+              title="Keyboard shortcuts (?)"
+            >
+              ?
             </button>
           </div>
           <div className="pointer-events-auto flex flex-wrap items-center justify-end gap-2">
@@ -374,7 +388,7 @@ export default function SolarSystem() {
 
       <div
         key={overview || fitAll ? "overview" : active.id}
-        className="pointer-events-none absolute bottom-2 left-2 right-2 z-20 animate-fade-in sm:bottom-6 sm:left-8 sm:right-auto sm:max-w-xs"
+        className="pointer-events-none absolute bottom-2 left-2 right-2 z-20 animate-fade-in sm:bottom-6 sm:left-8 sm:right-auto sm:max-w-xs pb-[max(env(safe-area-inset-bottom),0.5rem)] sm:pb-[max(env(safe-area-inset-bottom),1.5rem)]"
       >
         {overview || fitAll ? (
           <div className="rounded-xl border border-white/10 bg-white/[0.06] p-3 backdrop-blur-lg shadow-2xl sm:p-4">
@@ -445,21 +459,28 @@ export default function SolarSystem() {
         bodies={allBodies}
       />
 
-      <BodyDetailModal
-        body={detailBodyId ? allBodies.find((b) => b.id === detailBodyId) ?? null : null}
-        onClose={() => setDetailBodyId(null)}
-        positions={positions}
-        onDeleteCustom={isCustomBodyId(detailBodyId ?? "") ? removeCustomBody : undefined}
-      />
+      <KeyboardShortcutsModal open={shortcutsOpen} onClose={() => setShortcutsOpen(false)} />
 
-      <CustomBodyModal
-        open={customBodyOpen}
-        onClose={() => setCustomBodyOpen(false)}
-        onCreated={(bodyId) => {
-          setTourOn(false);
-          focus(bodyId);
-        }}
-      />
+      {/* Lazy-loaded modals with Suspense fallback */}
+      <Suspense fallback={null}>
+        <BodyDetailModal
+          body={detailBodyId ? allBodies.find((b) => b.id === detailBodyId) ?? null : null}
+          onClose={() => setDetailBodyId(null)}
+          positions={positions}
+          onDeleteCustom={isCustomBodyId(detailBodyId ?? "") ? removeCustomBody : undefined}
+        />
+      </Suspense>
+
+      <Suspense fallback={null}>
+        <CustomBodyModal
+          open={customBodyOpen}
+          onClose={() => setCustomBodyOpen(false)}
+          onCreated={(bodyId) => {
+            setTourOn(false);
+            focus(bodyId);
+          }}
+        />
+      </Suspense>
     </div>
   );
 }

@@ -4,6 +4,20 @@ All notable changes. Unreleased entries are uncommitted work in progress.
 
 ## [Unreleased] — 2026-08-13
 
+### Feature: PWA support + Web Vitals tracking
+- **Progressive Web App**: `vite-plugin-pwa` configured with manifest, service worker, and offline support
+  - Manifest: name "Solar System · Cinematic 3D Tour", icons (4 sizes: 192/512 normal + maskable), theme color #070814, standalone display
+  - Service worker: auto-update mode, precaches 27 static assets (~2 MB), runtime caching for fonts (1 year), GLB models (30 days), Draco WASM (1 year), API calls (NetworkFirst with 10s timeout)
+  - Icons already existed in `client/public/icons/` (pwa-192x192, pwa-512x512, both normal and maskable)
+- **Web Vitals tracking**: `client/src/lib/web-vitals.ts` measures Core Web Vitals (CLS, LCP, INP, TTFB, FCP) and sends to Sentry as measurements; poor ratings trigger warning events
+  - Note: FID removed (deprecated in web-vitals v4+, replaced by INP)
+  - Rating thresholds from web.dev standards (e.g., LCP good < 2.5s, CLS good < 0.1)
+- `reportWebVitals()` called on mount in `App.tsx` alongside Draco init
+- PWA meta tags added to `index.html`: theme-color, apple-mobile-web-app-* tags, apple-touch-icon, enhanced Open Graph with image
+- Installable on desktop (Chrome/Edge install prompt) and mobile (iOS "Add to Home Screen", Android install banner)
+- Offline functionality: precached JS/CSS/HTML loads instantly, GLB models cached on first visit
+- `PWA_IMPLEMENTATION.md` verification guide created (build checklist, testing steps, Lighthouse audit, expected metrics)
+
 ### Feature: Telegram bot (SOLARIS Network)
 - `spaceAI/telegram_bot.py` — python-telegram-bot polling app: `/start` + free-text chat routed to location-based station AIs (A.R.E.S. Flight Command @ Earth, Dr. Vance @ Lunar Gateway, Deep-Space Drone 09 @ Makemake) via OpenCode Zen (`deepseek-v4-flash-free`); markdown-fallback + error handling built in; run with `TELEGRAM_BOT_TOKEN` + `OPENCODE_API_KEY`
 - Deps into `spaceAI/venv`: `python-telegram-bot` 22.8, `openai` 3.0.0
@@ -13,6 +27,14 @@ All notable changes. Unreleased entries are uncommitted work in progress.
 - Bot error handling reworked: rate-limit/429 failures reply "Relay Busy" flavor text; other failures reply "*Signal lost with {station}... Error:*" instead of crashing the handler
 - DB schema: `player_characters` + `chat_logs` tables (FK to `celestial_bodies.id` — typed `integer`, text FK would not match the serial PK) in `shared/schema.ts`, migration `drizzle/0004_mushy_kylun.sql` pushed to Neon
 - Branch: `feature/telegram-bot` (unpushed)
+
+### Feature: Telegram bot — DB wiring + model failover
+- **Location-based routing is live**: station decided by `player_characters.current_body_id` (joined to `celestial_bodies.name`); unregistered/unknown players default to Earth/A.R.E.S.
+- `/start` auto-registers the player (name from Telegram profile, reputation 0, stationed at Earth — the row is auto-seeded if missing); returning players get a "welcome back" greeting
+- **Full chat persistence**: every user message + AI reply logged to `chat_logs` (is_ai flag, station body FK, character name sender)
+- Persistence via `psycopg2` (already in venv) with a shared connection + reconnect-once on `OperationalError`; **fail-silent** — no `DATABASE_URL` or DB outage can crash the bot (chat still works, routing falls back to Earth)
+- **Rate-limit failover**: 429/`FreeUsageLimitError` now retries `deepseek-v4-flash-free` → `nemotron-3-ultra-free` (override via `OPENCODE_FALLBACK_MODEL`) before the "Relay Busy" flavor text
+- `print(..., flush=True)` so daemon logs (`/tmp/aibot.log`) show the boot line through the nohup pipe
 
 ### Bug fix: `feature_importances()` unwrapped the forest into an unfitted template
 - `spaceAI/src/predict.py` ran `getattr(clf, "estimator", clf)` on every model — RandomForestClassifier also exposes `.estimator` as an **unfitted** base-tree template, so importance extraction returned `None` and `test_feature_importances_not_none` failed. The unwrap now only applies when the inner model is actually fitted (has `feature_importances_`/`coef_`); forests keep their own fitted attributes.

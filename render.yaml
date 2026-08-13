@@ -1,0 +1,56 @@
+services:
+  # Main Express backend API server
+  - type: web
+    name: solar-system-api
+    env: node
+    region: oregon
+    plan: free
+    buildCommand: npm install && npm run build
+    startCommand: node dist/index-prod.js
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: DATABASE_URL
+        sync: false
+      - key: TELEGRAM_BOT_TOKEN
+        sync: false
+      - key: OPENCODE_API_KEY
+        sync: false
+      - key: ALLOWED_ORIGIN
+        value: https://c34246beaef275.lhr.life
+      - key: SPACEAI_URL
+        value: http://localhost:8000
+      - key: LOG_LEVEL
+        value: info
+      - key: SENTRY_DSN
+        sync: false
+    healthCheckPath: /api/health
+
+  # Python ML microservice (FastAPI)
+  - type: web
+    name: solar-system-ml
+    env: python
+    region: oregon
+    plan: free
+    buildCommand: cd spaceAI && python -m venv venv && ./venv/bin/pip install -r requirements.txt
+    startCommand: cd spaceAI && ./venv/bin/python run.py serve
+    envVars:
+      - key: DATABASE_URL
+        sync: false
+    healthCheckPath: /health
+
+  # Telegram bot worker (persistent)
+  - type: worker
+    name: solar-system-bot
+    env: python
+    region: oregon
+    plan: free
+    buildCommand: cd spaceAI && python -m venv venv && ./venv/bin/pip install -r requirements.txt
+    startCommand: cd spaceAI && ./venv/bin/python telegram_bot.py
+    envVars:
+      - key: TELEGRAM_BOT_TOKEN
+        sync: false
+      - key: OPENCODE_API_KEY
+        sync: false
+      - key: DATABASE_URL
+        sync: false

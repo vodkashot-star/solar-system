@@ -90,6 +90,12 @@ canvas {
   }
 }
 
+/* iOS safe-area insets (notch / home indicator) — requires viewport-fit=cover */
+.pt-safe { padding-top: max(env(safe-area-inset-top), 0px); }
+.pb-safe { padding-bottom: max(env(safe-area-inset-bottom), 0px); }
+.pl-safe { padding-left: max(env(safe-area-inset-left), 0px); }
+.pr-safe { padding-right: max(env(safe-area-inset-right), 0px); }
+
 /* Enhanced transitions */
 button, a, input, select, textarea {
   transition: all 0.15s cubic-bezier(0.4, 0, 0.2, 1);
