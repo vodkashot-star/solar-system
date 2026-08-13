@@ -1,5 +1,9 @@
 # WebGL Performance Audit - Solar System 3D
 
+> **Status note (2026-08-13):** Baseline audit that drove the optimization work
+> in `WEBGL_PERFORMANCE_IMPROVEMENTS.md`. Current-state numbers (LOD ref hook,
+> vendor chunk split, JPEG GLBs) are tracked in CHANGELOG.md + AGENTS.md.
+
 ## Current Rendering Pipeline Analysis
 
 ### Scene Complexity

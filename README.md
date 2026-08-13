@@ -45,6 +45,17 @@ Fiber, Drei, and Three.js.
 - **HUD overlay** — current body name and a short fact, fades in on each
   transition
 - **Orbit rings** — merged single-draw-call orbit guides for all planets
+- **Real orbits** — planet positions from the `astronomy-engine` ephemeris
+  (`lib/astronomy-positions.ts`) instead of hand-tuned Keplerian orbits
+- **Cinematic grade** — god-ray sun glow, instanced nebula background, and a
+  film-grain overlay for the "cinematic" look; bloom auto-disables while paused
+  to save GPU
+- **Custom bodies** — create your own worlds via the "+ Add" button (POST
+  `/api/bodies`); they merge into the scene with earth-like default visuals
+- **Telegram bot** — chat with SOLARIS Network station AIs on Telegram
+  (@SolarisCommandBot): A.R.E.S. Flight Command (Earth), Dr. Vance (Lunar
+  Gateway), Deep-Space Drone 09 (Kuiper Belt). Runs on OpenCode Zen with
+  `npm run ai:bot`
 
 ---
 
@@ -58,14 +69,19 @@ client/src/components/solar-system/
   Planet.tsx             — GLB loader + orbital/spin logic, click-to-focus, hover, Saturn rings
   OrbitalBody.tsx        — Positions moons/spacecraft relative to parent body each frame
   CinematicTour.tsx      — Camera animation state machine (damp3)
-  OrbitRings.tsx         — Merged LineSegments (1 draw call) for all 8 orbit paths
+  OrbitRings.tsx         — Merged LineSegments (1 draw call) + astronomy-engine positions
   InstancedStars.tsx     — Custom Points-based star field
   FocusCamera.tsx        — Camera lerp driven by zustand focus store
   LoadingSpinner.tsx     — Per-body loading progress grid
   BodyDetailModal.tsx    — Full-body detail modal with data explorer + mission info + similar bodies
+  CustomBodyModal.tsx    — "+ Add" form for user-created bodies
+  BodySearch.tsx         — Search palette (press "/")
   EnhancedDataExplorer.tsx  — Collapsible data panels (physical/orbital/rotation/AI)
   AIClassificationPanel.tsx — ML classification display
   DebugPanel.tsx         — GLB load status overlay
+  FilmGrainOverlay.tsx   — Cinematic film-grain post-pass
+  NebulaBackground.tsx   — Instanced nebula dust
+  SunGlow.tsx            — God-ray sun glow shader
   bodies.ts              — Body config (name, radius, orbit, speed, tilt, fact, color, asset pointer,
                            parentBody, missionInfo)
 ```
@@ -117,15 +133,20 @@ Pipeline validates: GLB binary header, asset JSON pointers, Draco compression, f
 ```bash
 npm install
 npm run dev               # Vite dev server (:5000) + FastAPI (:8000)
-npm test                  # vitest (176 tests)
+npm test                  # vitest (185 tests)
 npm run validate          # typecheck + tests
 npm run build             # Production build → dist/
 npm run build:cf          # CF Pages build (Draco → Vite)
 npm run models:convert    # Convert a NASA OBJ model to GLB (see above)
 npm run models:validate   # Validate GLB structure (headers, Draco, sizes)
+npm run models:fetch      # Download NASA models
 npm run ai:check          # Validate GLBs against the ML classifier
 npm run ai:train          # Train classifier — add -- --tune for GridSearchCV tuning
-npm run ai:retrain        # Retrain with user corrections from DB
+npm run ai:retrain        # Retrain with corrections from DB
+npm run ai:cv             # Cross-validate saved model
+npm run ai:serve          # FastAPI :8000 (dev only)
+npm run ai:test           # spaceAI pytest suite (50 tests)
+npm run ai:bot            # Telegram station-AI bot (needs .env tokens)
 ```
 
 ### Remote Access (localhost.run tunnel)
@@ -137,6 +158,31 @@ ssh -N -i ~/.ssh/lhr -R 80:localhost:5000 localhost.run   # persistent (detached
 ```
 
 Restart after reboot: `setsid nohup ssh -N -i ~/.ssh/lhr -R 80:localhost:5000 localhost.run > /tmp/tunnel.log 2>&1 &`
+
+---
+
+## Telegram Bot (SOLARIS Network)
+
+Chat with in-world station AIs on Telegram: **[@SolarisCommandBot](https://t.me/SolarisCommandBot)**.
+
+- **Stations**: A.R.E.S. Flight Command (Earth), Dr. Vance (Lunar Gateway, Moon),
+  Deep-Space Drone 09 (Kuiper Belt, Makemake) — each a distinct persona
+- **Brain**: OpenCode Zen (`deepseek-v4-flash-free`) via the OpenAI-compatible
+  API — replies keep under 3 sentences, rendered with Markdown fallback
+- **Resilience**: rate-limit (429) replies "Relay Busy" flavor text; model
+  failures reply "Signal lost"; Telegram API failures fall back to plain text
+
+```bash
+npm run ai:bot            # uses spaceAI/venv — plain python has no deps
+```
+
+Requires `TELEGRAM_BOT_TOKEN` + `OPENCODE_API_KEY` in `.env`
+(see `.env.example`). Runs from `spaceAI/` (cwd) and loads the root `.env` via
+python-dotenv. IPv4-first DNS resolution is patched in-process — this box has
+no IPv6 route. Daemon mode: `setsid nohup npm run ai:bot > /tmp/aibot.log 2>&1 &`
+
+Headless-mode + location-aware station routing (from `player_characters`) are
+upcoming.
 
 ---
 
@@ -164,13 +210,12 @@ Restart after reboot: `setsid nohup ssh -N -i ~/.ssh/lhr -R 80:localhost:5000 lo
 ### ML Sub-project (`spaceAI/`)
 | Technology | Purpose |
 |------------|---------|
-| **Python 3.11+** / **FastAPI** | ML microservice (:8000) |
+| **Python 3.9+** (venv 3.14) / **FastAPI** | ML microservice (:8000) |
 | **scikit-learn** | RandomForest classification, regression |
 | **pandas** / **numpy** | Data processing |
 | **joblib** | Model serialization |
 | **uvicorn** | ASGI server |
-| **Poetry** | Dependency management |
-| **Alembic** | ML database migrations |
+| **python-telegram-bot** / **openai** | Telegram bot + OpenCode Zen client |
 
 ### Infrastructure & Tooling
 | Technology | Purpose |
@@ -189,7 +234,7 @@ The project serves two API surfaces — **Express** (production, `:5000`) and **
 
 ### Express API (`:5000`)
 
-All routes prefixed with `/api`. Request cascade: Drizzle DB → static fallback (known spacecraft) → FastAPI proxy.
+All routes prefixed with `/api`. Request cascade: Drizzle DB → `spaceAI/data/ai_cache.json` (loaded at startup) → static fallback (known spacecraft) → FastAPI proxy.
 
 | Method | Endpoint | Description | Request | Response |
 |--------|----------|-------------|---------|----------|
@@ -273,7 +318,7 @@ The tour starts with a 10s solar-system establishing shot (wide orbit at distanc
 ## Project Structure
 
 ```
-CosmicVoyage/
+solar-system/
 ├── client/                          # React + Vite frontend
 │   ├── index.html
 │   ├── public/
@@ -295,24 +340,26 @@ CosmicVoyage/
 │   │   │   ├── CinematicTour.tsx    # Camera animation state machine
 │   │   │   ├── OrbitalBody.tsx      # Parent-relative moon/spacecraft positioning
 │   │   │   ├── FocusCamera.tsx      # Camera lerp via zustand
-│   │   │   ├── OrbitRings.tsx       # Merged orbit lines (1 draw call)
+│   │   │   ├── OrbitRings.tsx       # Merged orbit lines + astronomy-engine positions
 │   │   │   ├── InstancedStars.tsx   # Star field
 │   │   │   ├── AIClassificationPanel.tsx
 │   │   │   ├── AtmosphereGlow.tsx
 │   │   │   ├── BodyDetailModal.tsx
 │   │   │   ├── BodySearch.tsx
+│   │   │   ├── CustomBodyModal.tsx
 │   │   │   ├── DebugPanel.tsx
 │   │   │   ├── EnhancedDataExplorer.tsx
+│   │   │   ├── FilmGrainOverlay.tsx
 │   │   │   ├── LoadingSpinner.tsx
 │   │   │   ├── NebulaBackground.tsx
 │   │   │   ├── ScaleControl.tsx
 │   │   │   ├── SunGlow.tsx
 │   │   │   └── bodies.ts           # Body configuration data
 │   │   ├── assets/solar/           # .glb.asset.json pointers (one per model)
-│   │   ├── hooks/
-│   │   ├── lib/                    # Utilities & astronomy logic
+│   │   ├── hooks/                  # useCustomBodies, useAIClassification, ... 
+│   │   ├── lib/                    # astronomy-positions, kepler, lod-manager, custom-bodies...
 │   │   ├── stores/                 # Zustand stores (camera-focus, cinematic-mode)
-│   │   └── test/                   # Vitest tests
+│   │   └── test/                   # Vitest unit tests (185)
 ├── server/                          # Express backend (:5000)
 │   ├── app.ts
 │   ├── db.ts                       # Drizzle + Postgres (Neon)
@@ -320,10 +367,12 @@ CosmicVoyage/
 │   ├── index-dev.ts                # Dev server (Vite middleware)
 │   └── index-prod.ts               # Production server
 ├── shared/
-│   └── schema.ts                   # Drizzle DB schema (celestial_bodies, ai_cache, etc.)
-├── spaceAI/                         # Python ML service (:8000)
+│   └── schema.ts                   # Drizzle DB schema (6 tables, see AGENTS.md)
+├── spaceAI/                         # Python ML service (:8000) + Telegram bot
 │   ├── api.py                      # FastAPI app
 │   ├── run.py                      # CLI entry point
+│   ├── telegram_bot.py             # Telegram station-AI bot (SOLARIS Network)
+│   ├── venv/                       # Local venv — python deps live here (gitignored)
 │   ├── src/
 │   │   ├── predict.py              # CelestialPredictor (RF/SVC/Ensemble)
 │   │   ├── train_model.py          # Model training
@@ -337,24 +386,24 @@ CosmicVoyage/
 │   │   └── config.py
 │   ├── data/                       # Training data & AI cache
 │   ├── models/                     # Trained .pkl models
-│   ├── tests/
-│   ├── notebooks/
-│   ├── alembic/                    # DB migrations
+│   ├── tests/                      # pytest suite (50 tests)
+│   ├── docs/troubleshooting.md
 │   ├── Dockerfile
 │   ├── requirements.txt
 │   └── pyproject.toml
-├── drizzle/                         # SQLite migration files
+├── drizzle/                         # PostgreSQL migrations (Drizzle ORM)
 │   ├── meta/
 │   ├── 0000_youthful_maestro.sql
 │   ├── 0001_rainy_nighthawk.sql
-│   └── 0002_sour_adam_warlock.sql
+│   ├── 0002_sour_adam_warlock.sql
+│   ├── 0003_plain_jean_grey.sql    # scene params → celestial_bodies
+│   └── 0004_mushy_kylun.sql        # player_characters + chat_logs
 ├── drizzle.config.ts
 ├── scripts/                         # Build & dev tooling
 │   ├── copy-draco.sh
 │   ├── convert_nasa_model.sh
 │   └── validate_models.py
-├── functions/                       # Serverless functions (Netlify)
-├── .github/workflows/               # CI/CD
+├── .github/workflows/               # CI/CD (5 workflows)
 ├── thoughts/                        # Research & planning docs
 ├── package.json
 ├── tsconfig.json

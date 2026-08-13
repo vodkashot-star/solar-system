@@ -1,5 +1,9 @@
 # Astronomy Engine — Real Planet Orbits
 
+**Status:** Implemented — `client/src/lib/astronomy-positions.ts` supplies real
+ephemeris positions; consumed by `OrbitRings.tsx` and `Planet.tsx`. Dwarf
+planets, asteroids, comets, and spacecraft keep simplified orbits as planned.
+
 Replace the hand-tuned Keplerian orbits for the 8 planets + Sun with real ephemeris
 positions from [astronomy-engine](https://github.com/cosinekitty/astronomy) (pure JS,
 offline, no SPICE or API calls). Dwarf planets, asteroids, comets, and spacecraft keep

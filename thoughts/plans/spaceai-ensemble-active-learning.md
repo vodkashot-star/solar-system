@@ -1,5 +1,10 @@
 # SpaceAI Ensemble + Active Learning Implementation Plan
 
+**Status:** Implemented (Phases 1–3) — ensemble/uncertainty + corrections loop
+are live. Corrections persist to Postgres and mirror to FastAPI SQLite (queued
+to `data/pending_corrections.json` while :8000 is offline). Phase 4 (model
+versioning & rollback) remains open per AUDIT DB-02.
+
 ## Overview
 
 Evolve SpaceAI from a single-model classifier to an ensemble with uncertainty quantification, then add a user correction feedback loop for continuous improvement. Covers 2 of 3 Tier 3 features from the enhancement roadmap.

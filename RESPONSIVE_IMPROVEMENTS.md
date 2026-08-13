@@ -393,7 +393,7 @@ button:active, a:active {
 ### Automated Testing:
 ```bash
 npm run typecheck  # ✅ Pass
-npm test           # ✅ 176 tests pass (unchanged)
+npm test           # ✅ 185 tests pass (unchanged)
 npm run build      # ✅ Builds successfully
 ```
 

@@ -72,6 +72,8 @@
 | `ai_cache` | Precomputed AI classification per bodyId |
 | `prediction_logs` | Regression prediction history |
 | `corrections` | User-submitted classification corrections |
+| `player_characters` | Player profile + location (`current_body_id` → `celestial_bodies.id`) |
+| `chat_logs` | Telegram bot chat history (`body_id` → `celestial_bodies.id`) |
 
 `server/db.ts` initialises Drizzle with `postgres` driver.
 
@@ -97,6 +99,15 @@ All in `server/routes.ts`. Request cascade: Drizzle DB → `spaceAI/data/ai_cach
 - Express loads `data/ai_cache.json` at startup — no FastAPI runtime needed in production
 - Corrections: Express writes Postgres + forwards to FastAPI; if :8000 is offline it queues to `spaceAI/data/pending_corrections.json`, drained by FastAPI on startup (retrain source stays in sync)
 - Corrections: `POST /classify/{body_id}/correct` and `GET /corrections` for user feedback loop
+
+## Telegram Bot (SOLARIS Network)
+
+- `spaceAI/telegram_bot.py` — python-telegram-bot polling bot @SolarisCommandBot; `/start` + free-text chat routed to a station AI (`STATION_AIS`: earth → A.R.E.S. Flight Command, moon → Dr. Vance/Lunar Gateway, makemake → Deep-Space Drone 09, Kuiper Belt)
+- Brain: OpenCode Zen `deepseek-v4-flash-free` via `AsyncOpenAI` (base_url `https://opencode.ai/zen/v1`, `max_tokens=150`); 429/`FreeUsageLimitError` → "Relay Busy" flavor text; other model errors → "*Signal lost with {station}...*"; Telegram Markdown rejection → plain-text fallback
+- Needs `TELEGRAM_BOT_TOKEN` + `OPENCODE_API_KEY` in root `.env`; bot runs with cwd=`spaceAI/` and loads `../.env` via python-dotenv (missing .env = placeholder token = "Invalid token" — not a token problem)
+- IPv4-first `socket.getaddrinfo` patch (box has no IPv6 route; DNS prefers AAAA for api.telegram.org/opencode.ai — direct `curl` calls need `-4`)
+- Run: `npm run ai:bot` (uses `spaceAI/venv` — plain python has no deps). Daemon: `setsid nohup npm run ai:bot > /tmp/aibot.log 2>&1 &`; health-check with `ps -eo pid,etime,cmd | grep "telegram_bot[.]py"` (escape the dot or pkill matches its own shell)
+- TODO: station routing from `player_characters.current_body_id`; `chat_logs` persistence not wired yet
 
 ## Known Issues
 

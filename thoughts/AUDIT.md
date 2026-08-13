@@ -1,8 +1,8 @@
 # CosmicVoyage — Code Audit
-**Date:** 2026-07-02 · **Last updated:** 2026-07-07
+**Date:** 2026-07-02 · **Last updated:** 2026-08-13
 **Scope:** Full source audit of `client/src/`, `server/`, `shared/`, `spaceAI/`
 **TypeScript check:** `npm run check` passes with 0 errors (excluding known `shared/schema.ts` drizzle issue)
-**Frontend tests:** `npm test` — 172/172 pass
+**Frontend tests:** `npm test` — 185/185 pass
 **AI tests:** `npm run ai:test` — 50/50 pass
 
 ---
@@ -211,7 +211,7 @@ All 3 test suites pass after one fix:
 | Suite | Result | Details |
 |-------|--------|---------|
 | `npm run check` (tsc) | ✅ Pass | 0 errors |
-| `npm test` (vitest) | ✅ Pass | 172/172 pass |
+| `npm test` (vitest) | ✅ Pass | 185/185 pass |
 | `npm run ai:test` (pytest) | ✅ Pass | 50/50 pass (after fix) |
 
 ### ✅ DB-01 — Stale `spaceai.db` schema mismatch — **FIXED**
@@ -222,7 +222,7 @@ All 3 test suites pass after one fix:
 
 **Fix:** Deleted the stale `spaceAI/data/spaceai.db` file. It is recreated with the correct schema on first `init_db()` call. The file is gitignored (`*.db` pattern) so this is a dev-only fix.
 
-**Prevention:** Add Alembic or a manual migration step when schema changes. For now, the local DB can be safely deleted and recreated since there is no production data.
+**Prevention:** Add Alembic or a manual migration step when schema changes. For now, the local DB can be safely deleted and recreated since there is no production data. *(2026-08-13: superseded — Postgres + Drizzle migrations `drizzle/0000–0004` are now the schema source of truth.)*
 
 ### 🔵 DB-02 — `model_version_id` in `corrections` table (Precursor)
 

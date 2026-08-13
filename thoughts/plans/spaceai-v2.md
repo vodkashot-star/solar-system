@@ -1,5 +1,11 @@
 # SpaceAI v2 Implementation Plan
 
+**Status:** Implemented — v2 is the current spaceAI: tuned RF/SVC/LogReg,
+regression endpoints with CI, persistent `ai_cache.json`, pytest suite,
+Express `ai_cache.json` startup loading. Secondary work moved to later plans
+(ensemble → `spaceai-ensemble-active-learning.md`, Postgres → 2026-08 drizzle
+migrations).
+
 ## Overview
 
 Evolve SpaceAI from a basic RandomForest classifier into a robust ML microservice

@@ -1,5 +1,10 @@
 # WebGL Performance Optimizations - Solar System 3D
 
+> **Status note (2026-08-13):** Historical report of the perf pass. Superseded
+> figures: GLBs are now 29 (Draco-compressed, curiosity 8.36→2.95 MB JPEG),
+> `vendor_three` chunk split shrank `vendor_shared` 1026→249 kB, and LOD uses
+> a re-render-free ref hook. See AGENTS.md + CHANGELOG for current numbers.
+
 ## Executive Summary
 
 Successfully implemented 8 out of 10 planned WebGL performance optimizations, achieving significant FPS improvements and memory reductions for both desktop and mobile devices.

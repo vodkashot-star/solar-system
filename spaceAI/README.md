@@ -5,15 +5,16 @@
 ## Quick Start
 
 ```bash
-# From repo root
+# From repo root (all ai:* scripts use spaceAI/venv — plain python has no deps)
 npm run ai:train       # train RandomForest classifier
 npm run ai:serve       # FastAPI dev server on :8000
+npm run ai:bot         # Telegram station-AI bot
 
 # Or from spaceAI/
 cd spaceAI
-pip install -r requirements.txt
-python run.py train
-python run.py serve
+./venv/bin/pip install -r requirements.txt
+./venv/bin/python run.py train
+./venv/bin/python run.py serve
 ```
 
 ## CLI Reference
@@ -33,14 +34,18 @@ python run.py serve
 
 ### npm Wrappers
 
+All wrappers run via `spaceAI/venv` (`./venv/bin/python`) — the system python has no numpy/sklearn.
+
 | npm script | Maps to |
 |------------|---------|
-| `npm run ai:train` | `cd spaceAI && python run.py train` |
+| `npm run ai:train` | `cd spaceAI && ./venv/bin/python run.py train` |
 | `npm run ai:train-regression` | Train mass + temperature regressors |
-| `npm run ai:train-all` | Train classifier + regressors sequentially |
 | `npm run ai:retrain` | Retrain with user corrections from DB |
-| `npm run ai:test` | `cd spaceAI && python -m pytest tests/ -v` |
-| `npm run ai:serve` | `cd spaceAI && python run.py serve` |
+| `npm run ai:cv` | Cross-validate the saved model |
+| `npm run ai:test` | `./venv/bin/python -m pytest tests/` (50 tests) |
+| `npm run ai:serve` | `./venv/bin/python run.py serve` (add `-- --reload` for hot reload) |
+| `npm run ai:bot` | `./venv/bin/python telegram_bot.py` (Telegram bot, needs `.env` tokens) |
+| `npm run ai:check` | Validate GLBs against the trained classifier |
 
 ## 11 Features
 
@@ -114,13 +119,14 @@ python run.py serve
 - **`src/train_model.py`** — Pipeline(StandardScaler, classifier) with `class_weight="balanced"`, GridSearchCV, cross-validation
 - **`src/train_regression.py`** — RandomForestRegressor for mass + temperature with per-tree variance confidence intervals
 - **`api.py`** — FastAPI dev server (training-only, not for production)
+- **`telegram_bot.py`** — SOLARIS Network Telegram station-AI bot (see below)
 
 ### Data Flow
 
 1. **Training**: `python run.py train` → trains model → writes `data/ai_cache.json`
 2. **Deployment**: Express reads `ai_cache.json` at startup, serves from memory
 3. **Frontend**: Fetches `GET /api/ai/precomputed` once on mount; falls back to per-body `GET /api/ai/classify/{body_id}`
-4. **Corrections**: `POST /api/classify/{body_id}/correct` stored in-memory; `npm run ai:retrain` incorporates them
+4. **Corrections**: Express writes Postgres (`corrections` table) + forwards to FastAPI; if :8000 is offline, corrections queue to `spaceAI/data/pending_corrections.json` and FastAPI drains it on startup; `npm run ai:retrain` incorporates them
 5. **Regression**: Feature vector → scaled → RandomForestRegressor → prediction ± CI
 6. **Similarity**: Cosine distance against all known objects
 
@@ -209,14 +215,33 @@ All 11 feature columns used by model. Target column: `body_type`.
 ## Uncertainty & Corrections
 
 - **Uncertainty**: Normalized entropy per prediction (0 = certain, 1 = uniform); threshold at 0.4 triggers "Uncertain" badge in the UI
-- **Corrections**: `POST /api/classify/{body_id}/correct` stores corrections in-memory; `npm run ai:retrain` incorporates them into the next model
+- **Corrections**: `POST /api/classify/{body_id}/correct` — Express persists to Postgres and mirrors to FastAPI's SQLite store (`spaceai.db`); offline FastAPI → queued to `data/pending_corrections.json` and drained on startup. `npm run ai:retrain` incorporates everything into the next model
+
+## Telegram Bot
+
+`telegram_bot.py` serves the **SOLARIS Network** — a python-telegram-bot
+polling app (@SolarisCommandBot) that routes chats to station AIs:
+
+| Station | Body | Persona |
+|---------|------|---------|
+| A.R.E.S. Flight Command | earth | Mission control |
+| Dr. Vance | moon | Lunar Gateway scientist |
+| Deep-Space Drone 09 | makemake | Kuiper Belt probe |
+
+- Brain: OpenCode Zen `deepseek-v4-flash-free` via `AsyncOpenAI` (`base_url https://opencode.ai/zen/v1`, `max_tokens=150`); replies limited to 3 sentences
+- Needs `TELEGRAM_BOT_TOKEN` + `OPENCODE_API_KEY` in root `.env` (template in `.env.example`); loads `../.env` itself via python-dotenv
+- 429 / `FreeUsageLimitError` → "Relay Busy" flavor text; other model errors → "*Signal lost...*"; Markdown rejection → plain-text fallback
+- IPv4-first `socket.getaddrinfo` patch for hosts with no IPv6 route (this box)
+- Run: `npm run ai:bot`; daemon: `setsid nohup npm run ai:bot > /tmp/aibot.log 2>&1 &`
+- Scope: `player_characters.current_body_id`-based station routing and `chat_logs` persistence are upcoming (schema already migrated)
 
 ## Integration Notes
 
 - Express loads `data/ai_cache.json` at startup — no FastAPI runtime needed in production
 - Frontend fetches `/api/ai/precomputed` once on mount; falls back to per-body `GET /api/ai/classify/:bodyId`
-- `shared/schema.ts` mirrors spaceAI's SQLAlchemy models as Drizzle `pgTable`
+- `shared/schema.ts` mirrors spaceAI's SQLAlchemy models as Drizzle `pgTable` (6 tables: bodies, ai_cache, prediction_logs, corrections, player_characters, chat_logs)
 - `scripts/validate_models.py` checks generated GLBs against trained classifier
+- `telegram_bot.py` talks to OpenCode Zen, not the ML service — AI classification and chat brains are separate systems
 
 ## Troubleshooting
 

@@ -55,11 +55,46 @@ npm run ai:train
 
 ### Corrections lost after restart
 
-Corrections are stored in-memory by Express. To persist them, run retrain before
-restarting:
+Corrections are persisted to PostgreSQL by Express, so nothing is lost on
+restart. If FastAPI was offline when a correction was submitted, it is queued
+to `spaceAI/data/pending_corrections.json` and drained into the FastAPI SQLite
+store when :8000 comes back up. Run retrain after corrections to fold them
+into the model + cache:
 
 ```bash
 npm run ai:retrain   # incorporates corrections into the model + cache
+```
+
+## Telegram Bot Issues
+
+### "Invalid token" on startup
+
+The bot loads secrets from the **root** `.env` (it runs with cwd=`spaceAI/` and
+loads `../.env` via python-dotenv). If `.env` is missing it falls back to the
+placeholder token in `telegram_bot.py` and Telegram rejects it. Check:
+
+```bash
+grep -E "TELEGRAM_BOT_TOKEN|OPENCODE_API_KEY" ../.env   # from spaceAI/
+```
+
+### Bot won't reach api.telegram.org / opencode.ai (hangs)
+
+This box has no IPv6 route but DNS returns AAAA records first. The bot patches
+`socket.getaddrinfo` to prefer IPv4 at startup; any manual `curl` tests need
+`curl -4` (a plain curl will hang until timeout).
+
+### "Relay Busy" replies
+
+The OpenCode Zen free tier rate-limits (HTTP 429). The bot replies with
+"Relay Busy" flavor text and recovers automatically — no action needed. If it
+persists, check your usage/quota on the OpenCode Zen dashboard.
+
+### Restarting the daemon
+
+```bash
+pkill -f "telegram_bot[.]py"                    # escape the dot or it kills its own shell
+setsid nohup npm run ai:bot > /tmp/aibot.log 2>&1 &
+ps -eo pid,etime,cmd | grep "telegram_bot[.]py"
 ```
 
 ## Data Issues
