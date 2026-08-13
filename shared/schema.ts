@@ -20,6 +20,18 @@ export const celestialBodies = pgTable('celestial_bodies', {
   aiClassification: text('ai_classification'),
   aiConfidenceScore: doublePrecision('ai_confidence_score'),
 
+  // Scene-rendering params (used by the client to place custom bodies in the 3D scene)
+  visualRadius: doublePrecision('visual_radius'),
+  orbit: doublePrecision('orbit'),
+  orbitSpeed: doublePrecision('orbit_speed'),
+  spinSpeed: doublePrecision('spin_speed'),
+  tilt: doublePrecision('tilt'),
+  phase: doublePrecision('phase'),
+  color: text('color'),
+  fact: text('fact'),
+  parentBody: text('parent_body'),
+  hasRings: text('has_rings').default('false'),
+
   createdAt: timestamp('created_at').defaultNow(),
   updatedAt: timestamp('updated_at').defaultNow(),
 });

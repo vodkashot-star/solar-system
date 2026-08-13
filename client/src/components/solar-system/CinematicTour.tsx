@@ -14,12 +14,14 @@ type Props = {
   positions: React.MutableRefObject<Record<string, THREE.Vector3>>;
   computedRadii: React.MutableRefObject<Record<string, number>>;
   speedMultiplier?: number;
+  /** Bodies to tour (defaults to the static catalog). */
+  bodies?: Body[];
 };
 
 const OVERVIEW_DURATION = 10;
 const SECONDS_PER_BODY = 5;
 
-export default function CinematicTour({ enabled, onActiveChange, onOverviewChange, positions, computedRadii, speedMultiplier = 1 }: Props) {
+export default function CinematicTour({ enabled, onActiveChange, onOverviewChange, positions, computedRadii, speedMultiplier = 1, bodies = BODIES }: Props) {
   const { camera, invalidate } = useThree();
   const elapsed = useRef(0);
   const currentIndex = useRef(-1);
@@ -29,13 +31,14 @@ export default function CinematicTour({ enabled, onActiveChange, onOverviewChang
   const lookAt = useRef(new THREE.Vector3(0, 0, 0));
   const currentLook = useRef(new THREE.Vector3(0, 0, 0));
   const isFocused = useCameraFocus((s) => s.isFocused);
+  const fitAll = useCameraFocus((s) => s.fitAll);
 
   useEffect(() => {
     if (enabled) overviewNotified.current = false;
   }, [enabled]);
 
   useFrame((_, delta) => {
-    if (!enabled || isFocused) return;
+    if (!enabled || isFocused || fitAll) return;
 
     const scaledDelta = delta * speedMultiplier;
     elapsed.current += scaledDelta;
@@ -46,10 +49,14 @@ export default function CinematicTour({ enabled, onActiveChange, onOverviewChang
         onOverviewChange?.(true);
       }
 
+      // Frame the whole system once, at a fixed distance that clears the
+      // outermost orbit (previously the radius shrank below Sedna's orbit,
+      // sweeping the camera through the orbit lines — messy).
+      const maxOrbit = bodies.reduce((m, b) => (b.orbit > m ? b.orbit : m), 40);
       const t = Math.min(elapsed.current / OVERVIEW_DURATION, 1);
       const angle = t * Math.PI * 2;
-      const dist = 80 - t * 10;
-      const height = 30 + Math.sin(t * Math.PI * 2) * 5;
+      const dist = maxOrbit * 1.9;
+      const height = maxOrbit * 0.8;
 
       targetPos.current.set(
         Math.cos(angle) * dist,
@@ -64,13 +71,13 @@ export default function CinematicTour({ enabled, onActiveChange, onOverviewChang
         elapsed.current = 0;
       }
     } else {
-      const idx = Math.floor(elapsed.current / SECONDS_PER_BODY) % BODIES.length;
+      const idx = Math.floor(elapsed.current / SECONDS_PER_BODY) % bodies.length;
       if (idx !== currentIndex.current) {
         currentIndex.current = idx;
-        onActiveChange?.(BODIES[idx]);
+        onActiveChange?.(bodies[idx]);
       }
 
-      const body = BODIES[idx];
+      const body = bodies[idx];
       const localT = (elapsed.current % SECONDS_PER_BODY) / SECONDS_PER_BODY;
 
       const bodyPos = positions.current[body.id] ?? FALLBACK_POS;

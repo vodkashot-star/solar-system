@@ -1,0 +1,44 @@
+{
+  "model_type": "rf",
+  "tuned": true,
+  "augmented": false,
+  "calibrated": true,
+  "n_features": 11,
+  "test_accuracy": 0.8462,
+  "cv_accuracy_mean": 0.8889,
+  "cv_accuracy_std": 0.0809,
+  "cv_scores": [
+    1.0,
+    0.8571,
+    0.8095
+  ],
+  "best_params": {
+    "clf__estimator__max_depth": 3,
+    "clf__estimator__min_samples_leaf": 1,
+    "clf__estimator__n_estimators": 50
+  },
+  "classes": [
+    "Asteroid",
+    "Comet",
+    "DwarfPlanet",
+    "Interstellar",
+    "Moon",
+    "Planet",
+    "Spacecraft",
+    "Star"
+  ],
+  "n_samples": 64,
+  "n_train_samples": 51,
+  "class_distribution": {
+    "Moon": 13,
+    "Asteroid": 10,
+    "Spacecraft": 10,
+    "Planet": 8,
+    "DwarfPlanet": 8,
+    "Comet": 4,
+    "Interstellar": 2,
+    "Star": 1
+  },
+  "feature_importances": null,
+  "training_date": "2026-08-03T22:36:49.404868"
+}

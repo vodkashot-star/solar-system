@@ -56,7 +56,7 @@ See `AGENTS.md` for the full agent-oriented reference. Key modules:
 client/src/components/solar-system/
   SolarSystem.tsx        — Canvas, lights, planets, spacecraft, tour, HUD
   Planet.tsx             — GLB loader + orbital/spin logic, click-to-focus, hover, Saturn rings
-  SpacecraftOrbit.tsx    — Positions spacecraft relative to parent body each frame
+  OrbitalBody.tsx        — Positions moons/spacecraft relative to parent body each frame
   CinematicTour.tsx      — Camera animation state machine (damp3)
   OrbitRings.tsx         — Merged LineSegments (1 draw call) for all 8 orbit paths
   InstancedStars.tsx     — Custom Points-based star field
@@ -124,9 +124,19 @@ npm run build:cf          # CF Pages build (Draco → Vite)
 npm run models:convert    # Convert a NASA OBJ model to GLB (see above)
 npm run models:validate   # Validate GLB structure (headers, Draco, sizes)
 npm run ai:check          # Validate GLBs against the ML classifier
-npm run ai:train          # Train classifier — add --tune (via npm run ai:tune) for GridSearch
-npm run ai:tune           # Train classifier with GridSearchCV tuning
+npm run ai:train          # Train classifier — add -- --tune for GridSearchCV tuning
+npm run ai:retrain        # Retrain with user corrections from DB
 ```
+
+### Remote Access (localhost.run tunnel)
+
+Public URL: **https://c34246beaef275.lhr.life** (bound to account `jnx3316@gmail.com` — stable across reconnects).
+
+```bash
+ssh -N -i ~/.ssh/lhr -R 80:localhost:5000 localhost.run   # persistent (detached)
+```
+
+Restart after reboot: `setsid nohup ssh -N -i ~/.ssh/lhr -R 80:localhost:5000 localhost.run > /tmp/tunnel.log 2>&1 &`
 
 ---
 
@@ -253,7 +263,7 @@ The tour starts with a 10s solar-system establishing shot (wide orbit at distanc
 
 > **Note:** The Canvas uses `frameloop="demand"` — every `useFrame`/animation
 > callback must call `state.invalidate()` or the scene freezes. `Planet`,
-> `SpacecraftOrbit`, `CinematicTour`, and `FocusCamera` all do this.
+> `OrbitalBody`, `CinematicTour`, and `FocusCamera` all do this.
 >
 > See [`AGENTS.md`](AGENTS.md) for AI API endpoints, database schema, CI/CD,
 > GLB asset references, spacecraft details, and known issues.
@@ -283,7 +293,7 @@ CosmicVoyage/
 │   │   │   ├── SolarSystem.tsx      # Canvas + scene orchestrator
 │   │   │   ├── Planet.tsx           # GLB loader + orbital/spin logic
 │   │   │   ├── CinematicTour.tsx    # Camera animation state machine
-│   │   │   ├── SpacecraftOrbit.tsx  # Parent-relative spacecraft positioning
+│   │   │   ├── OrbitalBody.tsx      # Parent-relative moon/spacecraft positioning
 │   │   │   ├── FocusCamera.tsx      # Camera lerp via zustand
 │   │   │   ├── OrbitRings.tsx       # Merged orbit lines (1 draw call)
 │   │   │   ├── InstancedStars.tsx   # Star field

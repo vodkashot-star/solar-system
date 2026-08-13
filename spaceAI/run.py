@@ -28,12 +28,12 @@ sys.path.insert(0, str(SRC))
 
 def cmd_train(args):
     from train_model import train
-    train(model_type=args.model_type, tune=args.tune, augment=args.augment)
+    train(model_type=args.model_type, tune=args.tune, augment=args.augment, calibrate=args.calibrate)
 
 
 def cmd_retrain(args):
     from train_model import train_with_corrections
-    train_with_corrections(model_type=args.model_type, tune=args.tune, augment=args.augment)
+    train_with_corrections(model_type=args.model_type, tune=args.tune, augment=args.augment, calibrate=args.calibrate)
 
 
 def cmd_cv(args):
@@ -219,6 +219,8 @@ def main():
                          help="Run GridSearchCV with StratifiedKFold(3)")
     p_train.add_argument("--augment", action="store_true",
                          help="Enable feature engineering (log transforms, ratio features)")
+    p_train.add_argument("--calibrate", action="store_true",
+                         help="Wrap classifier in CalibratedClassifierCV (sigmoid)")
 
     # cv
     sub.add_parser("cv", help="Cross-validate saved model with StratifiedKFold(3)")
@@ -267,6 +269,8 @@ def main():
     p_retrain.add_argument("--tune", action="store_true", help="Run GridSearchCV")
     p_retrain.add_argument("--augment", action="store_true",
                            help="Enable feature engineering + oversampling")
+    p_retrain.add_argument("--calibrate", action="store_true",
+                           help="Wrap classifier in CalibratedClassifierCV (sigmoid)")
 
     # serve
     p_serve = sub.add_parser("serve", help="Start FastAPI server")

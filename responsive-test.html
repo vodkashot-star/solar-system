@@ -1,0 +1,242 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Solar System - Responsive Test</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+    
+    body {
+      font-family: system-ui, -apple-system, sans-serif;
+      background: #0a0a0f;
+      color: #fff;
+      padding: 2rem;
+    }
+    
+    .container {
+      max-width: 1400px;
+      margin: 0 auto;
+    }
+    
+    h1 {
+      margin-bottom: 2rem;
+      font-size: 2rem;
+      color: #c49a3c;
+    }
+    
+    .viewport-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+      gap: 2rem;
+      margin-bottom: 3rem;
+    }
+    
+    .viewport-frame {
+      background: #1a1a2e;
+      border-radius: 12px;
+      padding: 1rem;
+      border: 2px solid #2a2a3e;
+    }
+    
+    .viewport-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 1rem;
+      padding-bottom: 0.5rem;
+      border-bottom: 1px solid #3a3a4e;
+    }
+    
+    .viewport-title {
+      font-weight: 600;
+      color: #c49a3c;
+    }
+    
+    .viewport-size {
+      font-size: 0.875rem;
+      color: #888;
+    }
+    
+    iframe {
+      width: 100%;
+      height: 600px;
+      border: none;
+      border-radius: 8px;
+      background: #000;
+    }
+    
+    .controls {
+      display: flex;
+      gap: 1rem;
+      margin-bottom: 2rem;
+      flex-wrap: wrap;
+    }
+    
+    button {
+      padding: 0.75rem 1.5rem;
+      background: #c49a3c;
+      color: #000;
+      border: none;
+      border-radius: 8px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: transform 0.15s, background 0.15s;
+    }
+    
+    button:hover {
+      background: #d4a84c;
+      transform: scale(1.05);
+    }
+    
+    button:active {
+      transform: scale(0.95);
+    }
+    
+    .info {
+      background: #1a1a2e;
+      padding: 1.5rem;
+      border-radius: 12px;
+      border: 2px solid #2a2a3e;
+      margin-bottom: 2rem;
+    }
+    
+    .info h2 {
+      margin-bottom: 1rem;
+      color: #c49a3c;
+      font-size: 1.25rem;
+    }
+    
+    .info ul {
+      list-style: none;
+      padding-left: 0;
+    }
+    
+    .info li {
+      padding: 0.5rem 0;
+      border-bottom: 1px solid #2a2a3e;
+    }
+    
+    .info li:last-child {
+      border-bottom: none;
+    }
+    
+    .checkmark {
+      color: #4ade80;
+      margin-right: 0.5rem;
+    }
+    
+    .device-icon {
+      margin-right: 0.5rem;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>🌌 Solar System - Responsive Design Testing</h1>
+    
+    <div class="info">
+      <h2>Testing Checklist</h2>
+      <ul>
+        <li><span class="checkmark">✓</span> All touch targets ≥ 44x44px</li>
+        <li><span class="checkmark">✓</span> No horizontal scroll on any viewport</li>
+        <li><span class="checkmark">✓</span> Modals use bottom sheet pattern on mobile</li>
+        <li><span class="checkmark">✓</span> Header controls adapt to screen width</li>
+        <li><span class="checkmark">✓</span> Glassmorphism effects visible</li>
+        <li><span class="checkmark">✓</span> Animations smooth (60fps)</li>
+        <li><span class="checkmark">✓</span> Text readable at all sizes</li>
+        <li><span class="checkmark">✓</span> Keyboard navigation functional</li>
+      </ul>
+    </div>
+    
+    <div class="controls">
+      <button onclick="refreshAll()">🔄 Refresh All Viewports</button>
+      <button onclick="openFullScreen()">🖥️ Open Full Screen</button>
+      <button onclick="toggleTheme()">🌓 Toggle Theme Test</button>
+    </div>
+    
+    <div class="viewport-grid">
+      <div class="viewport-frame">
+        <div class="viewport-header">
+          <div class="viewport-title"><span class="device-icon">📱</span> iPhone SE</div>
+          <div class="viewport-size">320 × 568px</div>
+        </div>
+        <iframe id="frame-320" src="http://localhost:5000" style="width: 320px; height: 568px;"></iframe>
+      </div>
+      
+      <div class="viewport-frame">
+        <div class="viewport-header">
+          <div class="viewport-title"><span class="device-icon">📱</span> iPhone 12/13</div>
+          <div class="viewport-size">375 × 667px</div>
+        </div>
+        <iframe id="frame-375" src="http://localhost:5000" style="width: 375px; height: 667px;"></iframe>
+      </div>
+      
+      <div class="viewport-frame">
+        <div class="viewport-header">
+          <div class="viewport-title"><span class="device-icon">📱</span> iPhone 14 Pro Max</div>
+          <div class="viewport-size">430 × 932px</div>
+        </div>
+        <iframe id="frame-430" src="http://localhost:5000" style="width: 430px; height: 932px;"></iframe>
+      </div>
+      
+      <div class="viewport-frame">
+        <div class="viewport-header">
+          <div class="viewport-title"><span class="device-icon">📱</span> iPad Mini</div>
+          <div class="viewport-size">768 × 1024px</div>
+        </div>
+        <iframe id="frame-768" src="http://localhost:5000" style="width: 768px; height: 600px;"></iframe>
+      </div>
+      
+      <div class="viewport-frame">
+        <div class="viewport-header">
+          <div class="viewport-title"><span class="device-icon">💻</span> Desktop</div>
+          <div class="viewport-size">1024 × 768px</div>
+        </div>
+        <iframe id="frame-1024" src="http://localhost:5000" style="width: 1024px; height: 768px;"></iframe>
+      </div>
+    </div>
+    
+    <div class="info">
+      <h2>Test Instructions</h2>
+      <ul>
+        <li>1. Click "Search" button - verify modal opens properly on each viewport</li>
+        <li>2. Click any planet - verify detail modal uses bottom sheet on mobile</li>
+        <li>3. Check speed slider - should be larger on mobile viewports</li>
+        <li>4. Test scale control dropdown - ensure all options are 44px+ height</li>
+        <li>5. Verify no horizontal scrolling on 320px viewport</li>
+        <li>6. Hover/tap planets - tooltip should appear centered</li>
+        <li>7. Open Details modal - verify similar body chips are tappable</li>
+        <li>8. Check AI classification skeleton on load</li>
+      </ul>
+    </div>
+  </div>
+  
+  <script>
+    function refreshAll() {
+      const frames = document.querySelectorAll('iframe');
+      frames.forEach(frame => {
+        frame.src = frame.src;
+      });
+    }
+    
+    function openFullScreen() {
+      window.open('http://localhost:5000', '_blank');
+    }
+    
+    function toggleTheme() {
+      document.body.style.background = document.body.style.background === 'rgb(10, 10, 15)' ? '#1a1a2e' : '#0a0a0f';
+    }
+    
+    // Auto-refresh every 30 seconds to catch updates
+    setInterval(() => {
+      console.log('Auto-refresh skipped - uncomment to enable');
+      // refreshAll();
+    }, 30000);
+  </script>
+</body>
+</html>

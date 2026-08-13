@@ -16,6 +16,18 @@ export default function AIClassificationPanel({ body, className = "", compact }:
 
   if (!body.aiAnalysis) {
     const isSpacecraft = body.type === "spacecraft";
+    
+    // Show skeleton loading state
+    if (compact) {
+      return (
+        <div className="flex items-center gap-2 animate-pulse">
+          <div className="h-3 w-20 bg-white/10 rounded" />
+          <div className="h-3 w-8 bg-white/10 rounded" />
+          <div className="h-1 flex-1 bg-white/10 rounded-full" />
+        </div>
+      );
+    }
+    
     return (
       <div className={`rounded-xl border border-white/10 bg-white/[0.04] p-4 backdrop-blur-md ${className}`}>
         <div className="text-xs font-semibold uppercase tracking-[0.3em] text-white/40">AI Analysis</div>
@@ -27,7 +39,14 @@ export default function AIClassificationPanel({ body, className = "", compact }:
             </p>
           </div>
         ) : (
-          <p className="mt-2 text-sm text-white/60">Waiting for prediction...</p>
+          <div className="mt-3 space-y-3 animate-pulse">
+            <div className="h-5 w-32 bg-white/10 rounded" />
+            <div className="h-1 w-full bg-white/10 rounded-full" />
+            <div className="space-y-2">
+              <div className="h-3 w-full bg-white/10 rounded" />
+              <div className="h-3 w-3/4 bg-white/10 rounded" />
+            </div>
+          </div>
         )}
       </div>
     );

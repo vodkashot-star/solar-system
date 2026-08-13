@@ -469,6 +469,8 @@ export function registerRoutes(app: Express): Server {
       "name","type","mass","radius","density","gravity","temperature",
       "orbitalPeriod","semiMajorAxis","eccentricity","inclination",
       "rotationPeriod","axialTilt","aiClassification","aiConfidenceScore",
+      "visualRadius","orbit","orbitSpeed","spinSpeed","tilt","phase",
+      "color","fact","parentBody","hasRings",
     ]);
     const updates = Object.fromEntries(
       Object.entries(req.body ?? {}).filter(([k]) => ALLOWED.has(k))

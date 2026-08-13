@@ -1,12 +1,12 @@
 import { useMemo } from "react";
 import * as THREE from "three";
-import { BODIES, BODY_TYPE_COLORS } from "./bodies";
+import { BODIES, type Body, BODY_TYPE_COLORS } from "./bodies";
 import { getHeliocentricPosition, ASTRONOMY_BODIES, SIM_SPEED } from "@/lib/astronomy-positions";
 import { solveKeplerElliptic } from "@/lib/kepler";
 
 const SEGMENTS = 128;
 
-type Props = { scaleMultiplier?: number };
+type Props = { scaleMultiplier?: number; bodies?: Body[]; dimmed?: boolean };
 
 function sampleOrbitPoints(a: number, e: number, inclRad: number, segments: number): number[] {
   const pts: number[] = [];
@@ -51,13 +51,13 @@ function sampleEphemerisPoints(bodyId: string, orbitalPeriod: number, orbitRadiu
   return pts;
 }
 
-export default function OrbitRings({ scaleMultiplier = 1 }: Props) {
+export default function OrbitRings({ scaleMultiplier = 1, bodies = BODIES, dimmed = false }: Props) {
   const geometry = useMemo(() => {
     const positions: number[] = [];
     const colors: number[] = [];
     const color = new THREE.Color();
 
-    for (const body of BODIES) {
+    for (const body of bodies) {
       if (body.orbit <= 0) continue;
       if (body.parentBody) continue;
 
@@ -81,12 +81,12 @@ export default function OrbitRings({ scaleMultiplier = 1 }: Props) {
     geo.setAttribute("position", new THREE.Float32BufferAttribute(positions, 3));
     geo.setAttribute("color", new THREE.Float32BufferAttribute(colors, 3));
     return geo;
-  }, []);
+  }, [bodies]);
 
   return (
     <group scale={scaleMultiplier}>
       <lineSegments geometry={geometry} frustumCulled={false}>
-        <lineBasicMaterial vertexColors transparent opacity={0.2} linewidth={1} polygonOffset polygonOffsetFactor={-1} polygonOffsetUnits={-1} />
+        <lineBasicMaterial vertexColors transparent opacity={dimmed ? 0.07 : 0.2} linewidth={1} polygonOffset polygonOffsetFactor={-1} polygonOffsetUnits={-1} />
       </lineSegments>
     </group>
   );

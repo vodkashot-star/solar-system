@@ -22,6 +22,7 @@ import joblib
 import numpy as np
 import pandas as pd
 from sklearn.base import clone, is_classifier
+from sklearn.calibration import CalibratedClassifierCV
 from sklearn.ensemble import RandomForestClassifier, GradientBoostingClassifier, VotingClassifier
 from sklearn.linear_model import LogisticRegression
 from sklearn.metrics import accuracy_score, classification_report
@@ -75,18 +76,54 @@ PARAM_GRIDS = {
 }
 
 
-def _get_classifier(model_type):
+def _get_classifier(model_type, calibrate=False):
     clf = CLASSIFIERS.get(model_type)
     if clf is None:
         print(f"Unknown model type: {model_type}. Choose from: {list(CLASSIFIERS.keys())}", file=sys.stderr)
         sys.exit(1)
-    return clf
+    if not calibrate:
+        return clf
+    # Probability calibration (Platt/sigmoid) sharpens the soft RF vote
+    # fractions into well-calibrated confidence scores. Rare classes must be
+    # oversampled upstream (see _oversample_rare_classes) because
+    # CalibratedClassifierCV demands >= cv folds worth of each class.
+    return CalibratedClassifierCV(estimator=clone(clf), method="sigmoid", cv=3)
+
+
+def _oversample_rare_classes(X, y, min_count=5):
+    """Duplicate rows of classes with fewer than `min_count` samples so
+    stratified calibration folds stay valid at every level (inner
+    CalibratedClassifierCV cv=3, eval split 80/20, outer GridSearch/CV
+    folds). Returns oversampled X, y."""
+    counts = y.value_counts()
+    rare = counts[counts < min_count]
+    if rare.empty:
+        return X, y
+    y_np = y.to_numpy()
+    rng = np.random.default_rng(42)
+    add_idx: list[int] = []
+    for cls in rare.index:
+        cls_pos = np.where(y_np == cls)[0]
+        reps = min_count - len(cls_pos)
+        add_idx.extend(rng.choice(cls_pos, reps, replace=True).tolist())
+    X = pd.concat([X, X.iloc[add_idx]], ignore_index=True)
+    y = pd.concat([y, y.iloc[add_idx]], ignore_index=True)
+    return X, y
+
+
+def _unwrap_estimator(clf):
+    """CalibratedClassifierCV keeps fitted fold models in
+    `calibrated_classifiers_` (`.estimator` stays an unfitted template)."""
+    if hasattr(clf, "calibrated_classifiers_"):
+        return clf.calibrated_classifiers_[0].estimator
+    return getattr(clf, "estimator", clf)
 
 
 def _get_feature_importances(pipeline):
     clf = pipeline.named_steps.get("clf")
     if clf is None:
         return None
+    clf = _unwrap_estimator(clf)
     if hasattr(clf, "feature_importances_"):
         return clf.feature_importances_.tolist()
     if hasattr(clf, "coef_"):
@@ -165,7 +202,7 @@ def _archive_version(pipe, meta, n_corrections=0, verbose=True):
         print(f"Archived version {version_id} to {archive_dir}")
 
 
-def _train_from_df(df, model_type="rf", tune=False, augment=False, verbose=True, n_corrections=0):
+def _train_from_df(df, model_type="rf", tune=False, augment=False, verbose=True, n_corrections=0, calibrate=False):
     """
     Core training routine.
 
@@ -189,7 +226,13 @@ def _train_from_df(df, model_type="rf", tune=False, augment=False, verbose=True,
         if augment:
             print(f"Features: {len(FEATURES)} base + {len(ENGINEERED_FEATURES)} engineered = {len(feature_cols)} total")
 
-    base_pipe = Pipeline([("scaler", StandardScaler()), ("clf", _get_classifier(model_type))])
+    if calibrate:
+        before = len(y)
+        X, y = _oversample_rare_classes(X, y)
+        if len(y) != before and verbose:
+            print(f"[calibrate] Oversampled rare classes: {before} → {len(y)} rows (stratified folds stay valid)")
+
+    base_pipe = Pipeline([("scaler", StandardScaler()), ("clf", _get_classifier(model_type, calibrate=calibrate))])
     cv, use_stratified = _build_cv(y)
 
     if not use_stratified and verbose:
@@ -199,6 +242,9 @@ def _train_from_df(df, model_type="rf", tune=False, augment=False, verbose=True,
     if tune:
         from sklearn.model_selection import GridSearchCV
         grid = PARAM_GRIDS.get(model_type, {})
+        if calibrate:
+            # CalibratedClassifierCV nests the base estimator under `estimator__`
+            grid = {k.replace("clf__", "clf__estimator__", 1): v for k, v in grid.items()}
         tuned_pipe = GridSearchCV(base_pipe, grid, cv=cv, scoring="accuracy")
         if verbose:
             print(f"Tuning with grid: {grid}")
@@ -242,6 +288,7 @@ def _train_from_df(df, model_type="rf", tune=False, augment=False, verbose=True,
         "model_type": model_type,
         "tuned": tune,
         "augmented": augment,
+        "calibrated": calibrate,
         "n_features": len(feature_cols),
         "test_accuracy": round(test_acc, 4),
         "cv_accuracy_mean": round(float(cv_scores.mean()), 4),
@@ -275,9 +322,9 @@ def _train_from_df(df, model_type="rf", tune=False, augment=False, verbose=True,
     return prod_pipe
 
 
-def train(model_type="rf", tune=False, augment=False, verbose=True):
+def train(model_type="rf", tune=False, augment=False, verbose=True, calibrate=False):
     df = pd.read_csv(DATA_PATH).fillna(0)
-    return _train_from_df(df, model_type=model_type, tune=tune, augment=augment, verbose=verbose, n_corrections=0)
+    return _train_from_df(df, model_type=model_type, tune=tune, augment=augment, verbose=verbose, n_corrections=0, calibrate=calibrate)
 
 
 def cross_validate(verbose=True):
@@ -290,9 +337,29 @@ def cross_validate(verbose=True):
         print("Loaded object is not a classifier pipeline.", file=sys.stderr)
         sys.exit(1)
 
+    meta = {}
+    if META_PATH.exists():
+        with open(META_PATH) as f:
+            meta = json.load(f)
+
     df = pd.read_csv(DATA_PATH)
-    X = df[FEATURES].fillna(0)
+    if meta.get("augmented"):
+        df = _engineer_features(df)
+
+    feature_cols = FEATURES + (ENGINEERED_FEATURES if meta.get("augmented") else [])
+    X = df[feature_cols].fillna(0)
     y = df[TARGET]
+
+    # Calibrated models were trained on oversampled data (see
+    # _oversample_rare_classes) — CV must use the same distribution or the
+    # inner CalibratedClassifierCV(cv=3) folds crash on rare classes.
+    clf = pipeline.named_steps.get("clf")
+    calibrated = isinstance(clf, CalibratedClassifierCV) or bool(meta.get("calibrated"))
+    if calibrated:
+        before = len(y)
+        X, y = _oversample_rare_classes(X, y)
+        if verbose and len(y) != before:
+            print(f"Note: model is calibrated — oversampling rare classes for CV: {before} → {len(y)} rows (matches training)")
 
     cv, use_stratified = _build_cv(y)
     if not use_stratified and verbose:
@@ -311,7 +378,7 @@ def cross_validate(verbose=True):
     return scores
 
 
-def train_with_corrections(model_type="rf", tune=False, augment=False, verbose=True):
+def train_with_corrections(model_type="rf", tune=False, augment=False, verbose=True, calibrate=False):
     # Use src.database to be consistent with the rest of the codebase
     from src.database import Correction as CorrectionModel, get_session, init_db
     from predict import FEATURES as _FEATURES
@@ -332,7 +399,7 @@ def train_with_corrections(model_type="rf", tune=False, augment=False, verbose=T
         feat_dict[TARGET] = c.corrected_type
         df = pd.concat([df, pd.DataFrame([feat_dict])], ignore_index=True)
 
-    return _train_from_df(df, model_type=model_type, tune=tune, augment=augment, verbose=verbose, n_corrections=n_corrections)
+    return _train_from_df(df, model_type=model_type, tune=tune, augment=augment, verbose=verbose, n_corrections=n_corrections, calibrate=calibrate)
 
 
 def rollback(version_id, verbose=True):
@@ -375,10 +442,11 @@ if __name__ == "__main__":
     parser.add_argument("--model-type", choices=list(CLASSIFIERS.keys()), default="rf")
     parser.add_argument("--tune", action="store_true", help="Run GridSearchCV")
     parser.add_argument("--augment", action="store_true", help="Enable feature engineering")
+    parser.add_argument("--calibrate", action="store_true", help="Wrap classifier in CalibratedClassifierCV (sigmoid)")
     parser.add_argument("--cv", action="store_true", help="Run cross-validation on saved model")
     args = parser.parse_args()
 
     if args.cv:
         cross_validate()
     else:
-        train(model_type=args.model_type, tune=args.tune, augment=args.augment)
+        train(model_type=args.model_type, tune=args.tune, augment=args.augment, calibrate=args.calibrate)

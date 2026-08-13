@@ -1093,7 +1093,7 @@ export const BODIES: Body[] = [
     name: "Curiosity Rover",
     visualRadius: 0.07,
     orbit: 12.5,        // near Mars orbit radius
-    orbitSpeed: 0.031,  // matches Mars roughly; SpacecraftOrbit overrides position
+    orbitSpeed: 0.031,  // matches Mars roughly; OrbitalBody overrides radius
     spinSpeed: 0.0,
     tilt: 0,
     phase: 1.9,

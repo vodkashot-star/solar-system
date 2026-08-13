@@ -106,17 +106,38 @@ function makeNebulaTexture(size = 512): THREE.CanvasTexture {
   return tex;
 }
 
-export default function NebulaBackground() {
-  const texture = useMemo(() => makeNebulaTexture(), []);
+// Texture is expensive (~10M ops at 512px) — generate once per session and
+// share across every band layer that mounts.
+let cachedTexture: THREE.CanvasTexture | null = null;
+function getNebulaTexture(): THREE.CanvasTexture {
+  if (!cachedTexture) cachedTexture = makeNebulaTexture();
+  return cachedTexture;
+}
+
+type NebulaBackgroundProps = {
+  /** Mesh rotation — rotate the band across the sky. */
+  rotation?: [number, number, number];
+  /** Material opacity (primary band 0.5, depth bands lower). */
+  opacity?: number;
+  /** Sphere radius — larger = further away. */
+  radius?: number;
+};
+
+export default function NebulaBackground({
+  rotation,
+  opacity = 0.5,
+  radius = 380,
+}: NebulaBackgroundProps) {
+  const texture = useMemo(getNebulaTexture, []);
 
   return (
-    <mesh>
-      <sphereGeometry args={[380, 64, 32]} />
+    <mesh rotation={rotation}>
+      <sphereGeometry args={[radius, 64, 32]} />
       <meshBasicMaterial
         map={texture}
         side={THREE.BackSide}
         transparent
-        opacity={0.5}
+        opacity={opacity}
         depthWrite={false}
         blending={THREE.AdditiveBlending}
       />

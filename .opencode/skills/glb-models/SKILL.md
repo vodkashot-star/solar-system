@@ -16,7 +16,7 @@ description: Use when adding, converting, validating, or fixing GLB models, or w
 | Command | Action |
 |---------|--------|
 | `npm run models:fetch` | Fetch NASA models |
-| `npm run models:convert` | obj2gltf → Draco compress → texture resize |
+| `npm run models:convert` | obj2gltf → Draco compress → texture resize → JPEG color textures |
 | `npm run models:validate` | Validate GLB headers, asset JSONs, Draco, sizes |
 | `npm run models:validate -- --fix` | Auto-fix (Draco compress) |
 | `npm run ai:check` | Python-side validation script |
@@ -31,6 +31,7 @@ description: Use when adding, converting, validating, or fixing GLB models, or w
 
 ## Known pitfalls
 
+- `gltf-transform jpeg` silently no-ops on PNG textures unless `--formats "*"` is passed — the default `--formats "jpeg"` *excludes* PNG sources. The convert script already passes it; if re-running the step by hand, don't forget it. Textures with alpha + normal maps are kept as PNG automatically
 - Draco WASM is copied automatically by `dev`/`build`/`build:cf` (first command in the npm scripts); if models fail to load anyway, run `bash scripts/copy-draco.sh` manually
 - Corrupt GLBs (wrong JSON-chunk padding) are caught by `scripts/validate_glb.sh` — fix with `npm run models:validate -- --fix`
 - All GLBs must be self-contained — textures embedded (bufferView), no `uri` refs to loose files. If `validate_glb.sh` reports "external texture ref(s)", embed them (re-run the converter with the texture on disk) — never commit loose image files in `client/public/models/`

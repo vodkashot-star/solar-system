@@ -1,8 +1,10 @@
 import { useEffect } from "react";
-import { BODIES } from "@/components/solar-system/bodies";
+import type { Body } from "@/components/solar-system/bodies";
 
 type Options = {
-  /** Index of the currently active body in the BODIES array. */
+  /** The full body list (static catalog + custom bodies). */
+  bodies: Body[];
+  /** Index of the currently active body in the bodies array. */
   currentIndex: number;
   /** Whether the detail modal is open (Escape closes it first). */
   detailOpen: boolean;
@@ -30,6 +32,7 @@ type Options = {
  * Input and textarea elements are excluded so typing is never interrupted.
  */
 export function useKeyboardNavigation({
+  bodies,
   currentIndex,
   detailOpen,
   searchOpen,
@@ -57,12 +60,12 @@ export function useKeyboardNavigation({
           break;
         }
         case "ArrowLeft": {
-          const prev = BODIES[(currentIndex - 1 + BODIES.length) % BODIES.length];
+          const prev = bodies[(currentIndex - 1 + bodies.length) % bodies.length];
           onPrevBody(prev.id);
           break;
         }
         case "ArrowRight": {
-          const next = BODIES[(currentIndex + 1) % BODIES.length];
+          const next = bodies[(currentIndex + 1) % bodies.length];
           onNextBody(next.id);
           break;
         }
@@ -84,6 +87,7 @@ export function useKeyboardNavigation({
     window.addEventListener("keydown", handleKey);
     return () => window.removeEventListener("keydown", handleKey);
   }, [
+    bodies,
     currentIndex,
     detailOpen,
     searchOpen,

@@ -79,10 +79,30 @@ canvas {
     -webkit-tap-highlight-color: transparent;
   }
 
-  button {
-    min-height: 32px;
-    min-width: 32px;
+  button, a {
+    min-height: 44px;
+    min-width: 44px;
   }
+  
+  /* Prevent pull-to-refresh on iOS */
+  body {
+    overscroll-behavior-y: contain;
+  }
+}
+
+/* Enhanced transitions */
+button, a, input, select, textarea {
+  transition: all 0.15s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+button:active, a:active {
+  transform: scale(0.97);
+}
+
+/* Smooth scrolling for modals */
+.overflow-y-auto {
+  scroll-behavior: smooth;
+  -webkit-overflow-scrolling: touch;
 }
 
 /* Utility classes */
@@ -111,6 +131,10 @@ canvas {
 
   .text-balance {
     text-wrap: balance;
+  }
+  
+  .overscroll-contain {
+    overscroll-behavior: contain;
   }
 }
 
@@ -193,4 +217,23 @@ canvas {
     transition-duration: 0.01ms !important;
     scroll-behavior: auto !important;
   }
+}
+
+/* ── Film grain + cinematic grade (FilmGrainOverlay) ───────────────────────
+   Animated SVG noise tile shimmering behind the UI. steps() leaps the
+   background position so the grain "refreshes" like film — no JS, no GPU. */
+.film-grain {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.75' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='160' height='160' filter='url(%23n)' opacity='0.5'/%3E%3C/svg%3E");
+  background-size: 160px 160px;
+  mix-blend-mode: overlay;
+  opacity: 0.08;
+  animation: grain-shift 0.9s steps(4) infinite;
+}
+
+@keyframes grain-shift {
+  0%   { background-position: 0 0; }
+  25%  { background-position: -48px 96px; }
+  50%  { background-position: 112px -64px; }
+  75%  { background-position: -80px -112px; }
+  100% { background-position: 64px 48px; }
 }

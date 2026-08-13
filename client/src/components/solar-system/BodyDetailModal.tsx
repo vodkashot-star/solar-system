@@ -44,9 +44,11 @@ type Props = {
   body: Body | null;
   onClose: () => void;
   positions: React.MutableRefObject<Record<string, THREE.Vector3>>;
+  /** Delete handler for custom (API-created) bodies. */
+  onDeleteCustom?: (bodyId: string) => Promise<boolean> | boolean;
 };
 
-export default function BodyDetailModal({ body, onClose, positions }: Props) {
+export default function BodyDetailModal({ body, onClose, positions, onDeleteCustom }: Props) {
   const overlayRef = useRef<HTMLDivElement>(null);
   const focus = useCameraFocus((s) => s.focus);
 
@@ -65,41 +67,61 @@ export default function BodyDetailModal({ body, onClose, positions }: Props) {
   return (
     <div
       ref={overlayRef}
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm animate-fade-in"
+      className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/80 backdrop-blur-sm animate-fade-in"
       onClick={(e) => {
         if (e.target === overlayRef.current) onClose();
       }}
     >
-      <div className="relative mx-4 max-h-[85vh] w-full max-w-lg overflow-y-auto rounded-2xl border border-white/10 bg-gray-950 shadow-2xl">
-        <div className="sticky top-0 z-10 flex items-center justify-between border-b border-white/10 bg-gray-950/90 px-5 py-3 backdrop-blur-md">
-          <div>
+      <div className="relative w-full sm:mx-4 max-h-[90vh] sm:max-h-[85vh] sm:w-full sm:max-w-lg overflow-y-auto overscroll-contain rounded-t-3xl sm:rounded-2xl border-t border-white/15 sm:border border-white/15 bg-gray-950 shadow-2xl">
+        {/* Mobile handle indicator */}
+        <div className="sticky top-0 z-10 flex justify-center pt-2 pb-1 sm:hidden bg-gray-950">
+          <div className="w-12 h-1 rounded-full bg-white/20" />
+        </div>
+        
+        <div className="sticky top-0 sm:top-0 z-10 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 border-b border-white/10 bg-gray-950/95 px-4 sm:px-5 py-3 sm:py-3 backdrop-blur-md">
+          <div className="flex-1">
             <div className="text-[10px] font-semibold uppercase tracking-[0.3em] text-white/40">
               {body.type.replace(/([A-Z])/g, " $1").trim()}
             </div>
-            <div className="text-xl font-light text-white">{body.name}</div>
+            <div className="text-xl sm:text-xl font-light text-white mt-0.5">{body.name}</div>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 flex-wrap">
+            {onDeleteCustom && (
+              <button
+                onClick={async () => {
+                  if (!confirm(`Remove ${body.name} from the system?`)) return;
+                  const ok = await onDeleteCustom(body.id);
+                  if (ok) onClose();
+                }}
+                aria-label={`Remove ${body.name}`}
+                title="Remove this custom body"
+                className="min-h-[44px] rounded-full border border-red-500/30 bg-red-500/10 px-4 py-2 text-xs font-medium text-red-300 transition-all duration-150 hover:bg-red-500/20 active:scale-95"
+              >
+                Remove
+              </button>
+            )}
             {body.glbUrl && (
               <a
                 href={`?model=${encodeURIComponent(body.id)}`}
                 aria-label={`Inspect the 3D model of ${body.name}`}
                 title="Open the raw GLB model in the 3D studio"
-                className="rounded-full border border-white/10 bg-white/5 px-3 py-1.5 text-[11px] font-medium text-white/70 transition hover:bg-white/10 hover:text-white"
+                className="min-h-[44px] flex items-center rounded-full border border-white/10 bg-white/5 px-4 py-2 text-xs font-medium text-white/70 transition-all duration-150 hover:bg-white/10 hover:text-white active:scale-95"
               >
-                View 3D model
+                <span className="hidden xs:inline">View 3D model</span>
+                <span className="xs:hidden">3D</span>
               </a>
             )}
             <button
               onClick={onClose}
               aria-label="Close details panel"
-              className="flex h-8 w-8 items-center justify-center rounded-full border border-white/10 bg-white/5 text-sm text-white/60 transition hover:bg-white/10 hover:text-white"
+              className="flex min-h-[44px] min-w-[44px] items-center justify-center rounded-full border border-white/10 bg-white/5 text-base text-white/60 transition-all duration-150 hover:bg-white/10 hover:text-white active:scale-95"
             >
-              \u2715
+              ✕
             </button>
           </div>
         </div>
 
-        <div className="px-5 py-4">
+        <div className="px-4 sm:px-5 py-4 sm:py-5">
           <p className="text-sm leading-relaxed text-white/60">{body.fact}</p>
 
           {body.missionInfo && <MissionInfoCard info={body.missionInfo} />}
@@ -110,10 +132,10 @@ export default function BodyDetailModal({ body, onClose, positions }: Props) {
 
           {similar.length > 0 && (
             <div className="mt-4 border-t border-white/10 pt-4">
-              <div className="text-[10px] font-semibold uppercase tracking-[0.2em] text-white/40">
+              <div className="text-[10px] font-semibold uppercase tracking-[0.2em] text-white/40 mb-3">
                 Similar bodies
               </div>
-              <div className="mt-2 flex flex-wrap gap-1.5">
+              <div className="flex flex-wrap gap-2">
                 {similar.map(({ bodyId }) => {
                   const match = BODIES.find((b) => b.id === bodyId);
                   if (!match) return null;
@@ -128,7 +150,7 @@ export default function BodyDetailModal({ body, onClose, positions }: Props) {
                         }
                       }}
                       aria-label={`Focus on ${match.name}`}
-                      className="rounded-full border border-white/10 bg-white/5 px-2.5 py-0.5 text-[11px] text-white/70 transition hover:bg-white/10 hover:text-white"
+                      className="min-h-[44px] flex items-center rounded-full border border-white/10 bg-white/5 px-4 py-2 text-xs text-white/70 transition-all duration-150 hover:bg-white/10 hover:text-white active:scale-95"
                     >
                       {match.name}
                     </button>

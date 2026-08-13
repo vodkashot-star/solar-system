@@ -74,7 +74,7 @@ URL_REGEX='^https?://'
 # Determine input type and download if needed
 if [[ "$INPUT" =~ $URL_REGEX ]]; then
   # HTTP URL - download to temp
-  echo "[0/4] Downloading from URL..."
+  echo "[0/5] Downloading from URL..."
   EXT="${INPUT##*.}"
   EXT="${EXT%%\?*}"  # strip query params
   EXT="${EXT,,}"     # lowercase
@@ -122,8 +122,8 @@ else
   exit 1
 fi
 
-# ── Step 2: Draco compression + texture resize ────────────────────────────
-echo "[2/4] Optimising (Draco + texture resize to 1024px)..."
+# ── Step 2: Draco compression + texture resize + JPEG color textures ──────
+echo "[2/5] Optimising (Draco + texture resize to 1024px)..."
 mkdir -p "$OUTPUT_DIR"
 # First optimize with Draco
 "$PROJECT_ROOT/node_modules/.bin/gltf-transform" optimize \
@@ -138,6 +138,18 @@ mkdir -p "$OUTPUT_DIR"
   --width 1024 \
   --height 1024 \
   2>&1 | grep -v "^$" || true
+# Then compress color textures to JPEG — PNG color textures are typically
+# ~1MB each; JPEG lands ~100-250KB at this quality. IMPORTANT: `--formats "*"`
+# is required, the default `--formats "jpeg"` EXCLUDES PNG sources and
+# silently no-ops the whole conversion. Textures with alpha (BLEND materials)
+# and normal maps are automatically kept as PNG.
+"$PROJECT_ROOT/node_modules/.bin/gltf-transform" jpeg \
+  "$OUTPUT_GLB" \
+  "$OUTPUT_GLB" \
+  --slots baseColorTexture \
+  --formats "*" \
+  --quality 82 \
+  2>&1 | grep -v "^$" || true
 # Re-apply Draco compression after resize (resize can strip it)
 "$PROJECT_ROOT/node_modules/.bin/gltf-transform" optimize \
   "$OUTPUT_GLB" \
@@ -147,13 +159,13 @@ mkdir -p "$OUTPUT_DIR"
 echo "      Final size: $(du -sh "$OUTPUT_GLB" | cut -f1)"
 
 # ── Step 3: Validate ──────────────────────────────────────────────────────
-echo "[3/4] Validating ${OUTPUT_NAME}..."
+echo "[3/5] Validating ${OUTPUT_NAME}..."
 "$PROJECT_ROOT/scripts/validate_glb.sh" --quiet --file "$OUTPUT_NAME" || {
   echo "WARN: validation flagged issues (see above) — review before committing"
 }
 
 # ── Step 4: Create asset JSON pointer ────────────────────────────────────
-echo "[4/4] Writing asset JSON..."
+echo "[4/5] Writing asset JSON..."
 mkdir -p "$ASSET_DIR"
 printf '{"url": "/models/%s.glb"}\n' "$OUTPUT_NAME" > "$ASSET_JSON"
 echo "      $ASSET_JSON"

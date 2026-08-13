@@ -80,15 +80,20 @@ export default function InstancedStars({
   const meshRef = useRef<THREE.Points>(null);
   const materialRef = useRef<THREE.PointsMaterial>(null);
 
+  // Reduce star count on mobile devices (lower DPR = lower-end device)
+  const devicePixelRatio = typeof window !== 'undefined' ? window.devicePixelRatio : 1;
+  const isMobile = devicePixelRatio < 2 || /Android|iPhone|iPad/i.test(navigator.userAgent);
+  const effectiveCount = isMobile ? Math.floor(count * 0.5) : count;
+
   const { geometry } = useMemo(() => {
-    const positions = new Float32Array(count * 3);
-    const colors = new Float32Array(count * 3);
-    const sizes = new Float32Array(count);
-    const phases = new Float32Array(count);
+    const positions = new Float32Array(effectiveCount * 3);
+    const colors = new Float32Array(effectiveCount * 3);
+    const sizes = new Float32Array(effectiveCount);
+    const phases = new Float32Array(effectiveCount);
 
     const color = new THREE.Color();
 
-    for (let i = 0; i < count; i++) {
+    for (let i = 0; i < effectiveCount; i++) {
       const p = randomInSphere(radius, depth);
       positions[i * 3] = p.x;
       positions[i * 3 + 1] = p.y;
@@ -109,7 +114,7 @@ export default function InstancedStars({
     geo.setAttribute("size", new THREE.Float32BufferAttribute(sizes, 1));
     geo.setAttribute("phase", new THREE.Float32BufferAttribute(phases, 1));
     return { geometry: geo };
-  }, [count, radius, depth, factor]);
+  }, [effectiveCount, radius, depth, factor]);
 
   const uniformsRef = useRef<{ uTime: { value: number } }>({ uTime: { value: 0 } });
 
@@ -137,14 +142,14 @@ gl_PointSize = size * ptScale * twinkle;`,
   }, []);
 
   return (
-    <points ref={meshRef} geometry={geometry} frustumCulled={false}>
+    <points ref={meshRef} geometry={geometry} frustumCulled={true}>
       <pointsMaterial
         ref={materialRef}
-        size={1}
+        size={isMobile ? 0.8 : 1}
         map={starTexture}
         vertexColors
         transparent
-        opacity={fade ? 0.8 : 1}
+        opacity={fade ? (isMobile ? 0.6 : 0.8) : 1}
         sizeAttenuation
         depthWrite={false}
         blending={THREE.AdditiveBlending}

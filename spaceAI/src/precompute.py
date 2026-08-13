@@ -3,6 +3,7 @@ Precompute AI analysis for all known bodies from ASTRONOMICAL_DATA in bodies.ts.
 Runs at FastAPI startup via the lifespan handler (in a thread executor to avoid
 blocking the event loop).
 """
+import json
 import re
 from pathlib import Path
 
@@ -169,5 +170,11 @@ def precompute_all():
     # Persist all at once
     for body_id, result in results.items():
         cache_set(body_id, result)
+
+    # Also dump the flat JSON fallback that Express merges at startup
+    # (server/routes.ts: FILE_CACHE_PATH). Same payload as the DB rows.
+    json_path = PROJECT_ROOT / "data" / "ai_cache.json"
+    json_path.write_text(json.dumps(results, indent=2))
+    print(f"[precompute] Wrote {json_path} ({len(results)} bodies)")
 
     print(f"[precompute] Done — {len(results)} bodies precomputed")

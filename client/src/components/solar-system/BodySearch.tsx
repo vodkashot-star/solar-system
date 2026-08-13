@@ -1,20 +1,21 @@
 import { useState, useRef, useEffect, useCallback } from "react";
-import { BODIES } from "./bodies";
+import { BODIES, type Body } from "./bodies";
 
 type Props = {
   onSelect: (bodyId: string) => void;
   open: boolean;
   onClose: () => void;
+  bodies?: Body[];
 };
 
-export default function BodySearch({ onSelect, open, onClose }: Props) {
+export default function BodySearch({ onSelect, open, onClose, bodies = BODIES }: Props) {
   const [query, setQuery] = useState("");
   const [activeIdx, setActiveIdx] = useState(0);
   const inputRef = useRef<HTMLInputElement>(null);
 
   const results = query
-    ? BODIES.filter((b) => b.name.toLowerCase().includes(query.toLowerCase()))
-    : BODIES;
+    ? bodies.filter((b) => b.name.toLowerCase().includes(query.toLowerCase()))
+    : bodies;
 
   useEffect(() => {
     if (open) {
@@ -45,22 +46,24 @@ export default function BodySearch({ onSelect, open, onClose }: Props) {
   if (!open) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-start justify-center pt-[15vh]">
-      <div className="absolute inset-0 bg-black/40" onClick={onClose} />
-      <div className="relative w-full max-w-sm rounded-xl border border-white/10 bg-gray-950 shadow-2xl backdrop-blur-md">
-        <input
-          ref={inputRef}
-          value={query}
-          onChange={(e) => {
-            setQuery(e.target.value);
-            setActiveIdx(0);
-          }}
-          onKeyDown={handleKeyDown}
-          placeholder="Search bodies..."
-          className="w-full rounded-t-xl border-0 border-b border-white/10 bg-transparent px-4 py-3 text-sm text-white outline-none placeholder:text-white/30"
-        />
+    <div className="fixed inset-0 z-50 flex items-start justify-center pt-[10vh] sm:pt-[15vh] animate-fade-in">
+      <div className="absolute inset-0 bg-black/60 backdrop-blur-sm transition-opacity" onClick={onClose} />
+      <div className="relative w-[calc(100%-1rem)] max-w-md mx-2 rounded-2xl border border-white/15 bg-gray-950/95 shadow-2xl backdrop-blur-xl overflow-hidden">
+        <div className="border-b border-white/10 bg-gradient-to-b from-white/5 to-transparent">
+          <input
+            ref={inputRef}
+            value={query}
+            onChange={(e) => {
+              setQuery(e.target.value);
+              setActiveIdx(0);
+            }}
+            onKeyDown={handleKeyDown}
+            placeholder="Search celestial bodies..."
+            className="w-full border-0 bg-transparent px-4 py-4 text-sm text-white outline-none placeholder:text-white/40"
+          />
+        </div>
         {results.length > 0 && (
-          <div className="max-h-60 overflow-y-auto py-1">
+          <div className="max-h-[50vh] overflow-y-auto overscroll-contain py-1">
             {results.map((body, idx) => (
               <button
                 key={body.id}
@@ -69,16 +72,18 @@ export default function BodySearch({ onSelect, open, onClose }: Props) {
                   onClose();
                 }}
                 onMouseEnter={() => setActiveIdx(idx)}
-                className={`flex w-full items-center gap-3 px-4 py-2 text-left text-sm transition ${
-                  idx === activeIdx ? "bg-white/10 text-white" : "text-white/60 hover:bg-white/5 hover:text-white"
+                className={`flex w-full items-center gap-3 px-4 py-3 text-left text-sm transition-all duration-150 min-h-[52px] ${
+                  idx === activeIdx 
+                    ? "bg-white/10 text-white scale-[0.98]" 
+                    : "text-white/60 hover:bg-white/5 hover:text-white active:scale-95"
                 }`}
               >
                 <span
-                  className="h-2 w-2 rounded-full shrink-0"
-                  style={{ backgroundColor: body.color }}
+                  className="h-3 w-3 rounded-full shrink-0 shadow-lg"
+                  style={{ backgroundColor: body.color, boxShadow: `0 0 8px ${body.color}40` }}
                 />
-                <span>{body.name}</span>
-                <span className="ml-auto text-[10px] text-white/30">
+                <span className="flex-1">{body.name}</span>
+                <span className="text-[10px] text-white/30">
                   {body.type.replace(/([A-Z])/g, " $1").trim()}
                 </span>
               </button>
@@ -86,7 +91,9 @@ export default function BodySearch({ onSelect, open, onClose }: Props) {
           </div>
         )}
         {query && results.length === 0 && (
-          <div className="px-4 py-3 text-sm text-white/40">No bodies match &quot;{query}&quot;</div>
+          <div className="px-4 py-6 text-center text-sm text-white/40">
+            No bodies match <span className="text-white/60">"{query}"</span>
+          </div>
         )}
       </div>
     </div>

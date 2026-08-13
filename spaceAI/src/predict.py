@@ -91,6 +91,12 @@ class CelestialPredictor:
         clf = self.model.named_steps.get("clf")
         if clf is None:
             return None
+        # CalibratedClassifierCV keeps fitted fold models in
+        # `calibrated_classifiers_` (`.estimator` stays an unfitted template)
+        if hasattr(clf, "calibrated_classifiers_"):
+            clf = clf.calibrated_classifiers_[0].estimator
+        else:
+            clf = getattr(clf, "estimator", clf)
         if hasattr(clf, "feature_importances_"):
             return clf.feature_importances_.tolist()
         if hasattr(clf, "coef_"):

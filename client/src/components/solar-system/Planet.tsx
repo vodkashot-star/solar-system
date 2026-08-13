@@ -6,6 +6,7 @@ import type { Body } from "./bodies";
 import { startLoad, finishLoad, failLoad } from "@/lib/load-debugger";
 import { useCameraFocus } from "@/stores/camera-focus";
 import { useCinematicMode } from "@/stores/cinematic-mode";
+import { useLODRef, getDeviceAdjustedLODConfig, type LODLevel } from "@/lib/lod-manager";
 import AtmosphereGlow from "./AtmosphereGlow";
 import RingSystem from "./RingSystem";
 import { applyProceduralMaterials, getCachedDiffuse, getCachedNormal, getCachedRoughness } from "@/lib/procedural-textures";
@@ -188,6 +189,13 @@ export default React.memo(function Planet({ body, onPosition, scaleMultiplier = 
   // Once a model has been wanted (and thus loaded/cached) keep it mounted so
   // it never pops back to the procedural sphere when the tour moves on.
   const [everWanted, setEverWanted] = useState(isWanted);
+  // Position lives in a ref (updated in useFrame) — LOD only re-renders when
+  // the level actually crosses a distance threshold, never every frame.
+  const currentPosition = useRef<THREE.Vector3>(new THREE.Vector3());
+
+  // LOD system: dynamically switch between high-detail GLB and low-poly fallback
+  const lodConfig = useMemo(() => getDeviceAdjustedLODConfig(), []);
+  const lodLevel = useLODRef(currentPosition, body.visualRadius, lodConfig);
 
   useEffect(() => {
     if (isWanted) setEverWanted(true);
@@ -253,6 +261,8 @@ export default React.memo(function Planet({ body, onPosition, scaleMultiplier = 
         const bobFrequency = BOB_FREQUENCY_BASE + body.visualRadius * BOB_FREQUENCY_RADIUS_FACTOR;
         p.position.y += Math.sin(state.clock.elapsedTime * bobFrequency + body.phase) * bobAmplitude;
       }
+      // Update position for LOD calculations (mutated in place — no re-render)
+      currentPosition.current.copy(p.position);
       if (onPosition) onPosition(p.position);
     }
     if (spin.current) {
@@ -281,19 +291,30 @@ export default React.memo(function Planet({ body, onPosition, scaleMultiplier = 
 
   const isSun = body.id === "sun";
   const hasAtmosphere = ATMOSPHERE_BODIES.has(body.id) && !isSun;
+  
+  // LOD decision: Use fallback sphere for distant bodies or when not wanted
+  // "culled" level = don't render at all (extreme distance)
+  // "low" level = use fallback sphere (medium distance)
+  // "high" level = use GLB model (close distance or focused)
+  const shouldUseGLB = lodLevel === "high" && body.glbUrl && everWanted;
+  
+  // Don't render anything if culled (too far away)
+  if (lodLevel === "culled") {
+    return null;
+  }
 
   return (
     <group ref={pivot}>
       <group ref={spin} rotation={[0, 0, body.tilt]}>
         <Suspense fallback={<FallbackSphere radius={effectiveRadius} color={body.color} emissive={isSun} bodyId={body.id} bodyType={body.type} />}>
-          {body.glbUrl && everWanted ? (
+          {shouldUseGLB ? (
             <GLBLoadErrorBoundary bodyId={body.id} bodyName={body.name} fallback={
               <group onClick={handleClick} onPointerOver={handlePointerOver} onPointerOut={handlePointerOut}>
                 <FallbackSphere radius={effectiveRadius} color={body.color} emissive={isSun} bodyId={body.id} bodyType={body.type} />
               </group>
             }>
               <group onClick={handleClick} onPointerOver={handlePointerOver} onPointerOut={handlePointerOut}>
-                <GLBModel url={body.glbUrl} radius={effectiveRadius} body={body} onReady={() => setGlbReady(true)} />
+                <GLBModel url={body.glbUrl!} radius={effectiveRadius} body={body} onReady={() => setGlbReady(true)} />
               </group>
             </GLBLoadErrorBoundary>
           ) : (
@@ -302,8 +323,8 @@ export default React.memo(function Planet({ body, onPosition, scaleMultiplier = 
             </group>
           )}
         </Suspense>
-        {hasAtmosphere && <AtmosphereGlow radius={effectiveRadius} bodyId={body.id} />}
-        {body.hasRings && <RingSystem body={body} planetRadius={effectiveRadius} />}
+        {lodLevel === "high" && hasAtmosphere && <AtmosphereGlow radius={effectiveRadius} bodyId={body.id} />}
+        {lodLevel === "high" && body.hasRings && <RingSystem body={body} planetRadius={effectiveRadius} />}
       </group>
     </group>
   );
