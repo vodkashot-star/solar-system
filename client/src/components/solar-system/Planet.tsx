@@ -227,9 +227,17 @@ export default React.memo(function Planet({ body, onPosition, scaleMultiplier = 
     [onHover],
   );
 
-  useFrame((state, delta) => {
+  useFrame((state, delta, frame) => {
     const p = pivot.current;
-    if (p) {
+    // Skip position/spin updates when paused (speed=0) and not in cinematic
+    // tour — no movement means no need to recalculate orbital positions.
+    const shouldUpdate = speedMultiplier > 0 || cinematic;
+    
+    // LOD-based update frequency: distant/culled planets skip frames to save CPU
+    const updateFreq = lodLevel === 'culled' ? 10 : lodLevel === 'low' ? 3 : 1;
+    const shouldUpdateThisFrame = frame % updateFreq === 0;
+    
+    if (p && shouldUpdate && shouldUpdateThisFrame) {
       if (!isStationary) {
         if (ASTRONOMY_BODIES.has(body.id)) {
           const pos = getHeliocentricPosition(body.id, state.clock.elapsedTime, speedMultiplier, effectiveOrbit);
@@ -252,12 +260,11 @@ export default React.memo(function Planet({ body, onPosition, scaleMultiplier = 
       currentPosition.current.copy(p.position);
       if (onPosition) onPosition(p.position);
     }
-    if (spin.current) {
+    if (spin.current && shouldUpdate && shouldUpdateThisFrame) {
       spin.current.rotation.y += body.spinSpeed * delta * speedMultiplier;
     }
-    // Skip re-render when paused (speed=0) and not in cinematic tour — nothing
-    // is moving so there's no need to invalidate the frame each tick.
-    if (speedMultiplier > 0 || cinematic) {
+    // Invalidate frame only when something is moving
+    if (shouldUpdate) {
       state.invalidate();
     }
   });

@@ -229,6 +229,34 @@ const STATIC_CLASSIFICATIONS: Record<string, {
 
 // ── Helpers ────────────────────────────────────────────────────────────────
 
+// ── Server-Sent Events for Real-Time Sync ─────────────────────────────────
+// Telegram /travel movements broadcast to all connected web clients
+const sseClients = new Set<Response>();
+
+function broadcastPlayerMovement(userId: number, bodyId: number, bodyName: string): void {
+  const event = JSON.stringify({
+    type: "player_moved",
+    userId,
+    bodyId,
+    bodyName,
+    timestamp: Date.now(),
+  });
+
+  const data = `data: ${event}\n\n`;
+  const clientsToRemove: Response[] = [];
+  
+  sseClients.forEach((client) => {
+    try {
+      client.write(data);
+    } catch {
+      clientsToRemove.push(client);
+    }
+  });
+  
+  // Clean up failed clients
+  clientsToRemove.forEach((client) => sseClients.delete(client));
+}
+
 // ── In-memory merged AI cache ──────────────────────────────────────────────
 // DB rows are only re-read on a 60s TTL or after a correction is submitted, so
 // the AI endpoints never pay Neon connect latency (1-2s) per request. Falls
@@ -464,6 +492,29 @@ export function registerRoutes(app: Express): Server {
     res.status(statusCode).json(checks);
   });
 
+  // ── Server-Sent Events for Real-Time Player Movement ───────────────────────
+  app.get("/api/events", (req, res) => {
+    res.setHeader("Content-Type", "text/event-stream");
+    res.setHeader("Cache-Control", "no-cache");
+    res.setHeader("Connection", "keep-alive");
+    res.setHeader("X-Accel-Buffering", "no"); // Disable nginx buffering
+
+    // Send initial connection confirmation
+    res.write(`data: ${JSON.stringify({ type: "connected", timestamp: Date.now() })}\n\n`);
+
+    // Add client to broadcast set
+    sseClients.add(res);
+
+    // Remove client on disconnect
+    req.on("close", () => {
+      sseClients.delete(res);
+    });
+
+    if (req.log) {
+      req.log.info({ clientCount: sseClients.size }, 'SSE client connected');
+    }
+  });
+
   app.get("/api/ai/precomputed", async (req, res) => {
     // Browsers skip revalidation for a minute — no 304 round-trip per boot.
     res.setHeader("Cache-Control", "public, max-age=60");
@@ -674,6 +725,10 @@ export function registerRoutes(app: Express): Server {
           set: { currentBodyId: destId },
         })
         .returning();
+      
+      // Broadcast movement to all connected web clients (SSE)
+      broadcastPlayerMovement(tgId, destId, destName);
+      
       res.json({ ...rows[0], bodyName: destName });
     } catch (err) {
       logger.error({ err, telegramUserId: tgId }, 'DB unavailable — failed to update player location');

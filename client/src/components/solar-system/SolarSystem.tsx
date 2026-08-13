@@ -29,6 +29,7 @@ import { useSimulation } from "@/stores/simulation";
 import OrbitalBody from "./OrbitalBody";
 import { useAIClassification } from "@/hooks/useAIClassification";
 import { useKeyboardNavigation } from "@/hooks/useKeyboardNavigation";
+import { usePlayerMovements } from "@/hooks/usePlayerMovements";
 
 // Lazy load heavy modal components to reduce initial bundle size
 const BodyDetailModal = lazy(() => import("./BodyDetailModal"));
@@ -59,7 +60,6 @@ export default function SolarSystem() {
   const [searchOpen, setSearchOpen] = useState(false);
   const [customBodyOpen, setCustomBodyOpen] = useState(false);
   const [shortcutsOpen, setShortcutsOpen] = useState(false);
-  const [speedMultiplier, setSpeedMultiplier] = useState(1);
   const positions = useRef<Record<string, THREE.Vector3>>({});
   const computedRadii = useRef<Record<string, number>>({});
   const clearFocus = useCameraFocus((s) => s.clear);
@@ -69,6 +69,8 @@ export default function SolarSystem() {
   const isFocused = useCameraFocus((s) => s.isFocused);
   const focusTarget = useCameraFocus((s) => s.targetBodyId);
   const setCinematic = useCinematicMode((s) => s.setEnabled);
+  const speedMultiplier = useSimulation((s) => s.speed);
+  const setSpeedMultiplier = useSimulation((s) => s.setSpeed);
 
   // User-created bodies from the catalog API (empty when offline). Merged with
   // the static catalog so custom bodies flow through every part of the scene.
@@ -118,13 +120,6 @@ export default function SolarSystem() {
     setCinematic(tourOn);
   }, [tourOn, setCinematic]);
 
-  // Mirror the speed slider into the simulation store so Canvas children can
-  // skip invalidate() when paused (true freeze under frameloop="demand").
-  const setSimSpeed = useSimulation((s) => s.setSpeed);
-  useEffect(() => {
-    setSimSpeed(speedMultiplier);
-  }, [speedMultiplier, setSimSpeed]);
-
   const currentIndex = allBodies.findIndex((b) => b.id === active.id);
 
   useKeyboardNavigation({
@@ -152,6 +147,11 @@ export default function SolarSystem() {
     onOpenSearch: () => setSearchOpen(true),
     onCloseSearch: () => setSearchOpen(false),
     onOpenShortcuts: () => setShortcutsOpen(true),
+  });
+
+  // Real-time player movement tracking (Telegram ↔ Web sync)
+  usePlayerMovements(true, (event) => {
+    console.log(`🛸 SOLARIS: Player ${event.userId} → ${event.bodyName}`);
   });
 
   const scaleMultiplier =
@@ -293,9 +293,15 @@ export default function SolarSystem() {
             />
           )}
 
-          {(tourOn || isFocused) && (
-            <EffectComposer>
-              <Bloom intensity={tourOn ? 0.9 : 0} luminanceThreshold={0.6} luminanceSmoothing={0.2} mipmapBlur />
+          {(tourOn || isFocused) && !detailBodyId && !customBodyOpen && (
+            <EffectComposer enableNormalPass={false} multisampling={0}>
+              <Bloom 
+                intensity={tourOn ? 0.9 : 0} 
+                luminanceThreshold={0.2}
+                luminanceSmoothing={0.9}
+                radius={0.8}
+                mipmapBlur 
+              />
             </EffectComposer>
           )}
         </Canvas>

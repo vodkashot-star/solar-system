@@ -15,7 +15,10 @@ const ORIGIN = new THREE.Vector3(0, 0, 0);
 
 export default function FocusCamera({ positions, computedRadii, bodies = BODIES }: Props) {
   const { camera, invalidate } = useThree();
-  const { isFocused, fitAll, targetBodyId, clear } = useCameraFocus();
+  const isFocused = useCameraFocus((s) => s.isFocused);
+  const fitAll = useCameraFocus((s) => s.fitAll);
+  const targetBodyId = useCameraFocus((s) => s.targetBodyId);
+  const clear = useCameraFocus((s) => s.clear);
   const flyTarget = useRef(new THREE.Vector3(0, 12, 38));
   const lookCurrent = useRef(new THREE.Vector3(0, 0, 0));
   const lookTarget = useRef(new THREE.Vector3(0, 0, 0));

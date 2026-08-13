@@ -53,9 +53,33 @@ client = AsyncOpenAI(
     base_url="https://opencode.ai/zen/v1",
     api_key=os.getenv("OPENCODE_API_KEY", "your_api_key_here"),
 )
-OPENCODE_MODEL = "deepseek-v4-flash-free"
-# Rate-limit (429 / FreeUsageLimitError) failover before giving up.
-OPENCODE_FALLBACK_MODEL = os.getenv("OPENCODE_FALLBACK_MODEL", "nemotron-3-ultra-free")
+
+# 4-Model Rotation for Rate-Limit Resilience
+MODEL_ROTATION = [
+    "deepseek-v4-flash-free",
+    "nemotron-3-ultra-free",
+    "ling-3.0-flash-free",
+    "qwen-2.5-72b-free",
+]
+
+# Model health tracking (skip models with repeated failures)
+import time
+MODEL_HEALTH = {model: {"failures": 0, "last_success": 0} for model in MODEL_ROTATION}
+
+def update_model_health(model: str, success: bool):
+    if success:
+        MODEL_HEALTH[model]["failures"] = 0
+        MODEL_HEALTH[model]["last_success"] = time.time()
+    else:
+        MODEL_HEALTH[model]["failures"] += 1
+
+def get_healthy_models():
+    """Skip models with >5 consecutive failures in last 5 minutes."""
+    cutoff = time.time() - 300
+    return [
+        m for m in MODEL_ROTATION
+        if MODEL_HEALTH[m]["failures"] < 5 or MODEL_HEALTH[m]["last_success"] > cutoff
+    ]
 
 # Express API base for web↔Telegram location sync (the bot and the web app
 # share the same Postgres, so the PATCH endpoint is the single source of truth).
@@ -68,6 +92,31 @@ STATION_AIS = {
     "moon": {"name": "Dr. Vance", "role": "Chief astrophysicist at Lunar Gateway."},
     "makemake": {"name": "Deep-Space Drone 09", "role": "Kuiper Belt exploration drone."},
 }
+
+# ---------------------------------------------------------------------------
+# In-Memory State Caches (Performance Optimization)
+# ---------------------------------------------------------------------------
+
+# USER_LOCATIONS: telegram_user_id → body_name (lowercase)
+# Avoids 1-2s Postgres query per message (Neon cold-start latency)
+USER_LOCATIONS: dict[int, str] = {}
+
+# USER_CONTEXTS: telegram_user_id → conversation history (rolling window)
+# Last 6 messages (3 turns) for conversation continuity
+USER_CONTEXTS: dict[int, list[dict]] = {}
+MAX_CONTEXT_MESSAGES = 6
+
+# USER_CONTEXT_TIMESTAMPS: track idle time for memory cleanup
+USER_CONTEXT_TIMESTAMPS: dict[int, float] = {}
+
+def prune_stale_contexts():
+    """Remove conversations idle >1 hour to prevent memory leaks."""
+    cutoff = time.time() - 3600
+    stale = [uid for uid, ts in USER_CONTEXT_TIMESTAMPS.items() if ts < cutoff]
+    for uid in stale:
+        USER_CONTEXTS.pop(uid, None)
+        USER_CONTEXT_TIMESTAMPS.pop(uid, None)
+        USER_LOCATIONS.pop(uid, None)
 
 # ---------------------------------------------------------------------------
 # PostgreSQL persistence (psycopg2; sync calls hop over asyncio.to_thread)
@@ -218,6 +267,21 @@ def _log_message(conn, body_key, sender_name, message, is_ai):
 
 # ---------------------------------------------------------------------------
 
+async def _get_location(telegram_user_id: int) -> str:
+    """Fetch location from cache → DB → default to Earth.
+    
+    Cache hit: <10ms (memory lookup)
+    Cache miss: 1-2s (Postgres query, then cached)
+    """
+    if telegram_user_id in USER_LOCATIONS:
+        return USER_LOCATIONS[telegram_user_id]
+    
+    # Cache miss — load from DB and cache the result
+    location = (await _db(_player_location, telegram_user_id)) or "Earth"
+    body_key = location.strip().lower()
+    USER_LOCATIONS[telegram_user_id] = body_key
+    return body_key
+
 
 def _is_rate_limit(err: Exception) -> bool:
     text = str(err)
@@ -247,50 +311,84 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text(text, parse_mode="Markdown")
 
 
+async def call_llm_with_backoff(model: str, messages: list, max_retries=2):
+    """Call LLM with exponential backoff on rate-limits."""
+    for attempt in range(max_retries):
+        try:
+            return await client.chat.completions.create(
+                model=model,
+                messages=messages,
+                max_tokens=150,
+                timeout=8.0,
+            )
+        except Exception as e:
+            if not _is_rate_limit(e):
+                raise
+            if attempt < max_retries - 1:
+                delay = 2 ** attempt  # 1s, 2s
+                await asyncio.sleep(delay)
+    raise  # Exhausted retries
+
+
 async def handle_chat(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user = update.effective_user
     user_text = update.message.text
     sender = (await _db(_player_name, user.id)) or user.first_name or "Unknown"
 
-    # Location-based routing: the player's current_body_id decides the station.
-    location = (await _db(_player_location, user.id)) or ""
-    body_id = location.strip().lower()
+    # Location-based routing with in-memory cache (10x faster than DB query)
+    body_id = await _get_location(user.id)
     if body_id not in STATION_AIS:
         body_id = "earth"
     station = STATION_AIS[body_id]
 
     await _db(_log_message, body_id, sender, user_text, False)
 
+    # Get or initialize conversation history for this user
+    if user.id not in USER_CONTEXTS:
+        USER_CONTEXTS[user.id] = []
+    history = USER_CONTEXTS[user.id]
+    USER_CONTEXT_TIMESTAMPS[user.id] = time.time()
+
+    # Build messages with system prompt + conversation history + new message
+    messages = [
+        {
+            "role": "system",
+            "content": f"You are {station['name']}, {station['role']}. "
+                       f"Keep replies under 3 sentences. Remember prior conversation.",
+        },
+        *history,  # Past conversation (up to 6 messages)
+        {"role": "user", "content": user_text},
+    ]
+
+    # 4-Model rotation with health tracking and exponential backoff
     reply = None
     last_err = None
-    for model in (OPENCODE_MODEL, OPENCODE_FALLBACK_MODEL):
+    for model in get_healthy_models():
         try:
-            response = await client.chat.completions.create(
-                model=model,
-                messages=[
-                    {
-                        "role": "system",
-                        "content": f"You are {station['name']}, {station['role']}. Keep replies under 3 sentences.",
-                    },
-                    {"role": "user", "content": user_text},
-                ],
-                max_tokens=150,
-            )
+            response = await call_llm_with_backoff(model, messages)
             reply = response.choices[0].message.content.strip()
+            update_model_health(model, success=True)
             break
         except Exception as e:
+            update_model_health(model, success=False)
             last_err = e
             if not _is_rate_limit(e):
-                break
+                break  # Non-rate-limit error = stop rotation
 
     if reply is None:
         if last_err is not None and not _is_rate_limit(last_err):
-            reply = f"*[Signal lost with {station['name']}... Error: {last_err}]*"
+            reply = f"*[Signal lost with {station['name']}... Error: {str(last_err)[:80]}]*"
         else:
             reply = (
                 f"⚠️ *[{station['name']} Relay Busy]*: High sub-space chatter detected. "
                 "Systems calibrating... Please repeat your message in a few seconds."
             )
+
+    # Update conversation history (keep last MAX_CONTEXT_MESSAGES messages)
+    if reply and not reply.startswith("*[Signal lost"):
+        history.append({"role": "user", "content": user_text})
+        history.append({"role": "assistant", "content": reply})
+        USER_CONTEXTS[user.id] = history[-MAX_CONTEXT_MESSAGES:]
 
     await _db(_log_message, body_id, station["name"], reply, True)
 
@@ -427,6 +525,9 @@ async def travel(update: Update, context: ContextTypes.DEFAULT_TYPE):
             await _reply_signal_lost(update)
             return
         body_name = location
+
+    # Update in-memory location cache
+    USER_LOCATIONS[user.id] = body_name.strip().lower()
 
     await _reply_arrival(update, user, body_name)
 
