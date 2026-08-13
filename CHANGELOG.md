@@ -14,6 +14,9 @@ All notable changes. Unreleased entries are uncommitted work in progress.
 - DB schema: `player_characters` + `chat_logs` tables (FK to `celestial_bodies.id` — typed `integer`, text FK would not match the serial PK) in `shared/schema.ts`, migration `drizzle/0004_mushy_kylun.sql` pushed to Neon
 - Branch: `feature/telegram-bot` (unpushed)
 
+### Bug fix: `feature_importances()` unwrapped the forest into an unfitted template
+- `spaceAI/src/predict.py` ran `getattr(clf, "estimator", clf)` on every model — RandomForestClassifier also exposes `.estimator` as an **unfitted** base-tree template, so importance extraction returned `None` and `test_feature_importances_not_none` failed. The unwrap now only applies when the inner model is actually fitted (has `feature_importances_`/`coef_`); forests keep their own fitted attributes.
+
 ### Docs: full markdown refresh
 - README.md: Telegram bot section, custom bodies + cinematic grade + real-orbit features, ai:* script list (185 tests), corrected tree (Postgres drizzle migrations 0000–0004, `telegram_bot.py`, venv, no `functions/`/alembic), setuptools stack (Poetry/Alembic removed)
 - AGENTS.md: DB table list gained `player_characters` + `chat_logs`; new "Telegram Bot (SOLARIS Network)" section (stations, model, .env, IPv4 patch, daemon + pgrep footgun)

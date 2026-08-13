@@ -96,7 +96,15 @@ class CelestialPredictor:
         if hasattr(clf, "calibrated_classifiers_"):
             clf = clf.calibrated_classifiers_[0].estimator
         else:
-            clf = getattr(clf, "estimator", clf)
+            # Unwrap single-estimator wrappers — but only if the inner model is
+            # actually fitted. Forests also expose `.estimator` as an *unfitted*
+            # base-tree template, so gating on the fitted attrs keeps the
+            # RandomForest itself (its own `feature_importances_` lives there).
+            inner = getattr(clf, "estimator", None)
+            if inner is not None and (
+                hasattr(inner, "feature_importances_") or hasattr(inner, "coef_")
+            ):
+                clf = inner
         if hasattr(clf, "feature_importances_"):
             return clf.feature_importances_.tolist()
         if hasattr(clf, "coef_"):
