@@ -57,3 +57,6 @@ htmlcov/
 .opencode/**/*.key
 .opencode/**/*.pem
 
+
+# Local backup of pre-recompression GLBs (recoverable from git history)
+client/public/models-backup/
