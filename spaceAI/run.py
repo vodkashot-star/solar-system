@@ -18,6 +18,7 @@ Usage:
 """
 
 import argparse
+import os
 import sys
 from pathlib import Path
 
@@ -274,7 +275,8 @@ def main():
 
     # serve
     p_serve = sub.add_parser("serve", help="Start FastAPI server")
-    p_serve.add_argument("--port", type=int, default=8000)
+    p_serve.add_argument("--port", type=int,
+                         default=int(os.getenv("SPACEAI_PORT", "8000")))
     p_serve.add_argument("--reload", action="store_true", help="Auto-reload on changes")
 
     args = parser.parse_args()

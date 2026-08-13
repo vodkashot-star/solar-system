@@ -61,11 +61,12 @@ export default async function runApp(
 
   await setup(app, server);
 
-  const port = 5000;
+  // PORT env override (default 5000) — no reusePort: a stale server on the same
+  // port would silently split traffic via SO_REUSEPORT instead of failing loudly.
+  const port = Number(process.env.PORT) || 5000;
   server.listen({
     port,
     host: "0.0.0.0",
-    reusePort: true,
   }, () => {
     logger.info({ port, host: "0.0.0.0" }, 'Server started');
   });
