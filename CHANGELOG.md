@@ -4,6 +4,22 @@ All notable changes. Unreleased entries are uncommitted work in progress.
 
 ## [Unreleased] — 2026-08-13
 
+### Visualization: orbit motion + smooth cinematic tour
+- `astronomy-positions.ts`: `SIM_SPEED` 0.5 → 1.5 — planets visibly orbit at the default 1x speed (Mercury ~1 min/orbit, Earth ~4 min; outer planets stay slow, as in reality)
+- `CinematicTour`: eased target (`smoothedTarget`) between segments — no more 216° arc snap, no dive to origin for unmounted bodies, resume starts from the current camera position; camera damping 0.87 → 1.3 so it settles between bodies
+- `Planet`: removed the cinematic Y-bob — bodies sit exactly on their orbit rings (no floating center offset)
+
+### Model: classifier tuned (v18)
+- `npm run ai:train -- --tune` (GridSearchCV): CV accuracy **0.8577 ± 0.0483** (was 0.8402 ± 0.0731), held-out test 0.8333; best params `max_depth=3, min_samples_leaf=1, n_estimators=50`
+- Snapshot archived at `spaceAI/models/archives/v18/`
+
+### Tooling: opencode config + docs reconciliation
+- `opencode.json`: permission `npm run check` → `npm run typecheck` (script was renamed; the allow rule never matched)
+- `AGENTS.md`: added PWA service-worker caching, Docker (Express-only), Sentry sourcemap gating, Render production host, and CI (GitHub Actions `validate.yml` gate + Cloudflare Pages `deploy.yml`, branch `Master`) bullets; corrected API base (always relative `/api`, no `VITE_*`), dropped stale `routes.ts` line ref, removed deleted-`.zencode` sync note, added `?model=` studio-preview route + test-typecheck exclusion notes
+- `.opencode/techstack.md`: fixed stale claims (`vite-plugin-glsl` not a dependency, Docker = app only, Render/CI infra)
+- `.opencode/agents.md`: corrected parallel-agent example names (`frontend`/`backend`/`ml` — `*-agent` variants don't exist)
+- Skills reconciled with code: `perf-tuning` (chunk list → 9 vendor chunks incl. `vendor_three_*`/`vendor_fx`/`vendor_state`; GLB budget → ~26 MB on disk), `celestial-design` (`hasRings` → only Saturn/Uranus/Neptune flag it; Jupiter/Haumea defs dormant), `orbit-tuning` (`Fit All` framing verified), `glb-models`/`ai-tuning`/`dev-server-lifecycle`/`frameloop-demand` verified accurate
+
 ### Hosting: Netlify removed → Render is the production host
 - Deleted `netlify.toml`, `.github/workflows/deploy-netlify.yml`, and `client/public/_redirects` (Netlify SPA fallback — Express serves index.html itself)
 - Live: **https://solar-system-0mqx.onrender.com** (from `render.yaml`: Express web + FastAPI ML + Telegram bot worker)

@@ -5,7 +5,10 @@ export const ASTRONOMY_BODIES = new Set([
   "jupiter", "saturn", "uranus", "neptune"
 ])
 
-export const SIM_SPEED = 0.5
+// Simulated days per real second at 1x speed. Tuned so inner-planet orbital
+// motion is clearly visible at the default speed (Mercury ~60s/orbit, Earth
+// ~4min); outer planets remain slow, as in reality.
+export const SIM_SPEED = 1.5
 
 const REF_EPOCH = new Date(Date.UTC(2000, 0, 1, 12, 0, 0))
 const SECONDS_PER_DAY = 86400

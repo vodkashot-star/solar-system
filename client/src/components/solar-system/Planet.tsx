@@ -18,14 +18,6 @@ import { solveKepler } from "@/lib/kepler";
 const RADIUS_SCALE_MIN  = 0.3;
 /** Fraction of radius that scales with the scene scaleMultiplier. */
 const RADIUS_SCALE_WEIGHT = 0.7;
-/** Cinematic bob base amplitude (scene units). */
-const BOB_AMPLITUDE_BASE = 0.15;
-/** Cinematic bob amplitude grows slightly with effective radius. */
-const BOB_AMPLITUDE_RADIUS_FACTOR = 0.1;
-/** Cinematic bob base frequency (rad/s). */
-const BOB_FREQUENCY_BASE = 0.6;
-/** Bob frequency grows slightly with visual radius so large bodies bob slower. */
-const BOB_FREQUENCY_RADIUS_FACTOR = 0.08;
 
 type PlanetProps = {
   body: Body;
@@ -255,11 +247,6 @@ export default React.memo(function Planet({ body, onPosition, scaleMultiplier = 
           p.position.y = zOrb * Math.sin(inclRad);
           p.position.z = zOrb * Math.cos(inclRad);
         }
-      }
-      if (cinematic) {
-        const bobAmplitude = BOB_AMPLITUDE_BASE + effectiveRadius * BOB_AMPLITUDE_RADIUS_FACTOR;
-        const bobFrequency = BOB_FREQUENCY_BASE + body.visualRadius * BOB_FREQUENCY_RADIUS_FACTOR;
-        p.position.y += Math.sin(state.clock.elapsedTime * bobFrequency + body.phase) * bobAmplitude;
       }
       // Update position for LOD calculations (mutated in place — no re-render)
       currentPosition.current.copy(p.position);
