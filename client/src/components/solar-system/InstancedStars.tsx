@@ -124,9 +124,9 @@ export default function InstancedStars({
 
   useFrame((state, delta) => {
     uniformsRef.current.uTime.value += delta;
-    if (meshRef.current) meshRef.current.rotation.y += delta * 0.001;
     // Paused (speed 0, no tour) → nothing else invalidates either; freeze.
     if (speed > 0 || cinematic) {
+      if (meshRef.current) meshRef.current.rotation.y += delta * 0.001;
       state.invalidate();
     }
   });

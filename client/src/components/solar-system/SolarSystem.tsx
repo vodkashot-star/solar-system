@@ -17,6 +17,7 @@ import LoadingSpinner from "./LoadingSpinner";
 import DebugPanel from "./DebugPanel";
 import PerformanceMonitor from "./PerformanceMonitor";
 import PerformanceMetricsProbe from "./PerformanceMetricsProbe";
+import AdaptiveQuality from "./AdaptiveQuality";
 import AIClassificationPanel from "./AIClassificationPanel";
 import ScaleControl, { type ScaleMode } from "./ScaleControl";
 import BodySearch from "./BodySearch";
@@ -196,7 +197,7 @@ export default function SolarSystem() {
         <Canvas
           camera={{ position: [0, 55, 130], fov: 55, near: nearPlane, far: farPlane }}
           dpr={[1, 1.75]}
-          gl={{ powerPreference: "high-performance", logarithmicDepthBuffer: scaleMultiplier < 0.5 }}
+          gl={{ powerPreference: "high-performance", logarithmicDepthBuffer: scaleMultiplier < 0.5, toneMapping: THREE.ACESFilmicToneMapping, toneMappingExposure: 1.1 }}
           frameloop="demand"
           onCreated={(state) => {
             state.invalidate();
@@ -238,7 +239,7 @@ export default function SolarSystem() {
 
           <SunGlow />
 
-          <OrbitRings scaleMultiplier={scaleMultiplier} bodies={allBodies} dimmed={overview || fitAll} />
+          <OrbitRings scaleMultiplier={scaleMultiplier} bodies={allBodies} dimmed={overview || fitAll} activeId={tourOn ? active?.id : focusTarget} />
 
           {/* Planets and dwarf planets (no parentBody) */}
           {primaryBodies.map((b) => (
@@ -279,6 +280,7 @@ export default function SolarSystem() {
           <FocusCamera positions={positions} computedRadii={computedRadii} bodies={allBodies} />
           <CinematicTour enabled={tourOn} onActiveChange={setActive} onOverviewChange={setOverview} positions={positions} computedRadii={computedRadii} speedMultiplier={speedMultiplier} bodies={allBodies} />
           <PerformanceMetricsProbe />
+          <AdaptiveQuality />
 
           {!tourOn && !fitAll && (
             <OrbitControls
