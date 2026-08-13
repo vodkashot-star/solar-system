@@ -25,6 +25,7 @@
     "ai:train-regression": "cd spaceAI && ./venv/bin/python run.py train-regression",
     "ai:retrain": "cd spaceAI && ./venv/bin/python run.py retrain",
     "ai:cv": "cd spaceAI && ./venv/bin/python run.py cv",
+    "ai:bot": "cd spaceAI && ./venv/bin/python telegram_bot.py",
     "ai:check": "cd spaceAI && ./venv/bin/python ../scripts/validate_models.py",
     "ai:test": "cd spaceAI && ./venv/bin/python -m pytest tests/ -v"
   },

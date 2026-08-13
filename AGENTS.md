@@ -18,6 +18,7 @@
 | `npm run models:convert` / `models:fetch` | GLB conversion / NASA model download |
 | `npm run ai:train` | Train classifier (untuned RF) — uses `spaceAI/venv`, plain `python` has **no numpy**; add `-- --tune` for GridSearchCV |
 | `npm run ai:serve` | FastAPI :8000 — `./venv/bin/python run.py serve` (add `-- --reload` for hot reload) |
+| `npm run ai:bot` | Telegram station-AI bot — `./venv/bin/python telegram_bot.py` (needs `TELEGRAM_BOT_TOKEN` + `OPENCODE_API_KEY`) |
 | `npm run ai:train-regression` | Train mass + temperature regressors |
 | `npm run ai:retrain` | Retrain with corrections from DB
 | `npm run ai:cv` | Cross-validation of saved model |

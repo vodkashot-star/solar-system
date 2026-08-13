@@ -1,4 +1,4 @@
-import { pgTable, serial, text, doublePrecision, timestamp, jsonb } from 'drizzle-orm/pg-core';
+import { pgTable, serial, text, doublePrecision, timestamp, jsonb, integer, bigint } from 'drizzle-orm/pg-core';
 
 // Represents a celestial body (Planet, Moon, Asteroid, etc.)
 export const celestialBodies = pgTable('celestial_bodies', {
@@ -69,6 +69,28 @@ export const corrections = pgTable('corrections', {
   features: jsonb('features').notNull(),
   uncertainty: doublePrecision('uncertainty'),
   source: text('source').default('user'),
+  createdAt: timestamp('created_at').defaultNow(),
+});
+
+// Telegram bot: player characters linked to celestial bodies in the 3D solar system
+export const playerCharacters = pgTable('player_characters', {
+  id: serial('id').primaryKey(),
+  telegramUserId: bigint('telegram_user_id', { mode: 'number' }).unique().notNull(),
+  name: text('name').notNull(),
+  // FK must be integer — celestialBodies.id is a serial (integer), a text FK
+  // column would not match the referenced primary key type in Postgres.
+  currentBodyId: integer('current_body_id').notNull().references(() => celestialBodies.id),
+  reputation: integer('reputation').default(0),
+  createdAt: timestamp('created_at').defaultNow(),
+});
+
+// Telegram bot: chat history per celestial body / station
+export const chatLogs = pgTable('chat_logs', {
+  id: serial('id').primaryKey(),
+  bodyId: integer('body_id').notNull().references(() => celestialBodies.id),
+  senderName: text('sender_name').notNull(),
+  message: text('message').notNull(),
+  isAi: integer('is_ai').default(0),
   createdAt: timestamp('created_at').defaultNow(),
 });
 

@@ -4,6 +4,15 @@ All notable changes. Unreleased entries are uncommitted work in progress.
 
 ## [Unreleased] — 2026-08-13
 
+### Feature: Telegram bot (SOLARIS Network)
+- `spaceAI/telegram_bot.py` — python-telegram-bot polling app: `/start` + free-text chat routed to location-based station AIs (A.R.E.S. Flight Command @ Earth, Dr. Vance @ Lunar Gateway, Deep-Space Drone 09 @ Makemake) via OpenCode Zen (`deepseek-v4-flash-free`); markdown-fallback + error handling built in; run with `TELEGRAM_BOT_TOKEN` + `OPENCODE_API_KEY`
+- Deps into `spaceAI/venv`: `python-telegram-bot` 22.8, `openai` 3.0.0
+- `npm run ai:bot` script added (`cd spaceAI && ./venv/bin/python telegram_bot.py` — venv python, since plain `python` has no deps)
+- IPv4-first `socket.getaddrinfo` patch in the bot: box has no IPv6 route but DNS prefers AAAA — without it Telegram rejects the (valid) token
+- `.env.example` template added (placeholder values — committable; real secrets stay in gitignored `.env`)
+- DB schema: `player_characters` + `chat_logs` tables (FK to `celestial_bodies.id` — typed `integer`, text FK would not match the serial PK) in `shared/schema.ts`, migration `drizzle/0004_mushy_kylun.sql` pushed to Neon
+- Branch: `feature/telegram-bot` (unpushed)
+
 ### Feature: cinematic visual grade
 - New `FilmGrainOverlay` (pure CSS DOM overlay): animated SVG-noise film grain (`mix-blend-mode: overlay`, `steps()` shimmer) + soft radial vignette — zero GPU cost, sits under the UI (`client/src/components/solar-system/FilmGrainOverlay.tsx`, `index.css`)
 - Sun god-rays: additive billboard shafts behind the sun, slowly tilting while the cinematic tour is enabled (`SunGlow.tsx`, tour-only via `useCinematicMode`)
