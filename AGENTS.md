@@ -8,7 +8,7 @@
 | `npm run typecheck` | `tsc` — 0 errors expected |
 | `npm test` | `vitest run` — `client/src/**/*.test.{ts,tsx}` (happy-dom); **excluded from `tsc`** (tsconfig ignores `**/*.test.ts`), so tests are not typechecked — use `npm run validate` for both |
 | `npm run build` | `copy-draco.sh && vite build && esbuild server` → `dist/` |
-| `npm run build:cf` | Static SPA (no server) for Netlify/Cloudflare |
+| `npm run build:cf` | Static SPA (no server) for Cloudflare Pages / Surge |
 | `npm run deploy:surge` | Static build + `surge dist/ solar-system-3d.surge.sh` |
 | `npm run db:migrate` | `drizzle-kit generate && push` (generate may need TTY workaround, see Known Issues) |
 | `npm start` | Production: Express `dist/index-prod.js` :5000 **+ FastAPI :8000** (concurrently) |
@@ -31,10 +31,12 @@
 - **Server prod**: `server/index-prod.ts` — manual `fs.readFileSync` + MIME lookup (`server/index-prod.ts:17-27`), esbuild bundles `.js`/`.css` with wrong MIME
 - **API base**: always relative `/api` (`client/src/lib/config.ts`) — dev Vite proxies to Express :5000, prod same-origin serves both; no `VITE_*` env vars exist
 - **AI fetch failures silently caught** — frontend works without AI data
-- **Canvas `frameloop="demand"`** — every `useFrame` must call `state.invalidate()`, or scene freezes
+- **Canvas `frameloop="demand"`** — every `useFrame` must call `state.invalidate()`, or scene freezes. Pause-freeze: `stores/simulation.ts` mirrors the speed slider; `SunGlow`/`AtmosphereGlow`/`InstancedStars`/`OrbitalBody` skip `invalidate()` when paused (speed 0, no tour) so the scene truly freezes
+- **Perf metrics bridge**: `usePerformanceMonitor` is R3F-only (useThree/useFrame) — `PerformanceMetricsProbe` (inside the Canvas) publishes metrics to `stores/performance.ts`; `PerformanceMonitor` (DOM overlay) reads the store. Never call the hook outside the Canvas
+- **Server ports**: Express honors `PORT` (default 5000) with **no `reusePort`** — a stale server on the same port fails loudly (EADDRINUSE) instead of silently splitting traffic; FastAPI `run.py serve` defaults to `SPACEAI_PORT` env (default 8000, must match `SPACEAI_URL` when changed)
 - **Path aliases**: `@/*` → `client/src/*`, `@shared/*` → `shared/*`
 - **Vite root**: `client/`, outDir `dist/`
-- **Chunk splitting**: `vendor_react` (react/react-dom), `vendor_shared` (everything else)
+- **Chunk splitting**: `vendor_react` (react/react-dom/scheduler), `vendor_three_core`/`vendor_three_addons`/`vendor_three_stdlib`/`vendor_three_react` (three + R3F), `vendor_fx` (postprocessing), `vendor_animation` (maath/react-spring), `vendor_state` (zustand), `vendor_shared` (everything else). `preloadThreeChunk` Vite plugin injects `<link rel="modulepreload">` for the hashed `vendor_three_*` assets into built `index.html`
 
 ## GLB Assets
 

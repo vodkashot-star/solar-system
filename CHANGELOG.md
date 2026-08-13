@@ -4,6 +4,25 @@ All notable changes. Unreleased entries are uncommitted work in progress.
 
 ## [Unreleased] — 2026-08-13
 
+### Hosting: Netlify removed → Render is the production host
+- Deleted `netlify.toml`, `.github/workflows/deploy-netlify.yml`, and `client/public/_redirects` (Netlify SPA fallback — Express serves index.html itself)
+- Live: **https://solar-system-0mqx.onrender.com** (from `render.yaml`: Express web + FastAPI ML + Telegram bot worker)
+- `render.yaml`: `ALLOWED_ORIGIN` → Render URL; bot worker gains `SOLARIS_API_URL` (Render services are separate — `localhost:5000` wouldn't reach the web service)
+- Docs updated (README infra table + deployment section, AGENTS.md `build:cf` description, PWA_IMPLEMENTATION.md comment)
+
+### Perf: performance-metrics bridge (R3F ↔ DOM)
+- `usePerformanceMonitor` no longer returns metrics — it is now R3F-only (calls `useThree`/`useFrame`) and must only be invoked inside the Canvas. New `PerformanceMetricsProbe` (rendered inside the Canvas) publishes metrics to `stores/performance.ts` (zustand); `PerformanceMonitor` (DOM overlay) reads the store. Fixes R3F hooks being called from DOM components outside the Canvas.
+
+### Perf: true pause-freeze under `frameloop="demand"`
+- New `stores/simulation.ts` mirrors the speed slider. `SunGlow`, `AtmosphereGlow`, `InstancedStars`, and `OrbitalBody` skip `state.invalidate()` when paused (speed 0 and no tour), so the paused scene genuinely freezes instead of glows/stars/offsets continuing to animate.
+
+### Ops: PORT / SPACEAI_PORT env overrides
+- Express honors `PORT` (default 5000) and dropped `reusePort` — a stale server on the same port now fails loudly (EADDRINUSE) instead of silently splitting traffic
+- FastAPI `run.py serve` defaults its port to the `SPACEAI_PORT` env var (default 8000); must match `SPACEAI_URL` when changed (`.env.example` updated)
+
+### Model: classifier retrained (v17)
+- Retrained 2026-08-13; snapshot archived at `spaceAI/models/archives/v17/`
+
 ### Feature: PWA support + Web Vitals tracking
 - **Progressive Web App**: `vite-plugin-pwa` configured with manifest, service worker, and offline support
   - Manifest: name "Solar System · Cinematic 3D Tour", icons (4 sizes: 192/512 normal + maskable), theme color #070814, standalone display

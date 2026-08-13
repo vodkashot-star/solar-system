@@ -17,7 +17,7 @@ services:
       - key: OPENCODE_API_KEY
         sync: false
       - key: ALLOWED_ORIGIN
-        value: https://c34246beaef275.lhr.life
+        value: https://solar-system-0mqx.onrender.com
       - key: SPACEAI_URL
         value: http://localhost:8000
       - key: LOG_LEVEL
@@ -54,3 +54,5 @@ services:
         sync: false
       - key: DATABASE_URL
         sync: false
+      - key: SOLARIS_API_URL
+        value: https://solar-system-0mqx.onrender.com

@@ -130,7 +130,7 @@
 # Full build (includes server)
 npm run build
 
-# Static build (Netlify/Cloudflare)
+# Static build (Cloudflare Pages/Surge)
 npm run build:cf
 
 # Both generate PWA files automatically

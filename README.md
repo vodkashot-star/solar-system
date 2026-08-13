@@ -92,6 +92,12 @@ client/src/components/solar-system/
   FilmGrainOverlay.tsx   — Cinematic film-grain post-pass
   NebulaBackground.tsx   — Instanced nebula dust
   SunGlow.tsx            — God-ray sun glow shader
+  AtmosphereGlow.tsx     — Per-body atmospheric glow sprite
+  RingSystem.tsx         — Procedural ring geometry (Saturn)
+  ScaleControl.tsx       — Visual/Hybrid/Real-size/Real-distance scale modes
+  PerformanceMonitor.tsx — DOM overlay FPS/draw-call monitor (reads stores/performance)
+  PerformanceMetricsProbe.tsx — R3F-side probe writing WebGL metrics to stores/performance
+  KeyboardShortcutsModal.tsx — Shortcut cheat-sheet ("?" key)
   bodies.ts              — Body config (name, radius, orbit, speed, tilt, fact, color, asset pointer,
                            parentBody, missionInfo)
 ```
@@ -152,12 +158,32 @@ npm run models:validate   # Validate GLB structure (headers, Draco, sizes)
 npm run models:fetch      # Download NASA models
 npm run ai:check          # Validate GLBs against the ML classifier
 npm run ai:train          # Train classifier — add -- --tune for GridSearchCV tuning
+npm run ai:train-regression  # Train mass + temperature regressors
 npm run ai:retrain        # Retrain with corrections from DB
 npm run ai:cv             # Cross-validate saved model
 npm run ai:serve          # FastAPI :8000 (dev only)
 npm run ai:test           # spaceAI pytest suite (50 tests)
 npm run ai:bot            # Telegram station-AI bot (needs .env tokens)
+npm run db:migrate        # Drizzle generate + push (Postgres migrations)
 ```
+
+### Production Deployment (Render)
+
+Live: **https://solar-system-0mqx.onrender.com**
+
+`render.yaml` defines three free-tier services:
+
+| Service | Type | Start command |
+|---------|------|---------------|
+| `solar-system-api` | web | `node dist/index-prod.js` (Express + static) |
+| `solar-system-ml` | web | `run.py serve` (FastAPI :8000) |
+| `solar-system-bot` | worker | `telegram_bot.py` (SOLARIS Network) |
+
+Set `DATABASE_URL`, `TELEGRAM_BOT_TOKEN`, `OPENCODE_API_KEY`, `SENTRY_DSN` as
+secret env vars in the Render dashboard (marked `sync: false` in the config).
+The bot uses `SOLARIS_API_URL` (defaults to the Render URL) for `/travel`
+location sync. Static hosting (PWA build only) lives on Surge:
+`npm run deploy:surge` → **https://solar-system-3d.surge.sh**
 
 ### Remote Access (localhost.run tunnel)
 
@@ -204,10 +230,10 @@ upcoming.
 | **React 18** + **TypeScript** | UI framework |
 | **Three.js** / **@react-three/fiber** / **@react-three/drei** | 3D rendering (R3F) |
 | **postprocessing** | Bloom, visual effects |
-| **Zustand** | State management |
+| **Zustand** | State management (`stores/` — camera-focus, cinematic-mode, performance, simulation) |
 | **Tailwind CSS** | Styling (HUD) |
 | **Vite** | Build tool / dev server |
-| **GLSL** (via `vite-plugin-glsl`) | Custom shaders |
+| **vite-plugin-pwa** | PWA manifest + service worker (offline support) |
 
 ### Backend
 | Technology | Purpose |
@@ -231,9 +257,9 @@ upcoming.
 | Technology | Purpose |
 |------------|---------|
 | **PostgreSQL** (Neon) | Primary database |
-| **Docker** / **docker-compose** | Containerized deployment |
+| **Render** | Production hosting — web + FastAPI + Telegram bot (https://solar-system-0mqx.onrender.com) |
 | **GitHub Actions** | CI/CD |
-| **Netlify** / **Cloudflare Workers** | Static hosting / serverless |
+| **Surge** | Static hosting (https://solar-system-3d.surge.sh) |
 | **Vitest** | Unit testing |
 
 ---
@@ -318,7 +344,9 @@ The tour starts with a 10s solar-system establishing shot (wide orbit at distanc
 
 > **Note:** The Canvas uses `frameloop="demand"` — every `useFrame`/animation
 > callback must call `state.invalidate()` or the scene freezes. `Planet`,
-> `OrbitalBody`, `CinematicTour`, and `FocusCamera` all do this.
+> `OrbitalBody`, `CinematicTour`, and `FocusCamera` all do this. When paused
+> (speed 0, no tour), glows/stars/orbital groups skip `invalidate()` so the
+> scene truly freezes (`stores/simulation.ts`).
 >
 > See [`AGENTS.md`](AGENTS.md) for AI API endpoints, database schema, CI/CD,
 > GLB asset references, spacecraft details, and known issues.
@@ -330,74 +358,77 @@ The tour starts with a 10s solar-system establishing shot (wide orbit at distanc
 ```
 solar-system/
 ├── client/                          # React + Vite frontend
-│   ├── index.html
+│   ├── index.html                   # PWA meta tags, viewport-fit=cover, safe-area
 │   ├── public/
 │   │   ├── models/                  # 29 GLB files (sun, planets, asteroids, spacecraft)
 │   │   ├── sounds/                  # Background music & SFX
-│   │   ├── draco/                   # Draco WASM decoder
+│   │   ├── draco/                   # Draco WASM decoder (copied by copy-draco.sh)
 │   │   ├── fonts/
+│   │   ├── icons/                   # PWA icons (192/512 + maskable)
 │   │   ├── CNAME
-│   │   ├── _redirects
 │   │   ├── privacy.html
 │   │   └── terms.html
 │   ├── src/
-│   │   ├── main.tsx                 # Entry point
-│   │   ├── App.tsx
+│   │   ├── main.tsx                 # Entry (Sentry init, PWA registration)
+│   │   ├── App.tsx                  # Router, lazy SolarSystem, ModelPreview, web vitals
 │   │   ├── index.css
-│   │   ├── components/solar-system/ # R3F scene components
-│   │   │   ├── SolarSystem.tsx      # Canvas + scene orchestrator
-│   │   │   ├── Planet.tsx           # GLB loader + orbital/spin logic
-│   │   │   ├── CinematicTour.tsx    # Camera animation state machine
-│   │   │   ├── OrbitalBody.tsx      # Parent-relative moon/spacecraft positioning
-│   │   │   ├── FocusCamera.tsx      # Camera lerp via zustand
-│   │   │   ├── OrbitRings.tsx       # Merged orbit lines + astronomy-engine positions
-│   │   │   ├── InstancedStars.tsx   # Star field
-│   │   │   ├── AIClassificationPanel.tsx
-│   │   │   ├── AtmosphereGlow.tsx
-│   │   │   ├── BodyDetailModal.tsx
-│   │   │   ├── BodySearch.tsx
-│   │   │   ├── CustomBodyModal.tsx
-│   │   │   ├── DebugPanel.tsx
-│   │   │   ├── EnhancedDataExplorer.tsx
-│   │   │   ├── FilmGrainOverlay.tsx
-│   │   │   ├── LoadingSpinner.tsx
-│   │   │   ├── NebulaBackground.tsx
-│   │   │   ├── ScaleControl.tsx
-│   │   │   ├── SunGlow.tsx
-│   │   │   └── bodies.ts           # Body configuration data
-│   │   ├── assets/solar/           # .glb.asset.json pointers (one per model)
-│   │   ├── hooks/                  # useCustomBodies, useAIClassification, ... 
-│   │   ├── lib/                    # astronomy-positions, kepler, lod-manager, custom-bodies...
-│   │   ├── stores/                 # Zustand stores (camera-focus, cinematic-mode)
-│   │   └── test/                   # Vitest unit tests (185)
+│   │   ├── components/
+│   │   │   ├── ModelPreview.tsx     # ?model= GLB studio preview
+│   │   │   └── solar-system/        # R3F scene components (see Architecture above)
+│   │   │       ├── SolarSystem.tsx  # Canvas + scene orchestrator
+│   │   │       ├── Planet.tsx       # GLB loader + orbital/spin logic
+│   │   │       ├── CinematicTour.tsx
+│   │   │       ├── OrbitalBody.tsx  # Parent-relative moon/spacecraft positioning
+│   │   │       ├── FocusCamera.tsx
+│   │   │       ├── OrbitRings.tsx
+│   │   │       ├── InstancedStars.tsx
+│   │   │       ├── PerformanceMonitor.tsx        # DOM overlay (reads store)
+│   │   │       ├── PerformanceMetricsProbe.tsx   # R3F probe (writes store)
+│   │   │       ├── KeyboardShortcutsModal.tsx
+│   │   │       └── bodies.ts        # Body configuration data
+│   │   ├── assets/solar/            # .glb.asset.json pointers (one per model)
+│   │   ├── hooks/                   # useAIClassification, useCustomBodies,
+│   │   │                            # useKeyboardNavigation, usePerformance (R3F-only)
+│   │   ├── lib/                     # astronomy-positions, kepler, lod-manager,
+│   │   │                            # custom-bodies, procedural-textures, glow-textures,
+│   │   │                            # draco-setup, sentry, web-vitals, utils, config
+│   │   ├── stores/                  # Zustand stores (camera-focus, cinematic-mode,
+│   │   │                            # performance, simulation)
+│   │   └── test/                    # Vitest unit tests (185)
+│   │   └── vite-env.d.ts
 ├── server/                          # Express backend (:5000)
-│   ├── app.ts
-│   ├── db.ts                       # Drizzle + Postgres (Neon)
-│   ├── routes.ts                   # AI API, CRUD endpoints
-│   ├── index-dev.ts                # Dev server (Vite middleware)
-│   └── index-prod.ts               # Production server
+│   ├── app.ts                       # setup + PORT env (no reusePort)
+│   ├── config.ts                    # env validation (DATABASE_URL required)
+│   ├── db.ts                        # Drizzle + Postgres (Neon)
+│   ├── routes.ts                    # AI API, bodies CRUD, player location
+│   ├── logger.ts                    # pino
+│   ├── sentry.ts                    # server-side Sentry
+│   ├── index-dev.ts                 # Dev server (Vite middleware)
+│   └── index-prod.ts                # Production server
 ├── shared/
-│   └── schema.ts                   # Drizzle DB schema (6 tables, see AGENTS.md)
+│   └── schema.ts                    # Drizzle DB schema (6 tables, see AGENTS.md)
 ├── spaceAI/                         # Python ML service (:8000) + Telegram bot
-│   ├── api.py                      # FastAPI app
-│   ├── run.py                      # CLI entry point
-│   ├── telegram_bot.py             # Telegram station-AI bot (SOLARIS Network)
-│   ├── venv/                       # Local venv — python deps live here (gitignored)
+│   ├── api.py                       # FastAPI app
+│   ├── run.py                       # CLI entry point (serve port ← SPACEAI_PORT)
+│   ├── telegram_bot.py              # Telegram station-AI bot (SOLARIS Network)
+│   ├── validate_taxonomy.py         # Taxonomy schema validation
+│   ├── venv/                        # Local venv — python deps live here (gitignored)
 │   ├── src/
-│   │   ├── predict.py              # CelestialPredictor (RF/SVC/Ensemble)
-│   │   ├── train_model.py          # Model training
-│   │   ├── train_regression.py     # Mass/temperature regression
+│   │   ├── predict.py               # CelestialPredictor (RF/SVC/Ensemble)
+│   │   ├── train_model.py           # Model training
+│   │   ├── train_regression.py      # Mass/temperature regression
 │   │   ├── classify.py
-│   │   ├── precompute.py           # Precompute AI classifications
+│   │   ├── precompute.py            # Precompute AI classifications
 │   │   ├── cache.py
 │   │   ├── database.py
 │   │   ├── augment_data.py
 │   │   ├── recommend.py
 │   │   └── config.py
-│   ├── data/                       # Training data & AI cache
-│   ├── models/                     # Trained .pkl models
-│   ├── tests/                      # pytest suite (50 tests)
+│   ├── data/                        # Training data & AI cache
+│   ├── models/                      # Trained .pkl models + archives/ (v1–v17)
+│   ├── tests/                       # pytest suite (50 tests)
 │   ├── docs/troubleshooting.md
+│   ├── alembic/                     # Legacy SQLAlchemy migrations (superseded by Drizzle)
 │   ├── Dockerfile
 │   ├── requirements.txt
 │   └── pyproject.toml
@@ -412,8 +443,11 @@ solar-system/
 ├── scripts/                         # Build & dev tooling
 │   ├── copy-draco.sh
 │   ├── convert_nasa_model.sh
+│   ├── fetch-nasa-planets.sh
+│   ├── validate_glb.sh
+│   ├── validate_glb_files.py
 │   └── validate_models.py
-├── .github/workflows/               # CI/CD (5 workflows)
+├── .github/workflows/               # CI/CD (4 workflows: validate, validate-data, deploy, opencode)
 ├── thoughts/                        # Research & planning docs
 ├── package.json
 ├── tsconfig.json
@@ -422,7 +456,7 @@ solar-system/
 ├── tailwind.config.ts
 ├── postcss.config.js
 ├── wrangler.toml                    # Cloudflare Workers config
-├── netlify.toml
+├── render.yaml                      # Render services (web + ML + bot)
 ├── docker-compose.yml
 ├── Dockerfile.app
 ├── AGENTS.md                        # Agent reference (commands, architecture, known issues)

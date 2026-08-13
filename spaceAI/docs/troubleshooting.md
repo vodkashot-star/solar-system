@@ -43,6 +43,21 @@ print(sklearn.__version__)
 
 ## API Issues
 
+### Port already in use (EADDRINUSE on :5000)
+
+Express no longer uses `reusePort` — a stale server on the same port now
+fails loudly instead of silently sharing traffic. Find and kill the old
+process, then restart:
+
+```bash
+ps -eo pid,cmd | grep -E "index-dev|index-prod|tsx"
+kill <pid>
+npm run dev
+```
+
+FastAPI's port is configurable via the `SPACEAI_PORT` env var (default 8000)
+— if you change it, update `SPACEAI_URL` in `.env` to match.
+
 ### AI classifications not appearing (404)
 
 The Express server loads `spaceAI/data/ai_cache.json` at startup. If the file

@@ -30,7 +30,7 @@ cd spaceAI
 | `python run.py train-regression [--target mass\|temp]` | Train regressors |
 | `python run.py predict-mass --features <11 floats>` | Predict mass ± CI |
 | `python run.py predict-temperature --features <11 floats>` | Predict temperature ± CI |
-| `python run.py serve [--port <n>] [--reload]` | Start FastAPI on :8000 |
+| `python run.py serve [--port <n>] [--reload]` | Start FastAPI on :8000 (default port ← `SPACEAI_PORT` env, default 8000) |
 
 ### npm Wrappers
 
