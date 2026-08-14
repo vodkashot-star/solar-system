@@ -4,6 +4,14 @@ All notable changes. Unreleased entries are uncommitted work in progress.
 
 ## [Unreleased] — 2026-08-14
 
+### Feature: "View in Your Space" (WebXR AR + iOS AR Quick Look)
+- **Orrery mode** (`#/ar/orrery`): a miniature solar system (8 planets, 9 moons, procedural-noise sun shader, orbit rings, Saturn ring) anchored to a surface via hit-test reticle + tap-to-place; scale toggle (tabletop ~0.5 m / large 2 m), global speed slider, pause; planets/moons are shared InstancedMeshes
+- **Focus mode** (`#/ar/<bodyId>`): single body at real GLB resolution (procedural fallback while loading + Suspense), auto-spin, moons on **Keplerian** orbits (real eccentricities, `solveKepler`)
+- **Entry points**: "Orrery AR" in the top bar, "View in Your Space" in every body detail modal; PWA manifest `shortcuts` entry `/ar/orrery`
+- **iOS / no-WebXR fallback**: dynamic `<model-viewer>` (Google) with `ios-src` USDZ → AR Quick Look; 29 GLBs converted to USDZ (`client/public/models-usdz/`, served from the same jsDelivr CDN under the same commit SHA)
+- **USDZ pipeline** (`scripts/export_usdz.mjs`, `convert_usdz.sh`): gltf-transform → Draco decompress → meshopt simplify with **sloppy-collapse fallback** (meshopt's `simplify()` stalls on UV-seamed meshes like ceres) + manual buffer compaction; oversized exports (ceres 57 MB, jwst 26 MB) auto-re-collapsed under the 14 MB cap
+- **Bundling**: new `vendor_xr` async chunk for the whole @react-three/xr stack (incl. transitive FontAwesome/devui/styled-components — ~5 MB) so the WebXR code only loads on the AR pages; excluded from workbox precache (`globIgnores`)
+
 ### Scene: rendering upgrades
 - **Adaptive quality** — new `AdaptiveQuality.tsx` (inside Canvas): drei `PerformanceMonitor` samples real FPS and drives `setDpr` (1.75 → 1.0) on decline, recovering on incline; demand-loop safe (samples only rendered frames)
 - **Tone mapping** — Canvas `gl` now uses `ACESFilmicToneMapping` + exposure 1.1 (flows into the postprocessing final pass)

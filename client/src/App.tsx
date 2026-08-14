@@ -1,4 +1,4 @@
-import { lazy, Suspense, useEffect, useMemo } from "react";
+import { lazy, Suspense, useEffect, useMemo, useState } from "react";
 import * as Sentry from "@sentry/react";
 import { initDracoDecoder } from "./lib/draco-setup";
 import { initSentry } from "./lib/sentry";
@@ -9,6 +9,7 @@ import ModelPreview from "./components/ModelPreview";
 initSentry();
 
 const SolarSystem = lazy(() => import("@/components/solar-system/SolarSystem"));
+const ARPage = lazy(() => import("@/components/solar-system/ar/ARPage"));
 
 /**
  * Model-preview routing — `?model=<bodyId>` (or `#/model/<bodyId>` hash) opens
@@ -29,13 +30,65 @@ function getPreviewModelId(): string | null {
   return null;
 }
 
+/**
+ * AR routing — `#/ar/orrery` (miniature solar system) and `#/ar/<bodyId>`
+ * (single body focus) open the "View in Your Space" experience.
+ */
+function getARRoute(): { mode: "orrery" | "focus"; bodyId?: string } | null {
+  const hash = window.location.hash;
+  if (hash === "#/ar/orrery") return { mode: "orrery" };
+  if (hash.startsWith("#/ar/")) {
+    try {
+      return { mode: "focus", bodyId: decodeURIComponent(hash.slice("#/ar/".length)) };
+    } catch {
+      return { mode: "focus", bodyId: hash.slice("#/ar/".length) };
+    }
+  }
+  return null;
+}
+
 function App() {
+  // Re-evaluate hash routes on navigation so browser back/forward re-renders.
+  const [hashTick, setHashTick] = useState(0);
+  useEffect(() => {
+    const onHash = () => setHashTick((t) => t + 1);
+    window.addEventListener("hashchange", onHash);
+    return () => window.removeEventListener("hashchange", onHash);
+  }, []);
+
   useEffect(() => {
     initDracoDecoder();
     reportWebVitals();
   }, []);
 
-  const previewModelId = useMemo(getPreviewModelId, []);
+  const arRoute = useMemo(getARRoute, [hashTick]);
+  const previewModelId = useMemo(getPreviewModelId, [hashTick]);
+
+  if (arRoute) {
+    return (
+      <Suspense
+        fallback={
+          <div
+            style={{
+              width: "100vw",
+              height: "100dvh",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              background: "#02030a",
+              color: "#ffffff",
+              fontSize: "0.9rem",
+              opacity: 0.5,
+            }}
+          >
+            Loading AR scene…
+          </div>
+        }
+      >
+        <ARPage mode={arRoute.mode} bodyId={arRoute.bodyId} />
+      </Suspense>
+    );
+  }
 
   if (previewModelId) {
     return <ModelPreview id={previewModelId} />;

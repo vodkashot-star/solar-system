@@ -6,6 +6,35 @@ import { visualizer } from "rollup-plugin-visualizer";
 import { sentryVitePlugin } from "@sentry/vite-plugin";
 import { VitePWA } from "vite-plugin-pwa";
 
+// Packages pulled in only by the lazy AR page (@react-three/xr stack + its
+// transitive deps) — routed to vendor_xr so they load on demand and never
+// inflate the eagerly-loaded vendor_shared chunk.
+const XR_PACKAGES = new Set([
+  "@react-three/xr",
+  "@pmndrs/xr",
+  "@pmndrs/pointer-events",
+  "@pmndrs/handle",
+  "iwer",
+  "@iwer/devui",
+  "@iwer/sem",
+  "meshline",
+  "suspend-react",
+  "tunnel-rat",
+  "gl-matrix",
+  "@fortawesome/fontawesome-svg-core",
+  "@fortawesome/free-solid-svg-icons",
+  "@fortawesome/react-fontawesome",
+  "@fortawesome/fontawesome-common-types",
+  "styled-components",
+  "@emotion/is-prop-valid",
+  "@emotion/memoize",
+  "camelize",
+  "case-anything",
+  "css-color-keywords",
+  "css-to-react-native",
+  "stylis",
+]);
+
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
@@ -60,6 +89,22 @@ export default defineConfig({
         orientation: 'any',
         scope: '/',
         start_url: '/',
+        shortcuts: [
+          {
+            name: 'Orrery in Your Space',
+            short_name: 'Orrery AR',
+            description: 'Place a miniature solar system in your room with WebXR',
+            url: '/#/ar/orrery',
+            icons: [
+              {
+                src: '/icons/pwa-192x192.png',
+                sizes: '192x192',
+                type: 'image/png',
+                purpose: 'any'
+              }
+            ]
+          }
+        ],
         icons: [
           {
             src: '/icons/pwa-192x192.png',
@@ -93,6 +138,9 @@ export default defineConfig({
       workbox: {
         // Precache all static assets
         globPatterns: ['**/*.{js,css,html,woff,woff2}'],
+        // The AR page (vendor_xr + ARPage) loads on demand only — don't
+        // precache it (5 MB WebXR stack would stall install for every client).
+        globIgnores: ['**/vendor_xr-*.js', '**/ARPage-*.js'],
         
         // Cache GLB models and Draco WASM files separately
         runtimeCaching: [
@@ -238,6 +286,12 @@ export default defineConfig({
             
             // State management
             if (/node_modules[\\/]zustand[\\/]/.test(id)) return 'vendor_state';
+            
+            // WebXR stack (only pulled in by the lazy AR page). Includes the
+            // full transitive set — controller icons (FontAwesome), the Quest
+            // emulator devui (styled-components + friends), gl-matrix, iwer.
+            const xrPkg = id.match(/node_modules[\\/]((?:@[^\\/]+[\\/])?[^\\/]+)[\\/]/)?.[1];
+            if (xrPkg && XR_PACKAGES.has(xrPkg)) return 'vendor_xr';
             
             // Everything else
             return 'vendor_shared';

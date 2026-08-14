@@ -354,6 +354,15 @@ export default function SolarSystem() {
             >
               ?
             </button>
+            <a
+              href="#/ar/orrery"
+              className="min-h-[44px] rounded-full border border-amber-400/30 bg-amber-400/10 px-4 py-2 text-[10px] font-semibold text-amber-200/90 backdrop-blur-md transition-all duration-200 hover:bg-amber-400/20 hover:text-amber-100 hover:scale-105 active:scale-95 sm:text-xs"
+              aria-label="View the solar system in augmented reality"
+              title="Orrery in Your Space (WebXR)"
+            >
+              <span className="hidden xs:inline">Orrery AR</span>
+              <span className="xs:hidden">AR</span>
+            </a>
           </div>
           <div className="pointer-events-auto flex flex-wrap items-center justify-end gap-2">
             <ScaleControl currentMode={scaleMode} onModeChange={setScaleMode} compact />

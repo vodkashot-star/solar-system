@@ -111,6 +111,15 @@ export default function BodyDetailModal({ body, onClose, positions, onDeleteCust
                 <span className="xs:hidden">3D</span>
               </a>
             )}
+            <a
+              href={`#/ar/${encodeURIComponent(body.id)}`}
+              aria-label={`View ${body.name} in your space with augmented reality`}
+              title="View in Your Space (WebXR / AR Quick Look)"
+              className="min-h-[44px] flex items-center rounded-full border border-amber-400/30 bg-amber-400/10 px-4 py-2 text-xs font-semibold text-amber-200/90 transition-all duration-150 hover:bg-amber-400/20 hover:text-amber-100 active:scale-95"
+            >
+              <span className="hidden xs:inline">View in Your Space</span>
+              <span className="xs:hidden">AR</span>
+            </a>
             <button
               onClick={onClose}
               aria-label="Close details panel"

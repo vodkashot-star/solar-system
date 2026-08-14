@@ -15,6 +15,7 @@
     "test:watch": "vitest",
     "models:convert": "bash scripts/convert_nasa_model.sh",
     "models:fetch": "bash scripts/fetch-nasa-planets.sh",
+    "models:usdz": "bash scripts/convert_usdz.sh",
     "models:validate": "bash scripts/validate_glb.sh",
     "db:generate": "drizzle-kit generate",
     "db:push": "drizzle-kit push",
@@ -33,6 +34,7 @@
     "@react-three/drei": "^9.122.0",
     "@react-three/fiber": "^8.18.0",
     "@react-three/postprocessing": "^2.19.1",
+    "@react-three/xr": "^6.6.30",
     "@sentry/node": "^10.70.0",
     "@sentry/react": "^10.70.0",
     "@sentry/vite-plugin": "^5.4.0",
@@ -57,6 +59,7 @@
   },
   "devDependencies": {
     "@gltf-transform/cli": "^4.4.1",
+    "@napi-rs/canvas": "^1.0.6",
     "@tailwindcss/typography": "^0.5.20",
     "@testing-library/jest-dom": "^6.9.1",
     "@types/compression": "^1.8.1",
