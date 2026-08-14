@@ -73,9 +73,19 @@ export default function FocusCamera({ positions, computedRadii, bodies = BODIES 
 
     if (!isFocused || !targetBodyId) return;
 
-    // Read the planet's live position every frame — fixes stale snapshot bug
-    const livePos = positions.current[targetBodyId];
-    if (!livePos) return;
+    // Read the planet's live position every frame — fixes stale snapshot bug.
+    // If the body never reported a position (culled/unmounted, e.g. far out in
+    // the tour overview), fall back to its catalog orbit so the camera still
+    // flies and invalidates — returning early here strands the demand loop and
+    // leaves isFocused stuck, which also freezes CinematicTour.
+    const livePos = positions.current[targetBodyId] ?? (() => {
+      const body = bodies.find((b) => b.id === targetBodyId);
+      return body && body.orbit > 0 ? new THREE.Vector3(body.orbit, 0, 0) : undefined;
+    })();
+    if (!livePos) {
+      invalidate();
+      return;
+    }
 
     const body = bodies.find((b) => b.id === targetBodyId);
     const frameR = computedRadii.current[targetBodyId] ?? body?.visualRadius ?? 1;

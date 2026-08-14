@@ -213,12 +213,21 @@ export default function SolarSystem() {
               state.invalidate();
             };
 
+            // Browser RAFs pause in background tabs; in demand mode nothing
+            // restarts the loop on return, so the canvas stays frozen until an
+            // interaction. Resume on visibility regain.
+            const handleVisibility = () => {
+              if (document.visibilityState === "visible") state.invalidate();
+            };
+
             canvas.addEventListener('webglcontextlost', handleContextLost);
             canvas.addEventListener('webglcontextrestored', handleContextRestored);
+            document.addEventListener('visibilitychange', handleVisibility);
 
             return () => {
               canvas.removeEventListener('webglcontextlost', handleContextLost);
               canvas.removeEventListener('webglcontextrestored', handleContextRestored);
+              document.removeEventListener('visibilitychange', handleVisibility);
             };
           }}
         >

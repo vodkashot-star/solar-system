@@ -237,8 +237,8 @@ export default React.memo(function Planet({ body, onPosition, scaleMultiplier = 
     const updateFreq = lodLevel === 'culled' ? 10 : lodLevel === 'low' ? 3 : 1;
     const shouldUpdateThisFrame = frame % updateFreq === 0;
     
-    if (p && shouldUpdate && shouldUpdateThisFrame) {
-      if (!isStationary) {
+    if (p && shouldUpdate) {
+      if (!isStationary && shouldUpdateThisFrame) {
         if (ASTRONOMY_BODIES.has(body.id)) {
           const pos = getHeliocentricPosition(body.id, state.clock.elapsedTime, speedMultiplier, effectiveOrbit);
           if (pos) {
@@ -256,7 +256,8 @@ export default React.memo(function Planet({ body, onPosition, scaleMultiplier = 
           p.position.z = zOrb * Math.cos(inclRad);
         }
       }
-      // Update position for LOD calculations (mutated in place — no re-render)
+      // Position refs are refreshed on throttled frames too (cheap copies) so
+      // LOD decisions and the tour/focus cameras never chase stale positions.
       currentPosition.current.copy(p.position);
       if (onPosition) onPosition(p.position);
     }
