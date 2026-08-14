@@ -18,10 +18,13 @@ export function solveKeplerElliptic(M: number, e: number): number {
 
 /** Iterative solver for the hyperbolic Kepler equation (e > 1). */
 export function solveKeplerHyperbolic(M: number, e: number): number {
-  // Seed from the asymptotic solution H ≈ ln(2M/e). Seeding from H₀ = M
-  // (the elliptic default) diverges catastrophically once M ≳ 25 for e≈3.8
-  // (Voyager 1), sending the body off-screen as its mean anomaly grows.
-  let H = Math.log((2 * M) / e + 1);
+  // Seed from the asymptotic solution H ≈ ln(2|M|/e). For M > 0, sinh
+  // H ≈ e^H/2, so e·sinh(H) ≈ (e/2)e^H ≈ M ⇒ H ≈ ln(2M/e) (the +1 guards
+  // M → 0). The sign must follow M, because hyperbolic bodies on the inbound
+  // leg (e.g. Oumuamua at phase ≈ -1.6, e ≈ 1.2) have M < 0 and need H < 0.
+  // Seeding from H₀ = M (the elliptic default) diverges once M ≳ 25 for e≈3.8
+  // (Voyager 1), and the unsigned ln(2M/e+1) produces ln(<0) = NaN for M < 0.
+  let H = Math.sign(M) * Math.log((2 * Math.abs(M)) / e + 1);
   for (let i = 0; i < 30; i++) {
     const dH = (M - e * Math.sinh(H) + H) / (e * Math.cosh(H) - 1);
     H += dH;
