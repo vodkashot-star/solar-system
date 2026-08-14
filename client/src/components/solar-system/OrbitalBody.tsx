@@ -23,6 +23,7 @@ import * as THREE from "three";
 import type { Body } from "./bodies";
 import Planet from "./Planet";
 import { useSimulation } from "@/stores/simulation";
+import { useCinematicMode } from "@/stores/cinematic-mode";
 
 type OrbitalBodyProps = {
   body: Body;
@@ -57,6 +58,7 @@ export default React.memo(function OrbitalBody({
 }: OrbitalBodyProps) {
   const groupRef = useRef<THREE.Group>(null);
   const speed = useSimulation((s) => s.speed);
+  const cinematic = useCinematicMode((s) => s.enabled);
 
   /**
    * Build a modified body that orbits at the desired radius around origin.
@@ -80,9 +82,11 @@ export default React.memo(function OrbitalBody({
     const parentPos = parentPositionRef.current[body.parentBody ?? "sun"];
 
     if (!parentPos) {
-      // Parent not placed yet — keep hidden.
+      // Parent not placed yet — keep hidden. Only invalidate while the
+      // simulation runs: when paused, an orphaned body must not keep the
+      // demand loop alive (matches the scene-wide pause-freeze contract).
       group.visible = false;
-      state.invalidate();
+      if (speed > 0 || cinematic) state.invalidate();
       return;
     }
 

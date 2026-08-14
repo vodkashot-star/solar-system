@@ -79,7 +79,7 @@ function FocusMoon({ moon, body, orbitScale, moonRadius }: {
 
   useFrame((state) => {
     const t = state.clock.elapsedTime * speed;
-    const M = t * moon.orbitSpeed;
+    const M = (moon.phase ?? 0) + t * moon.orbitSpeed;
     const E = solveKepler(M, moon.eccentricity);
     const sqrt1me2 = Math.sqrt(1 - moon.eccentricity * moon.eccentricity);
     ref.current?.position.set(

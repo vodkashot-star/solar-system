@@ -65,7 +65,7 @@ function sampleEphemerisPoints(bodyId: string, orbitalPeriod: number, orbitRadiu
 function sampleOrbit(body: Body): number[] {
   return ASTRONOMY_BODIES.has(body.id)
     ? sampleEphemerisPoints(body.id, body.properties.orbitalPeriod, body.orbit, SEGMENTS)
-    : sampleOrbitPoints(body.orbit, body.properties.eccentricity, body.properties.inclination * Math.PI / 180, SEGMENTS);
+    : sampleOrbitPoints(body.orbit, body.eccentricity ?? body.properties.eccentricity, body.properties.inclination * Math.PI / 180, SEGMENTS);
 }
 
 /** Convert a flat polyline into flat segment pairs (6 numbers per segment). */

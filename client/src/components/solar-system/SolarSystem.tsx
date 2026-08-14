@@ -62,6 +62,9 @@ export default function SolarSystem() {
   const [shortcutsOpen, setShortcutsOpen] = useState(false);
   const positions = useRef<Record<string, THREE.Vector3>>({});
   const computedRadii = useRef<Record<string, number>>({});
+  // Bumped when a parent body reports its rendered radius so spacecraft
+  // orbitRadius props (computed from the ref) get a re-render to match.
+  const [, setRadiiVersion] = useState(0);
   const clearFocus = useCameraFocus((s) => s.clear);
   const focus = useCameraFocus((s) => s.focus);
   const fitAll = useCameraFocus((s) => s.fitAll);
@@ -176,6 +179,7 @@ export default function SolarSystem() {
 
   const reportComputedRadius = useCallback((bodyId: string, radius: number) => {
     computedRadii.current[bodyId] = radius;
+    setRadiiVersion((v) => v + 1);
   }, []);
 
   const handleHover = useCallback((bodyId: string | null) => {
@@ -276,7 +280,11 @@ export default function SolarSystem() {
               key={b.id}
               body={b}
               parentPositionRef={positions}
-              orbitRadius={b.parentBody ? (computedRadii.current[b.parentBody] ?? 1.5) * 2.2 : b.orbit}
+              // computedRadii are in effective (already scale-scaled) units, but
+              // Planet scales body.orbit by scaleMultiplier again — divide it
+              // back out so the spacecraft orbits at a fixed multiple of the
+              // parent's *rendered* radius in every scale mode.
+              orbitRadius={b.parentBody ? (((computedRadii.current[b.parentBody] ?? 1.5) * 2.2) / (scaleMultiplier || 1)) : b.orbit}
               onPosition={reportPosCallbacks[b.id]}
               scaleMultiplier={scaleMultiplier}
               onComputedRadius={reportComputedRadius}

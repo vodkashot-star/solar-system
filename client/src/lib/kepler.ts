@@ -18,8 +18,11 @@ export function solveKeplerElliptic(M: number, e: number): number {
 
 /** Iterative solver for the hyperbolic Kepler equation (e > 1). */
 export function solveKeplerHyperbolic(M: number, e: number): number {
-  let H = M;
-  for (let i = 0; i < 20; i++) {
+  // Seed from the asymptotic solution H ≈ ln(2M/e). Seeding from H₀ = M
+  // (the elliptic default) diverges catastrophically once M ≳ 25 for e≈3.8
+  // (Voyager 1), sending the body off-screen as its mean anomaly grows.
+  let H = Math.log((2 * M) / e + 1);
+  for (let i = 0; i < 30; i++) {
     const dH = (M - e * Math.sinh(H) + H) / (e * Math.cosh(H) - 1);
     H += dH;
     if (Math.abs(dH) < 1e-8) break;

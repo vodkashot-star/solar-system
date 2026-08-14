@@ -9,6 +9,8 @@ export type OrreryMoon = {
   visualRadius: number;
   /** Visual orbital speed, rad/s at speed 1 */
   orbitSpeed: number;
+  /** Initial orbital angle, radians (matches the main scene's phase) */
+  phase?: number;
   /** Axial tilt, radians */
   tilt: number;
   /** Orbital eccentricity (Keplerian focus orbits) */

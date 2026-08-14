@@ -65,6 +65,10 @@ export type Body = {
   aiAnalysis?: AIAnalysis;
   /** For spacecraft: ID of the parent body they orbit (e.g. "mars") */
   parentBody?: string;
+  /** Visual-orbit eccentricity override. Falls back to properties.eccentricity
+   *  when unset, so real astronomical data stays intact for the info panels
+   *  while the scene can exaggerate/compress orbits to fit the visual scale. */
+  eccentricity?: number;
   /** For spacecraft: mission metadata rendered in the detail modal */
   missionInfo?: MissionInfo;
 };
@@ -814,8 +818,8 @@ export const BODIES: Body[] = [
     type: "dwarfPlanet",
     name: "Ceres", 
     visualRadius: 0.3, 
-    orbit: 9.4, 
-    orbitSpeed: 0.175, 
+    orbit: 17.5, 
+    orbitSpeed: 0.085, 
     spinSpeed: 0.5, 
     tilt: 0.07, 
     phase: 0.7, 
@@ -905,8 +909,8 @@ export const BODIES: Body[] = [
     type: "asteroid",
     name: "Vesta", 
     visualRadius: 0.25, 
-    orbit: 9.0, 
-    orbitSpeed: 0.18, 
+    orbit: 17.0, 
+    orbitSpeed: 0.088, 
     spinSpeed: 0.5, 
     tilt: 0.51, 
     phase: 2.3, 
@@ -919,8 +923,8 @@ export const BODIES: Body[] = [
     type: "asteroid",
     name: "Pallas", 
     visualRadius: 0.23, 
-    orbit: 9.4, 
-    orbitSpeed: 0.175, 
+    orbit: 18.0, 
+    orbitSpeed: 0.082, 
     spinSpeed: 0.6, 
     tilt: 1.47, 
     phase: 5.1, 
@@ -933,8 +937,8 @@ export const BODIES: Body[] = [
     type: "asteroid",
     name: "Juno", 
     visualRadius: 0.2, 
-    orbit: 9.3, 
-    orbitSpeed: 0.175, 
+    orbit: 18.4, 
+    orbitSpeed: 0.080, 
     spinSpeed: 0.6, 
     tilt: 0, 
     phase: 3.8, 
@@ -947,8 +951,8 @@ export const BODIES: Body[] = [
     type: "asteroid",
     name: "Hygiea", 
     visualRadius: 0.22, 
-    orbit: 9.8, 
-    orbitSpeed: 0.17, 
+    orbit: 19.2, 
+    orbitSpeed: 0.076, 
     spinSpeed: 0.4, 
     tilt: 1.05, 
     phase: 1.9, 
@@ -961,8 +965,8 @@ export const BODIES: Body[] = [
     type: "asteroid",
     name: "Astraea", 
     visualRadius: 0.15, 
-    orbit: 9.2, 
-    orbitSpeed: 0.175, 
+    orbit: 18.8, 
+    orbitSpeed: 0.078, 
     spinSpeed: 0.3, 
     tilt: 0, 
     phase: 0.9, 
@@ -975,8 +979,8 @@ export const BODIES: Body[] = [
     type: "asteroid",
     name: "Apophis", 
     visualRadius: 0.12, 
-    orbit: 7.6, 
-    orbitSpeed: 0.2, 
+    orbit: 11.5, 
+    orbitSpeed: 0.135, 
     spinSpeed: 0.15, 
     tilt: 0, 
     phase: 4.7, 
@@ -989,8 +993,8 @@ export const BODIES: Body[] = [
     type: "asteroid",
     name: "Bennu", 
     visualRadius: 0.1, 
-    orbit: 7.8, 
-    orbitSpeed: 0.195, 
+    orbit: 11.8, 
+    orbitSpeed: 0.133, 
     spinSpeed: 0.5, 
     tilt: 3.1, 
     phase: 3.1, 
@@ -1004,8 +1008,8 @@ export const BODIES: Body[] = [
     type: "asteroid",
     name: "Itokawa", 
     visualRadius: 0.08, 
-    orbit: 8.0, 
-    orbitSpeed: 0.19, 
+    orbit: 12.2, 
+    orbitSpeed: 0.130, 
     spinSpeed: 0.3, 
     tilt: 0, 
     phase: 5.5, 
@@ -1019,8 +1023,8 @@ export const BODIES: Body[] = [
     type: "asteroid",
     name: "Eros", 
     visualRadius: 0.14, 
-    orbit: 8.1, 
-    orbitSpeed: 0.19, 
+    orbit: 13.0, 
+    orbitSpeed: 0.126, 
     spinSpeed: 0.6, 
     tilt: 1.55, 
     phase: 2.7, 
@@ -1034,8 +1038,8 @@ export const BODIES: Body[] = [
     type: "asteroid",
     name: "Psyche", 
     visualRadius: 0.18, 
-    orbit: 9.6, 
-    orbitSpeed: 0.17, 
+    orbit: 20.0, 
+    orbitSpeed: 0.073, 
     spinSpeed: 0.7, 
     tilt: 0, 
     phase: 0.6, 
@@ -1048,8 +1052,8 @@ export const BODIES: Body[] = [
     type: "asteroid",
     name: "Varda", 
     visualRadius: 0.14, 
-    orbit: 9.9, 
-    orbitSpeed: 0.165, 
+    orbit: 46.5, 
+    orbitSpeed: 0.0035, 
     spinSpeed: 0.6, 
     tilt: 0, 
     phase: 4.0, 
@@ -1069,6 +1073,10 @@ export const BODIES: Body[] = [
     tilt: 0, 
     phase: 1.2, 
     color: "#423830", 
+    // Scene override: the real 0.967 eccentricity would drive the comet's
+    // perihelion (0.81 units) through the sun's disc; 0.82 keeps perihelion
+    // (≈4.4) just outside the sun (radius 4) while staying a dramatic comet.
+    eccentricity: 0.82, 
     fact: "The most famous comet — returns every 75-76 years.",
     properties: ASTRONOMICAL_DATA.halley
   },
@@ -1077,11 +1085,14 @@ export const BODIES: Body[] = [
     type: "interstellar",
     name: "Oumuamua", 
     visualRadius: 0.08, 
-    orbit: 0, 
-    orbitSpeed: 0, 
+    // Live hyperbolic flyby — hyperbolic eccentricity (1.201) with a modest
+    // semi-major axis sweeps it through the inner system and back out again.
+    // Negative phase puts it on the inbound leg: perihelion ≈72 s in at 1×.
+    orbit: 26, 
+    orbitSpeed: 0.022, 
     spinSpeed: 0.3, 
     tilt: 0, 
-    phase: 0, 
+    phase: -1.6, 
     color: "#8c6673", 
     fact: "First known interstellar object to pass through our solar system.",
     properties: ASTRONOMICAL_DATA.oumuamua
@@ -1213,6 +1224,7 @@ export const BODIES: Body[] = [
     phase: 1.0,
     color: "#26c6da",
     glbUrl: jwstGlb.url,
+    parentBody: "earth",
     fact: "JWST observes the infrared universe from Lagrange point L2, 1.5 million km from Earth.",
     properties: ASTRONOMICAL_DATA.jwst,
     missionInfo: {
@@ -1258,6 +1270,10 @@ export const BODIES: Body[] = [
     color: "#26c6da",
     glbUrl: junoSpacecraftGlb.url,
     parentBody: "jupiter",
+    // Scene override: the real 0.972 eccentricity puts periapsis deep inside
+    // Jupiter's exaggerated disc; 0.5 keeps a dramatic ellipse that just
+    // grazes the surface (periapsis ≈ 1.1 × Jupiter radius).
+    eccentricity: 0.5,
     fact: "Juno orbits Jupiter in a highly elliptical polar orbit, studying its composition and magnetic field.",
     properties: ASTRONOMICAL_DATA.junoSpacecraft,
     missionInfo: {

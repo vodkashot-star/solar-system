@@ -196,7 +196,7 @@ export default React.memo(function Planet({ body, onPosition, scaleMultiplier = 
   const effectiveOrbit = body.orbit * scaleMultiplier;
   const effectiveRadius = body.visualRadius * (RADIUS_SCALE_MIN + RADIUS_SCALE_WEIGHT * scaleMultiplier);
   const isStationary = body.orbitSpeed === 0;
-  const e = body.properties.eccentricity;
+  const e = body.eccentricity ?? body.properties.eccentricity;
   const inclRad = body.properties.inclination * Math.PI / 180;
   const sqrt1me2 = Math.sqrt(Math.max(0, 1 - e * e));
 
@@ -261,7 +261,10 @@ export default React.memo(function Planet({ body, onPosition, scaleMultiplier = 
       currentPosition.current.copy(p.position);
       if (onPosition) onPosition(p.position);
     }
-    if (spin.current && shouldUpdate && shouldUpdateThisFrame) {
+    // Spin uses per-frame delta regardless of the LOD throttle, so distant
+    // bodies keep their true rotation speed instead of slowing to 1/3 (low)
+    // or 1/10 (culled) of the intended rate. Position solving stays throttled.
+    if (spin.current && shouldUpdate) {
       spin.current.rotation.y += body.spinSpeed * delta * speedMultiplier;
     }
     // Invalidate frame only when something is moving
