@@ -2,9 +2,9 @@ name: Validate Taxonomy Data
 
 on:
   push:
-    branches: [Master]
+    branches: [main]
   pull_request:
-    branches: [Master]
+    branches: [main]
 
 jobs:
   validate:
