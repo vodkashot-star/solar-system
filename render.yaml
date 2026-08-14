@@ -1,58 +1,40 @@
-services:
-  # Main Express backend API server
-  - type: web
-    name: solar-system-api
-    env: node
-    region: oregon
-    plan: free
-    buildCommand: npm install --include=dev && npm run build
-    startCommand: node dist/index-prod.js
-    envVars:
-      - key: NODE_ENV
-        value: production
+# Exported from Render on 2026-08-14T04:19:33Z
+version: "1"
+projects:
+- name: My project
+  environments:
+  - name: Production
+    services:
+    - type: web
+      name: solar-system-api
+      runtime: node
+      repo: https://github.com/vodkashot-star/solar-system
+      plan: free
+      envVars:
       - key: DATABASE_URL
         sync: false
-      - key: TELEGRAM_BOT_TOKEN
+      - key: NODE_ENV
         sync: false
-      - key: OPENCODE_API_KEY
+      - key: LOG_LEVEL
         sync: false
       - key: ALLOWED_ORIGIN
-        value: https://solar-system-0mqx.onrender.com
+        sync: false
       - key: SPACEAI_URL
-        value: https://solar-system-ml.onrender.com
-      - key: LOG_LEVEL
-        value: info
-      - key: SENTRY_DSN
         sync: false
-    healthCheckPath: /api/health
+      region: oregon
+      buildCommand: npm install --include=dev && npm run build
+      startCommand: node dist/index-prod.js
+      healthCheckPath: /api/health
+      autoDeployTrigger: commit
+    - type: web
+      name: solar-system-ml
+      runtime: python
+      repo: https://github.com/vodkashot-star/solar-system
+      plan: free
+      region: oregon
+      buildCommand: cd spaceAI && python -m venv venv && ./venv/bin/pip install -r
+        requirements.txt
+      startCommand: cd spaceAI && ./venv/bin/python run.py serve
+      healthCheckPath: /health
+      autoDeployTrigger: commit
 
-  # Python ML microservice (FastAPI)
-  - type: web
-    name: solar-system-ml
-    env: python
-    region: oregon
-    plan: free
-    buildCommand: cd spaceAI && python -m venv venv && ./venv/bin/pip install -r requirements.txt
-    startCommand: cd spaceAI && ./venv/bin/python run.py serve
-    envVars:
-      - key: DATABASE_URL
-        sync: false
-    healthCheckPath: /health
-
-  # Telegram bot worker (persistent)
-  - type: worker
-    name: solar-system-bot
-    env: python
-    region: oregon
-    plan: free
-    buildCommand: cd spaceAI && python -m venv venv && ./venv/bin/pip install -r requirements.txt
-    startCommand: cd spaceAI && ./venv/bin/python telegram_bot.py
-    envVars:
-      - key: TELEGRAM_BOT_TOKEN
-        sync: false
-      - key: OPENCODE_API_KEY
-        sync: false
-      - key: DATABASE_URL
-        sync: false
-      - key: SOLARIS_API_URL
-        value: https://solar-system-0mqx.onrender.com
