@@ -11,6 +11,39 @@
   "skills": {
     "paths": [".opencode/skills"]
   },
+  "mcp": {
+    "postgres": {
+      "type": "local",
+      "command": ["npx", "-y", "@yawlabs/postgres-mcp@latest"],
+      "environment": {
+        "DATABASE_URL": "{env:DATABASE_URL}"
+      },
+      "enabled": true,
+      "timeout": 30000
+    },
+    "context7": {
+      "type": "remote",
+      "url": "https://mcp.context7.com/mcp",
+      "enabled": true,
+      "timeout": 20000
+    },
+    "github": {
+      "type": "remote",
+      "url": "https://api.githubcopilot.com/mcp/",
+      "enabled": true,
+      "timeout": 20000,
+      "oauth": false,
+      "headers": {
+        "Authorization": "Bearer {file:/root/.config/opencode/github-token}"
+      }
+    },
+    "playwright": {
+      "type": "local",
+      "command": ["npx", "-y", "@playwright/mcp@latest"],
+      "enabled": true,
+      "timeout": 30000
+    }
+  },
   "permission": {
     "bash": {
       "npm run typecheck": "allow",

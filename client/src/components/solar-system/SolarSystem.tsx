@@ -1,4 +1,4 @@
-import { useRef, useState, useMemo, useCallback, useEffect, lazy, Suspense } from "react";
+import { useRef, useState, useMemo, useCallback, useEffect, lazy, Suspense, Component, type ReactNode } from "react";
 import { Canvas } from "@react-three/fiber";
 import { OrbitControls, useGLTF } from "@react-three/drei";
 import { EffectComposer, Bloom } from "@react-three/postprocessing";
@@ -40,6 +40,27 @@ const SCALE_VISUAL          = 1;
 const SCALE_HYBRID          = 0.6;
 const SCALE_REAL_SIZE       = 0.35;
 const SCALE_REAL_DISTANCE   = 0.25;
+
+// ── Post-processing error boundary ────────────────────────────────────────────
+// EffectComposer constructor reads `renderer.getContext().getContextAttributes()`,
+// which returns null on a lost WebGL context → "Cannot read properties of null
+// (reading 'alpha')". If postprocessing ever fails (lost context, unsupported
+// GPU), degrade to no bloom rather than crashing the whole scene.
+class PostFxBoundary extends Component<{ children: ReactNode }, { hasError: boolean }> {
+  state = { hasError: false };
+
+  static getDerivedStateFromError() {
+    return { hasError: true };
+  }
+
+  componentDidCatch() {
+    // No-op: fall back to the raw scene (no bloom) for this frame.
+  }
+
+  render() {
+    return this.state.hasError ? null : this.props.children;
+  }
+}
 
 // ── Camera clipping planes ────────────────────────────────────────────────────
 /** Near clip — small enough to avoid z-fighting at close approach. */
@@ -310,16 +331,18 @@ export default function SolarSystem() {
             />
           )}
 
-          {(tourOn || isFocused) && !detailBodyId && !customBodyOpen && (
-            <EffectComposer enableNormalPass={false} multisampling={0}>
-              <Bloom 
-                intensity={tourOn ? 0.9 : 0} 
-                luminanceThreshold={0.2}
-                luminanceSmoothing={0.9}
-                radius={0.8}
-                mipmapBlur 
-              />
-            </EffectComposer>
+          {!contextLost && (tourOn || isFocused) && !detailBodyId && !customBodyOpen && (
+            <PostFxBoundary>
+              <EffectComposer enableNormalPass={false} multisampling={0}>
+                <Bloom 
+                  intensity={tourOn ? 0.9 : 0} 
+                  luminanceThreshold={0.2}
+                  luminanceSmoothing={0.9}
+                  radius={0.8}
+                  mipmapBlur 
+                />
+              </EffectComposer>
+            </PostFxBoundary>
           )}
         </Canvas>
       </div>

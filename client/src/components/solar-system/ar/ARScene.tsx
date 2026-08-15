@@ -3,7 +3,7 @@ import * as THREE from "three";
 import { useFrame } from "@react-three/fiber";
 import { useXR, useXRHitTest, PointerEvents } from "@react-three/xr";
 import { useAR } from "@/stores/ar";
-import { OrrerySystem } from "./OrrerySystem";
+import { EnhancedOrrerySystem } from "./EnhancedOrrerySystem";
 import { ARFocusBody } from "./ARFocusBody";
 
 const RETICLE_RADIUS = 0.05;
@@ -81,8 +81,8 @@ export function ARScene({ mode, bodyId }: { mode: "orrery" | "focus"; bodyId?: s
       )}
 
       <group matrix={anchorMatrix} matrixAutoUpdate={false}>
-        <GroundShadow radius={scale === "large" ? 1.15 : 0.34} />
-        {mode === "orrery" ? <OrrerySystem /> : <ARFocusBody bodyId={bodyId ?? "earth"} />}
+        <GroundShadow radius={scale === "large" || scale === "outer" || scale === "deep" ? 1.15 : 0.34} />
+        {mode === "orrery" ? <EnhancedOrrerySystem /> : <ARFocusBody bodyId={bodyId ?? "earth"} />}
       </group>
     </>
   );

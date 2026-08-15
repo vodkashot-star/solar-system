@@ -25,10 +25,18 @@ export function getHeliocentricPosition(
   speedMultiplier: number,
   orbitRadius: number,
 ): { x: number; y: number; z: number } | null {
+  const days = elapsedSeconds * speedMultiplier * SIM_SPEED
+  return getHeliocentricPositionAtDays(bodyId, days, orbitRadius)
+}
+
+export function getHeliocentricPositionAtDays(
+  bodyId: string,
+  daysSinceJ2000: number,
+  orbitRadius: number,
+): { x: number; y: number; z: number } | null {
   if (!ASTRONOMY_BODIES.has(bodyId)) return null
 
-  const days = elapsedSeconds * speedMultiplier * SIM_SPEED
-  const date = new Date(REF_EPOCH.getTime() + days * SECONDS_PER_DAY * 1000)
+  const date = new Date(REF_EPOCH.getTime() + daysSinceJ2000 * SECONDS_PER_DAY * 1000)
 
   const vec = HelioVector(BODY_MAP[bodyId] as Body, date)
   const ecl = Ecliptic(vec)
